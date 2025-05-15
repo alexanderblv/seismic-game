@@ -60,20 +60,28 @@
                     if (network.chainId !== this.config.network.chainId) {
                         // Если сеть неправильная, предлагаем переключиться
                         try {
+                            // Ensure the chainId is properly formatted as hex with 0x prefix
+                            const chainIdHex = '0x' + this.config.network.chainId.toString(16);
+                            console.log("Switching to network with chainId:", chainIdHex);
+                            
                             await window.ethereum.request({
                                 method: 'wallet_switchEthereumChain',
-                                params: [{ chainId: '0x' + this.config.network.chainId.toString(16) }]
+                                params: [{ chainId: chainIdHex }]
                             });
                             
                             // Обновляем провайдер после переключения
                             this.provider = new ethers.providers.Web3Provider(window.ethereum);
                         } catch (switchError) {
+                            console.log("Switch error:", switchError);
                             // Если сеть не добавлена, предлагаем добавить
                             if (switchError.code === 4902) {
+                                const chainIdHex = '0x' + this.config.network.chainId.toString(16);
+                                console.log("Adding network with chainId:", chainIdHex);
+                                
                                 await window.ethereum.request({
                                     method: 'wallet_addEthereumChain',
                                     params: [{
-                                        chainId: '0x' + this.config.network.chainId.toString(16),
+                                        chainId: chainIdHex,
                                         chainName: this.config.network.name,
                                         nativeCurrency: {
                                             name: 'Ethereum',
@@ -84,6 +92,17 @@
                                         blockExplorerUrls: [this.config.network.explorer]
                                     }]
                                 });
+                                
+                                // Try switching again after adding
+                                try {
+                                    await window.ethereum.request({
+                                        method: 'wallet_switchEthereumChain',
+                                        params: [{ chainId: chainIdHex }]
+                                    });
+                                } catch (secondSwitchError) {
+                                    console.error("Error switching after adding:", secondSwitchError);
+                                    throw secondSwitchError;
+                                }
                                 
                                 // Обновляем провайдер после добавления сети
                                 this.provider = new ethers.providers.Web3Provider(window.ethereum);

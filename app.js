@@ -1981,6 +1981,52 @@ contract PrivateAuction {
                     await loadSeismicSDK();
                 }
                 
+                // First, try to add the Seismic network to MetaMask if it's not already added
+                if (window.ethereum) {
+                    try {
+                        // Try to switch to the Seismic network
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: '0x' + window.seismicConfig.network.chainId.toString(16) }]
+                        });
+                    } catch (switchError) {
+                        // This error code indicates that the chain has not been added to MetaMask
+                        if (switchError.code === 4902) {
+                            addToLog('info', 'Добавление сети Seismic в MetaMask...');
+                            
+                            try {
+                                await window.ethereum.request({
+                                    method: 'wallet_addEthereumChain',
+                                    params: [{
+                                        chainId: '0x' + window.seismicConfig.network.chainId.toString(16),
+                                        chainName: window.seismicConfig.network.name,
+                                        nativeCurrency: {
+                                            name: 'Ethereum',
+                                            symbol: window.seismicConfig.network.symbol,
+                                            decimals: 18
+                                        },
+                                        rpcUrls: [window.seismicConfig.network.rpcUrl],
+                                        blockExplorerUrls: [window.seismicConfig.network.explorer]
+                                    }]
+                                });
+                                
+                                // Try to switch again after adding
+                                await window.ethereum.request({
+                                    method: 'wallet_switchEthereumChain',
+                                    params: [{ chainId: '0x' + window.seismicConfig.network.chainId.toString(16) }]
+                                });
+                            } catch (addError) {
+                                addToLog('error', 'Ошибка добавления сети: ' + addError.message);
+                                throw addError;
+                            }
+                        } else {
+                            addToLog('error', 'Ошибка переключения сети: ' + switchError.message);
+                            throw switchError;
+                        }
+                    }
+                }
+                
+                // Now connect the wallet
                 const wallet = await window.seismicSDK.connect();
                 
                 if (wallet) {

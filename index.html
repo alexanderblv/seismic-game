@@ -173,6 +173,86 @@
         </div>
     </header>
 
+    <!-- New Seismic Transaction Interface -->
+    <section id="seismic-tx-interface" class="py-5">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-lg-8">
+                    <div class="card border-0 shadow">
+                        <div class="card-header bg-primary text-white">
+                            <h2 class="h4 mb-0"><i class="bi bi-send-fill me-2"></i>Отправка транзакций в Seismic</h2>
+                        </div>
+                        <div class="card-body">
+                            <!-- Wallet Connection Status -->
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <div>
+                                    <span id="wallet-status" class="badge bg-secondary">Кошелек не подключен</span>
+                                    <span id="wallet-address" class="ms-2 small text-muted"></span>
+                                </div>
+                                <div>
+                                    <button id="connect-wallet-btn" class="btn btn-primary btn-sm">
+                                        <i class="bi bi-wallet2 me-1"></i>Подключить кошелек
+                                    </button>
+                                    <a id="faucet-link" href="https://faucet-2.seismicdev.net/" target="_blank" class="btn btn-outline-secondary btn-sm ms-2" style="display: none;">
+                                        <i class="bi bi-droplet-fill me-1"></i>Получить тестовые токены
+                                    </a>
+                                </div>
+                            </div>
+
+                            <!-- Transaction Form -->
+                            <form id="tx-form">
+                                <div class="mb-3">
+                                    <label for="tx-type" class="form-label">Тип данных для шифрования</label>
+                                    <select class="form-select" id="tx-type">
+                                        <option value="suint">suint - Зашифрованное число</option>
+                                        <option value="saddress">saddress - Зашифрованный адрес</option>
+                                        <option value="sbool">sbool - Зашифрованный булев тип</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="tx-value" class="form-label">Значение</label>
+                                    <input type="text" class="form-control" id="tx-value" placeholder="Введите значение для шифрования">
+                                    <div class="form-text">Введите значение, которое будет зашифровано перед отправкой в блокчейн.</div>
+                                </div>
+                                
+                                <div class="d-grid gap-2">
+                                    <button type="button" id="encrypt-btn" class="btn btn-secondary">
+                                        <i class="bi bi-lock-fill me-1"></i>Зашифровать данные
+                                    </button>
+                                    <button type="button" id="send-tx-btn" class="btn btn-primary" disabled>
+                                        <i class="bi bi-send-fill me-1"></i>Отправить транзакцию
+                                    </button>
+                                </div>
+                            </form>
+                            
+                            <!-- Transaction Status -->
+                            <div class="mt-4">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h5 class="mb-0">Статус транзакции</h5>
+                                    <button id="clear-log-btn" class="btn btn-sm btn-outline-secondary">
+                                        <i class="bi bi-trash me-1"></i>Очистить
+                                    </button>
+                                </div>
+                                <div id="tx-status" class="border rounded p-3 bg-light" style="height: 200px; overflow-y: auto; font-family: monospace; font-size: 0.85rem;">
+                                    <div class="text-muted">Лог транзакций будет отображаться здесь...</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Encrypted Data Preview -->
+                            <div class="mt-4" id="encrypted-data-container" style="display: none;">
+                                <h5>Зашифрованные данные</h5>
+                                <div class="border rounded p-3 bg-dark text-light" style="font-family: monospace; overflow-x: auto;">
+                                    <div id="encrypted-data-preview"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <section id="hero" class="py-5 text-center position-relative">
         <div class="container">
             <div class="row align-items-center">

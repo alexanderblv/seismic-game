@@ -1,4 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Seismic Transaction Interface
+    initSeismicTransactionInterface();
+
     // Плавная прокрутка к разделам
     window.scrollToSection = function(sectionId) {
         const section = document.getElementById(sectionId);
@@ -1938,4 +1941,279 @@ contract PrivateAuction {
     
     // Вызвать инициализацию игр при загрузке страницы
     initGames();
+    
+    // Function for the new Seismic Transaction Interface
+    function initSeismicTransactionInterface() {
+        // Elements
+        const connectWalletBtn = document.getElementById('connect-wallet-btn');
+        const walletStatus = document.getElementById('wallet-status');
+        const walletAddress = document.getElementById('wallet-address');
+        const faucetLink = document.getElementById('faucet-link');
+        const txType = document.getElementById('tx-type');
+        const txValue = document.getElementById('tx-value');
+        const encryptBtn = document.getElementById('encrypt-btn');
+        const sendTxBtn = document.getElementById('send-tx-btn');
+        const txStatus = document.getElementById('tx-status');
+        const clearLogBtn = document.getElementById('clear-log-btn');
+        const encryptedDataContainer = document.getElementById('encrypted-data-container');
+        const encryptedDataPreview = document.getElementById('encrypted-data-preview');
+        
+        // Current state
+        let currentEncryptedData = null;
+        
+        // Check if all elements exist
+        if (!connectWalletBtn || !txStatus) {
+            console.warn('Some Seismic Transaction Interface elements not found');
+            return;
+        }
+        
+        // Check if SDK is loaded
+        function checkSDKLoaded() {
+            return typeof window.seismicSDK !== 'undefined';
+        }
+        
+        // Connect wallet
+        connectWalletBtn.addEventListener('click', async function() {
+            try {
+                addToLog('info', 'Подключение к кошельку...');
+                
+                if (!checkSDKLoaded()) {
+                    await loadSeismicSDK();
+                }
+                
+                const wallet = await window.seismicSDK.connect();
+                
+                if (wallet) {
+                    // Update UI
+                    walletStatus.textContent = 'Кошелек подключен';
+                    walletStatus.classList.remove('bg-secondary');
+                    walletStatus.classList.add('bg-success');
+                    
+                    // Show address
+                    walletAddress.textContent = formatAddress(wallet.address);
+                    
+                    // Show faucet link
+                    faucetLink.style.display = 'inline-block';
+                    
+                    // Enable encrypt button
+                    encryptBtn.disabled = false;
+                    
+                    addToLog('success', 'Кошелек успешно подключен: ' + wallet.address);
+                    
+                    // Try to get and display balance
+                    try {
+                        const balance = await window.seismicSDK.getBalance();
+                        addToLog('info', 'Баланс кошелька: ' + balance + ' ETH');
+                    } catch (error) {
+                        console.error('Error getting balance:', error);
+                    }
+                }
+            } catch (error) {
+                console.error('Error connecting wallet:', error);
+                addToLog('error', 'Ошибка подключения кошелька: ' + error.message);
+                
+                // Show error in UI
+                walletStatus.textContent = 'Ошибка подключения';
+                walletStatus.classList.remove('bg-secondary');
+                walletStatus.classList.add('bg-danger');
+            }
+        });
+        
+        // Load Seismic SDK if not already loaded
+        async function loadSeismicSDK() {
+            return new Promise((resolve, reject) => {
+                // Check if SDK is already loaded
+                if (checkSDKLoaded()) {
+                    resolve(window.seismicSDK);
+                    return;
+                }
+                
+                addToLog('info', 'Загрузка Seismic SDK...');
+                
+                // Load configuration
+                if (typeof seismicConfig === 'undefined') {
+                    const configScript = document.createElement('script');
+                    configScript.src = 'seismic-config.js';
+                    configScript.onload = loadSDK;
+                    configScript.onerror = () => reject(new Error('Не удалось загрузить конфигурацию'));
+                    document.head.appendChild(configScript);
+                } else {
+                    loadSDK();
+                }
+                
+                function loadSDK() {
+                    const sdkScript = document.createElement('script');
+                    sdkScript.src = 'seismic-sdk.js';
+                    sdkScript.onload = () => {
+                        addToLog('success', 'Seismic SDK успешно загружен');
+                        resolve(window.seismicSDK);
+                    };
+                    sdkScript.onerror = () => reject(new Error('Не удалось загрузить Seismic SDK'));
+                    document.head.appendChild(sdkScript);
+                }
+            });
+        }
+        
+        // Encrypt data
+        encryptBtn.addEventListener('click', async function() {
+            try {
+                const type = txType.value;
+                const value = txValue.value;
+                
+                // Validate input
+                if (!value) {
+                    addToLog('error', 'Введите значение для шифрования');
+                    return;
+                }
+                
+                // Validate input based on type
+                if (type === 'suint' && !/^\d+$/.test(value)) {
+                    addToLog('error', 'Для типа suint значение должно быть числом');
+                    return;
+                } else if (type === 'saddress' && !/^0x[a-fA-F0-9]{40}$/.test(value)) {
+                    addToLog('error', 'Для типа saddress значение должно быть адресом формата 0x...');
+                    return;
+                } else if (type === 'sbool' && !['true', 'false', '0', '1'].includes(value.toLowerCase())) {
+                    addToLog('error', 'Для типа sbool значение должно быть true/false или 1/0');
+                    return;
+                }
+                
+                addToLog('info', `Шифрование данных (${type}): ${value}...`);
+                
+                // Make sure SDK is loaded
+                if (!checkSDKLoaded()) {
+                    await loadSeismicSDK();
+                }
+                
+                // Format value based on type
+                let formattedValue;
+                if (type === 'suint') {
+                    formattedValue = Number(value);
+                } else if (type === 'sbool') {
+                    formattedValue = ['true', '1'].includes(value.toLowerCase());
+                } else {
+                    formattedValue = value;
+                }
+                
+                // Encrypt data
+                currentEncryptedData = await window.seismicSDK.encrypt(type, formattedValue);
+                
+                // Update UI
+                encryptedDataContainer.style.display = 'block';
+                encryptedDataPreview.innerHTML = `
+                    <div>Тип: <span class="text-success">${currentEncryptedData.type}</span></div>
+                    <div>Значение: <span class="text-success">${currentEncryptedData.originalValue}</span></div>
+                    <div>Зашифрованное значение: <span class="text-warning">${currentEncryptedData.encryptedValue}</span></div>
+                `;
+                
+                // Enable send button
+                sendTxBtn.disabled = false;
+                
+                addToLog('success', 'Данные успешно зашифрованы');
+            } catch (error) {
+                console.error('Error encrypting data:', error);
+                addToLog('error', 'Ошибка шифрования данных: ' + error.message);
+            }
+        });
+        
+        // Send transaction
+        sendTxBtn.addEventListener('click', async function() {
+            try {
+                if (!currentEncryptedData) {
+                    addToLog('error', 'Сначала зашифруйте данные');
+                    return;
+                }
+                
+                addToLog('info', 'Отправка транзакции в Seismic...');
+                
+                // Make sure SDK is loaded
+                if (!checkSDKLoaded()) {
+                    await loadSeismicSDK();
+                }
+                
+                // Send transaction
+                const result = await window.seismicSDK.sendTransaction(currentEncryptedData);
+                
+                // Update UI
+                addToLog('success', `Транзакция успешно отправлена!`);
+                addToLog('info', `Хеш транзакции: ${result.hash || result.txHash}`);
+                
+                // Add link to explorer
+                const txHash = result.hash || result.txHash;
+                const explorerLink = document.createElement('a');
+                explorerLink.href = `${window.seismicConfig.network.explorer}/tx/${txHash}`;
+                explorerLink.target = '_blank';
+                explorerLink.textContent = 'Открыть в обозревателе блоков';
+                explorerLink.className = 'text-primary';
+                
+                txStatus.appendChild(document.createElement('br'));
+                txStatus.appendChild(explorerLink);
+                
+                // Reset form
+                txValue.value = '';
+                currentEncryptedData = null;
+                sendTxBtn.disabled = true;
+                encryptedDataContainer.style.display = 'none';
+            } catch (error) {
+                console.error('Error sending transaction:', error);
+                addToLog('error', 'Ошибка отправки транзакции: ' + error.message);
+            }
+        });
+        
+        // Clear log
+        clearLogBtn.addEventListener('click', function() {
+            txStatus.innerHTML = '<div class="text-muted">Лог транзакций будет отображаться здесь...</div>';
+        });
+        
+        // Helper function to add message to log
+        function addToLog(type, message) {
+            const log = document.createElement('div');
+            log.className = 'log-entry';
+            
+            const timestamp = new Date().toLocaleTimeString();
+            let icon, color;
+            
+            switch (type) {
+                case 'info':
+                    icon = 'bi-info-circle';
+                    color = 'text-primary';
+                    break;
+                case 'success':
+                    icon = 'bi-check-circle';
+                    color = 'text-success';
+                    break;
+                case 'error':
+                    icon = 'bi-exclamation-triangle';
+                    color = 'text-danger';
+                    break;
+                default:
+                    icon = 'bi-circle';
+                    color = 'text-muted';
+            }
+            
+            log.innerHTML = `
+                <span class="text-muted">[${timestamp}]</span>
+                <i class="bi ${icon} ${color}"></i>
+                <span class="${color}">${message}</span>
+            `;
+            
+            if (txStatus.firstChild && txStatus.firstChild.classList && txStatus.firstChild.classList.contains('text-muted')) {
+                txStatus.innerHTML = '';
+            }
+            
+            txStatus.appendChild(log);
+            txStatus.scrollTop = txStatus.scrollHeight;
+        }
+        
+        // Helper function to format address
+        function formatAddress(address) {
+            if (!address) return '';
+            return address.slice(0, 6) + '...' + address.slice(-4);
+        }
+        
+        // Initialize (check if SDK is already loaded)
+        if (checkSDKLoaded()) {
+            addToLog('info', 'Seismic SDK уже загружен');
+        }
+    }
 }); 

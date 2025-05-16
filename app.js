@@ -217,56 +217,106 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Connect wallet
+    // Обновленная функция подключения кошелька с использованием WalletConnect
     async function connectWallet() {
         try {
-            // Отключаем кнопку во время подключения
+            // Предотвращаем многократные клики
             connectWalletBtn.disabled = true;
             loadingOverlay.classList.remove('d-none');
-            loadingText.textContent = 'Connecting wallet...';
+            loadingText.textContent = 'Подключение кошелька...';
             
-            // Set the flag that connection process has started
+            console.log('Инициируем подключение кошелька через WalletConnect...');
+            
+            // Флаг для отслеживания, был ли инициирован процесс подключения
             walletConnectInitiated = true;
-            
-            const wallet = await seismic.connect();
-            
-            if (wallet) {
-                // Update UI to show connected state
-                connectWalletBtn.textContent = 'Connected';
-                connectWalletBtn.classList.remove('btn-primary');
-                connectWalletBtn.classList.add('btn-success');
+
+            // Проверяем, установлен ли MetaMask или другой провайдер, поддерживающий Ethereum
+            if (window.ethereum) {
+                try {
+                    // Запрашиваем аккаунты у пользователя
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    
+                    if (accounts && accounts.length > 0) {
+                        // Подключаем кошелек через SDK
+                        const wallet = await seismic.connect();
+                        
+                        if (wallet) {
+                            // Обновляем UI, чтобы показать статус подключения
+                            connectWalletBtn.textContent = 'Connected';
+                            connectWalletBtn.classList.remove('btn-primary');
+                            connectWalletBtn.classList.add('btn-success');
+                            
+                            // Показываем адрес пользователя
+                            const shortAddress = `${wallet.address.substring(0, 6)}...${wallet.address.substring(wallet.address.length - 4)}`;
+                            walletAddress.textContent = shortAddress;
+                            walletAddress.classList.remove('d-none');
+                            userAddressInput.value = wallet.address;
+                            
+                            // Обновляем статус сети
+                            networkBadge.textContent = seismicConfig.network.name;
+                            networkBadge.classList.remove('bg-secondary');
+                            networkBadge.classList.add('bg-success');
+                            
+                            // Обновляем статус подключения
+                            connectionStatus.textContent = 'Connected';
+                            connectionStatus.classList.remove('bg-secondary');
+                            connectionStatus.classList.add('bg-success');
+                            
+                            // Получаем и отображаем баланс
+                            refreshBalance();
+                            
+                            console.log('Кошелек успешно подключен:', wallet.address);
+                            showSuccess('Кошелек успешно подключен!');
+                        } else {
+                            throw new Error('Не удалось получить информацию о кошельке');
+                        }
+                    } else {
+                        throw new Error('Пользователь не предоставил доступ к аккаунтам');
+                    }
+                } catch (error) {
+                    console.error('Ошибка подключения через window.ethereum:', error);
+                    showError('Ошибка подключения кошелька. Пожалуйста, проверьте ваш MetaMask и попробуйте снова.');
+                }
+            } else {
+                // Если MetaMask не установлен, предлагаем пользователю скачать его
+                console.log('MetaMask не установлен');
                 
-                // Show user address
-                const shortAddress = `${wallet.address.substring(0, 6)}...${wallet.address.substring(wallet.address.length - 4)}`;
-                walletAddress.textContent = shortAddress;
-                walletAddress.classList.remove('d-none');
-                userAddressInput.value = wallet.address;
+                // Показываем модальное окно с информацией о том, как установить MetaMask
+                const modalTitle = document.getElementById('tx-details-modal-label');
+                const modalContent = document.getElementById('tx-details-content');
                 
-                // Update network status
-                networkBadge.textContent = seismicConfig.network.name;
-                networkBadge.classList.remove('bg-secondary');
-                networkBadge.classList.add('bg-success');
-                
-                // Update connection status
-                connectionStatus.textContent = 'Connected';
-                connectionStatus.classList.remove('bg-secondary');
-                connectionStatus.classList.add('bg-success');
-                
-                // Get and display balance
-                refreshBalance();
-                
-                console.log('Wallet connected successfully:', wallet.address);
-                
-                // Reset the flag since connection completed successfully
-                walletConnectInitiated = false;
+                if (modalTitle && modalContent) {
+                    modalTitle.textContent = 'Wallet Not Detected';
+                    modalContent.innerHTML = `
+                        <div class="alert alert-warning">
+                            <p><strong>MetaMask не обнаружен.</strong> Чтобы использовать эту функцию, вам необходимо:</p>
+                            <ol>
+                                <li>Установить <a href="https://metamask.io/download/" target="_blank" class="alert-link">MetaMask</a></li>
+                                <li>Создать или импортировать кошелек</li>
+                                <li>Обновить эту страницу и попробовать снова</li>
+                            </ol>
+                            <p class="mb-0">Также вы можете использовать другие кошельки, поддерживающие Web3 и WalletConnect.</p>
+                        </div>
+                        <div class="mt-3">
+                            <a href="https://metamask.io/download/" target="_blank" class="btn btn-primary">
+                                <i class="bi bi-download me-2"></i>Установить MetaMask
+                            </a>
+                        </div>
+                    `;
+                    
+                    const txDetailsModal = new bootstrap.Modal(document.getElementById('tx-details-modal'));
+                    txDetailsModal.show();
+                } else {
+                    alert('Для использования этого приложения вам необходимо установить MetaMask или другой совместимый кошелек!');
+                }
             }
         } catch (error) {
-            console.error('Failed to connect wallet:', error);
-            showError('Failed to connect wallet. Please make sure you have MetaMask installed and try again.');
-            // Keep the flag set if there was an error, as the user might approve in MetaMask after the error
+            console.error('Ошибка подключения кошелька:', error);
+            showError('Произошла ошибка при подключении кошелька');
         } finally {
             connectWalletBtn.disabled = false;
             loadingOverlay.classList.add('d-none');
+            walletConnectInitiated = false;
         }
     }
     

@@ -104,8 +104,8 @@
                     <div class="card-body">
                         <form id="transaction-form">
                             <div class="mb-3">
-                                <label for="recipient-address" class="form-label">Recipient Address</label>
-                                <input type="text" class="form-control" id="recipient-address" placeholder="0x...">
+                                <label for="recipient-address" class="form-label">Recipient Address (Optional)</label>
+                                <input type="text" class="form-control" id="recipient-address" placeholder="0x... (leave empty to send to your own wallet)">
                             </div>
                             <div class="mb-3">
                                 <label for="amount" class="form-label">Amount (ETH)</label>
@@ -145,6 +145,11 @@
                         </p>
                         
                         <form id="encrypted-types-form">
+                            <div class="mb-3">
+                                <label for="encrypted-recipient-address" class="form-label">Recipient Address (Optional)</label>
+                                <input type="text" class="form-control" id="encrypted-recipient-address" placeholder="0x... (leave empty to send to your own wallet)">
+                            </div>
+                            
                             <div class="mb-3">
                                 <label for="encrypted-type" class="form-label">Data Type</label>
                                 <select class="form-select" id="encrypted-type">
@@ -232,6 +237,7 @@
                                             <th>Tx Hash</th>
                                             <th>Recipient</th>
                                             <th>Value</th>
+                                            <th>Encryption</th>
                                             <th>Status</th>
                                             <th>Date</th>
                                             <th>Actions</th>

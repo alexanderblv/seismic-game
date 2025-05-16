@@ -48,6 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Encrypted Types Form Elements
     const encryptedTypeSelect = document.getElementById('encrypted-type');
+    const encryptedRecipientAddressInput = document.getElementById('encrypted-recipient-address');
     const suintInputGroup = document.getElementById('suint-input-group');
     const saddressInputGroup = document.getElementById('saddress-input-group');
     const sboolInputGroup = document.getElementById('sbool-input-group');
@@ -350,8 +351,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const useEncryption = enableEncryptionToggle.checked;
         const encryptedData = encryptedDataInput.value.trim();
         
+        // Use own wallet address if recipient is empty
+        const finalRecipientAddress = recipientAddress || seismic.wallet.address;
+        
         // Validate inputs
-        if (!ethers.utils.isAddress(recipientAddress)) {
+        if (!ethers.utils.isAddress(finalRecipientAddress)) {
             showError('Please enter a valid Ethereum address');
             return;
         }
@@ -370,7 +374,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Prepare transaction data
             let txData = {
-                to: recipientAddress,
+                to: finalRecipientAddress,
                 value: amountWei
             };
             
@@ -396,11 +400,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const txRecord = {
                 hash: tx.hash,
                 from: seismic.wallet.address,
-                to: recipientAddress,
+                to: finalRecipientAddress,
                 value: amount,
                 valueWei: amountWei.toString(),
                 useEncryption: useEncryption,
                 encryptedData: useEncryption && encryptedData ? encryptedData : null,
+                isSelfTransaction: finalRecipientAddress === seismic.wallet.address,
                 status: 'pending',
                 timestamp: Date.now(),
                 network: seismicConfig.network.name,
@@ -490,10 +495,24 @@ document.addEventListener('DOMContentLoaded', () => {
             const txDate = new Date(tx.timestamp);
             const formattedDate = txDate.toLocaleString();
             
-            // Add encryption indicator if applicable
-            const valueDisplay = tx.useEncryption ? 
-                `<span class="text-nowrap">${tx.value} ETH <i class="bi bi-shield-lock text-success" title="Encrypted Transaction"></i></span>` : 
-                `${tx.value} ETH`;
+            // Build encryption info display
+            let encryptionDisplay = tx.useEncryption ? 
+                (tx.encryptedType ? 
+                    `<span class="badge bg-success">
+                        <i class="bi bi-shield-lock me-1"></i>${tx.encryptedType}
+                    </span>` : 
+                    `<span class="badge bg-success">
+                        <i class="bi bi-shield-lock me-1"></i>Encrypted
+                    </span>`) : 
+                '<span class="badge bg-secondary">None</span>';
+            
+            // Self transaction indicator
+            const addressDisplay = tx.isSelfTransaction ? 
+                `${shortToAddress} <i class="bi bi-arrow-repeat text-muted" title="Self Transaction"></i>` : 
+                shortToAddress;
+            
+            // Value display
+            const valueDisplay = `${tx.value} ETH`;
             
             // Create row with click handler for details
             row.classList.add('transaction-row');
@@ -504,8 +523,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${tx.hash.substring(0, 10)}...
                     </a>
                 </td>
-                <td>${shortToAddress}</td>
+                <td>${addressDisplay}</td>
                 <td>${valueDisplay}</td>
+                <td>${encryptionDisplay}</td>
                 <td>${statusBadge}</td>
                 <td>${formattedDate}</td>
                 <td>
@@ -579,10 +599,14 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             
             if (tx.encryptedType) {
+                const typeDescription = getEncryptedTypeDescription(tx.encryptedType);
                 encryptedSection += `
                     <tr>
                         <th>Encrypted Type</th>
-                        <td><code>${tx.encryptedType}</code></td>
+                        <td>
+                            <span class="badge bg-info">${tx.encryptedType}</span>
+                            <small class="text-muted d-block mt-1">${typeDescription}</small>
+                        </td>
                     </tr>
                 `;
             }
@@ -607,6 +631,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <i class="bi bi-clipboard"></i>
                                 </button>
                             </div>
+                            <small class="text-muted d-block mt-1">This data is encrypted and can only be decrypted by authorized parties</small>
                         </td>
                     </tr>
                 `;
@@ -851,19 +876,20 @@ document.addEventListener('DOMContentLoaded', () => {
             loadingOverlay.classList.remove('d-none');
             loadingText.textContent = 'Preparing encrypted transaction...';
             
-            // Get recipient address from UI
-            const recipientAddress = recipientAddressInput.value.trim();
+            // Get recipient address from UI or use own address if empty
+            const recipientAddress = encryptedRecipientAddressInput.value.trim();
+            const finalRecipientAddress = recipientAddress || seismic.wallet.address;
             
             // Validate inputs
-            if (!ethers.utils.isAddress(recipientAddress)) {
-                showError('Please enter a valid Ethereum address in the Send Transaction form');
+            if (!ethers.utils.isAddress(finalRecipientAddress)) {
+                showError('Please enter a valid Ethereum address');
                 loadingOverlay.classList.add('d-none');
                 return;
             }
                 
             // Prepare transaction data with encrypted field
             let txData = {
-                to: recipientAddress, // Use the recipient address from the Send Transaction form
+                to: finalRecipientAddress,
                 value: ethers.utils.parseEther('0'), // No ETH value for encrypted transactions for simplicity
                 encryptedData: currentEncryptedData
             };
@@ -895,13 +921,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const txRecord = {
                 hash: tx.hash,
                 from: seismic.wallet.address,
-                to: recipientAddress,
+                to: finalRecipientAddress,
                 value: '0',
                 valueWei: '0',
                 useEncryption: true,
                 encryptedType: type,
                 encryptedData: currentEncryptedData.encryptedValue,
                 originalValue: originalValue,
+                isSelfTransaction: finalRecipientAddress === seismic.wallet.address,
                 status: 'pending',
                 timestamp: Date.now(),
                 network: seismicConfig.network.name,
@@ -1076,4 +1103,18 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Update transaction history UI
     updateTransactionHistory();
-}); 
+});
+
+// Helper function to get description of encrypted type
+function getEncryptedTypeDescription(type) {
+    switch (type) {
+        case 'suint':
+            return 'Seismic Unsigned Integer - An encrypted version of a standard uint type';
+        case 'saddress':
+            return 'Seismic Address - An encrypted version of an Ethereum address';
+        case 'sbool':
+            return 'Seismic Boolean - An encrypted version of a true/false value';
+        default:
+            return 'Unknown encrypted type';
+    }
+} 

@@ -1,199 +1,174 @@
-// Простая и надежная реализация подключения кошельков через Web3Modal
+// Modern implementation for Web3Modal v3
 (function() {
-    // Содержит инстанс Web3Modal
-    let web3Modal;
-    
-    // Содержит выбранный провайдер и интерфейс Web3
-    let provider;
-    let web3;
+    // Global variables
+    let web3modal;
+    let web3modalProvider;
     let selectedAccount;
+    let web3;
     
-    // Настройка UI элементов
+    // UI elements
     const connectButton = document.getElementById('connect-wallet');
     const walletAddress = document.getElementById('wallet-address');
     const networkBadge = document.getElementById('network-badge');
     const connectionStatus = document.getElementById('connection-status');
     
-    // Инициализирует Web3Modal при загрузке
+    // Initialize Web3Modal
     async function init() {
-        console.log("Инициализация Web3Modal");
+        console.log("Initializing Web3Modal v3");
         
         try {
-            // Проверяем доступность Web3Modal
-            if (typeof Web3Modal === 'undefined') {
-                console.error("Web3Modal не найден. Убедитесь, что библиотека подключена.");
+            // Check if Web3Modal library is loaded
+            if (typeof window.Web3Modal === 'undefined') {
+                console.error("Web3Modal v3 not found. Make sure the library is loaded.");
                 return;
             }
             
-            // Настраиваем доступные провайдеры
-            const providerOptions = getProviderOptions();
-            console.log("Доступные провайдеры:", Object.keys(providerOptions));
-            
-            // Создаем экземпляр Web3Modal
-            web3Modal = new Web3Modal({
-                cacheProvider: true, // Запоминаем выбор пользователя
-                providerOptions: providerOptions,
-                disableInjectedProvider: false, // Важно: не отключать инжектированные провайдеры
-                theme: "dark",
+            // Create Web3Modal instance
+            web3modal = new window.Web3Modal.default({
+                walletConnectProjectId: "27e484dcd9e3efcfd25a83a78777cdf1",
+                chain: {
+                    id: 5124,
+                    name: "Seismic Devnet",
+                    rpcUrl: "https://node-2.seismicdev.net/rpc"
+                },
+                showQrModal: true,
+                themeMode: "dark",
+                explorerRecommendedWalletIds: ["c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96", "4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0"]
             });
             
-            console.log("Web3Modal инициализирован:", web3Modal);
+            console.log("Web3Modal initialized");
             
-            // Если есть кешированный провайдер, подключаемся автоматически
-            if (web3Modal.cachedProvider) {
-                console.log("Обнаружен кешированный провайдер:", web3Modal.cachedProvider);
+            // Setup event listeners
+            web3modal.subscribeModal(state => {
+                console.log("Modal state changed:", state.open);
+            });
+            
+            // Setup connect button
+            if (connectButton) {
+                connectButton.addEventListener('click', () => {
+                    if (selectedAccount) {
+                        disconnect();
+                    } else {
+                        connect();
+                    }
+                });
+            }
+            
+            // Check if we have a cached provider
+            if (localStorage.getItem('walletConnected') === 'true') {
+                console.log("Found cached connection, attempting to reconnect");
                 connect();
             }
+            
         } catch (error) {
-            console.error("Ошибка инициализации Web3Modal:", error);
+            console.error("Error initializing Web3Modal:", error);
         }
     }
     
-    // Получает конфигурацию доступных провайдеров
-    function getProviderOptions() {
-        const providerOptions = {};
-        
-        // WalletConnect
-        if (typeof WalletConnectProvider !== 'undefined') {
-            console.log("WalletConnectProvider доступен, добавляем его в options");
-            providerOptions.walletconnect = {
-                package: WalletConnectProvider,
-                options: {
-                    infuraId: "27e484dcd9e3efcfd25a83a78777cdf1", // Используем публичный ключ
-                    rpc: {
-                        5124: "https://node-2.seismicdev.net/rpc"
-                    },
-                    chainId: 5124
-                }
-            };
-        } else {
-            console.warn("WalletConnectProvider недоступен");
-        }
-        
-        // Coinbase Wallet
-        if (typeof CoinbaseWalletSDK !== 'undefined') {
-            console.log("CoinbaseWalletSDK доступен, добавляем его в options");
-            providerOptions.coinbasewallet = {
-                package: CoinbaseWalletSDK,
-                options: {
-                    appName: "Seismic Transaction Sender",
-                    rpc: "https://node-2.seismicdev.net/rpc",
-                    chainId: 5124
-                }
-            };
-        } else {
-            console.warn("CoinbaseWalletSDK недоступен");
-        }
-        
-        // Fortmatic
-        if (typeof Fortmatic !== 'undefined') {
-            console.log("Fortmatic доступен, добавляем его в options");
-            providerOptions.fortmatic = {
-                package: Fortmatic,
-                options: {
-                    key: "pk_test_391E26A3B43A3350"
-                }
-            };
-        } else {
-            console.warn("Fortmatic недоступен");
-        }
-        
-        return providerOptions;
-    }
-    
-    // Функция подключения кошелька
+    // Connect to wallet
     async function connect() {
-        console.log("Запуск подключения к кошельку");
         try {
-            provider = await web3Modal.connect();
-            console.log("Провайдер подключен:", provider);
+            console.log("Connecting wallet...");
             
-            // Создаем экземпляр Web3 с полученным провайдером
-            web3 = new Web3(provider);
-            console.log("Web3 инициализирован:", web3);
+            // Open Web3Modal
+            const connection = await web3modal.connect();
+            web3modalProvider = connection.provider;
             
-            // Получаем список аккаунтов
+            // Create Web3 instance
+            web3 = new Web3(web3modalProvider);
+            console.log("Web3 instance created:", web3);
+            
+            // Get accounts
             const accounts = await web3.eth.getAccounts();
-            console.log("Доступные аккаунты:", accounts);
+            console.log("Connected accounts:", accounts);
             
             if (accounts.length === 0) {
-                console.error("Аккаунты не найдены");
-                return;
+                throw new Error("No accounts found");
             }
             
             selectedAccount = accounts[0];
-            console.log("Выбран аккаунт:", selectedAccount);
+            console.log("Selected account:", selectedAccount);
             
-            // Обновляем интерфейс
+            // Cache connection
+            localStorage.setItem('walletConnected', 'true');
+            
+            // Update UI
             updateUI();
             
-            // Подписываемся на события провайдера
+            // Setup provider events
             setupProviderEvents();
             
-            // Отправляем событие подключения
+            // Dispatch connection event
             const connectEvent = new CustomEvent('walletConnected', { 
                 detail: { 
                     account: selectedAccount,
-                    provider: provider,
+                    provider: web3modalProvider,
                     web3: web3
                 } 
             });
             document.dispatchEvent(connectEvent);
             
+            return true;
         } catch (error) {
-            console.error("Ошибка подключения кошелька:", error);
+            console.error("Error connecting wallet:", error);
+            
+            // Show user-friendly error
+            alert("Failed to connect wallet. Please make sure you have a compatible wallet installed and try again.");
+            return false;
         }
     }
     
-    // Функция отключения кошелька
+    // Disconnect wallet
     async function disconnect() {
-        console.log("Отключение кошелька");
-        
-        // Если провайдер поддерживает метод отключения
-        if (provider && provider.close) {
-            try {
-                await provider.close();
-                console.log("Провайдер закрыт");
-            } catch (e) {
-                console.error("Ошибка закрытия провайдера:", e);
+        try {
+            console.log("Disconnecting wallet...");
+            
+            // Clear cached connection
+            localStorage.removeItem('walletConnected');
+            
+            // If provider has disconnect method, call it
+            if (web3modalProvider && typeof web3modalProvider.disconnect === 'function') {
+                await web3modalProvider.disconnect();
             }
+            
+            // Reset variables
+            web3modalProvider = null;
+            web3 = null;
+            selectedAccount = null;
+            
+            // Update UI
+            updateUIDisconnected();
+            
+            // Dispatch disconnection event
+            document.dispatchEvent(new Event('walletDisconnected'));
+            
+            return true;
+        } catch (error) {
+            console.error("Error disconnecting wallet:", error);
+            return false;
         }
-        
-        // Очищаем кеш провайдера
-        await web3Modal.clearCachedProvider();
-        console.log("Кеш провайдера очищен");
-        
-        // Сбрасываем переменные
-        provider = null;
-        web3 = null;
-        selectedAccount = null;
-        
-        // Обновляем интерфейс
-        updateUIDisconnected();
-        
-        // Отправляем событие отключения
-        document.dispatchEvent(new Event('walletDisconnected'));
     }
     
-    // Настройка обработчиков событий для провайдера
+    // Setup provider events
     function setupProviderEvents() {
-        if (!provider || !provider.on) {
-            console.warn("Провайдер не поддерживает события");
+        if (!web3modalProvider || !web3modalProvider.on) {
+            console.warn("Provider doesn't support events");
             return;
         }
         
-        // Обработка смены аккаунта
-        provider.on("accountsChanged", (accounts) => {
-            console.log("Аккаунты изменены:", accounts);
+        // Account changed event
+        web3modalProvider.on("accountsChanged", (accounts) => {
+            console.log("Accounts changed:", accounts);
+            
             if (accounts.length === 0) {
-                // Если аккаунты пусты, пользователь отключился
+                // User disconnected
                 disconnect();
             } else {
-                // Обновляем выбранный аккаунт
+                // Update selected account
                 selectedAccount = accounts[0];
                 updateUI();
                 
-                // Отправляем событие изменения аккаунта
+                // Dispatch account changed event
                 const event = new CustomEvent('accountChanged', { 
                     detail: { account: selectedAccount } 
                 });
@@ -201,35 +176,36 @@
             }
         });
         
-        // Обработка смены сети
-        provider.on("chainChanged", (chainId) => {
-            console.log("Сеть изменена:", chainId);
-            // Обновляем UI с новой информацией о сети
+        // Chain changed event
+        web3modalProvider.on("chainChanged", (chainId) => {
+            console.log("Chain changed:", chainId);
+            
+            // Update network info
             updateNetworkInfo();
             
-            // Отправляем событие смены сети
+            // Dispatch network changed event
             const event = new CustomEvent('networkChanged', { 
                 detail: { chainId: chainId } 
             });
             document.dispatchEvent(event);
         });
         
-        // Обработка отключения
-        provider.on("disconnect", (error) => {
-            console.log("Провайдер отключен:", error);
+        // Disconnect event
+        web3modalProvider.on("disconnect", (error) => {
+            console.log("Provider disconnected:", error);
             disconnect();
         });
     }
     
-    // Обновление интерфейса при подключении
-    async function updateUI() {
+    // Update UI when connected
+    function updateUI() {
         if (!selectedAccount) return;
         
         try {
-            // Показываем адрес кошелька
+            // Show wallet address with icon
             const shortAddress = `${selectedAccount.substring(0, 6)}...${selectedAccount.substring(selectedAccount.length - 4)}`;
             
-            // Определяем тип кошелька и добавляем соответствующую иконку
+            // Determine wallet type
             let walletIcon = '';
             const providerName = getProviderName();
             
@@ -247,62 +223,60 @@
                     walletIcon = '<i class="bi bi-wallet2 me-1" title="Web3 Wallet"></i>';
             }
             
-            // Обновляем адрес с иконкой
+            // Update address with icon
             walletAddress.innerHTML = walletIcon + shortAddress;
             walletAddress.classList.remove('d-none');
             
-            // Обновляем кнопку на "Отключить"
+            // Update button to "Disconnect"
             connectButton.innerHTML = '<i class="bi bi-wallet2"></i> Disconnect';
             connectButton.classList.remove('btn-primary');
             connectButton.classList.add('btn-danger');
-            connectButton.onclick = disconnect;
             
-            // Обновляем статус подключения
+            // Update connection status
             connectionStatus.textContent = 'Connected';
             connectionStatus.classList.remove('bg-secondary');
             connectionStatus.classList.add('bg-success');
             
-            // Обновляем информацию о сети
+            // Update network info
             updateNetworkInfo();
             
         } catch (error) {
-            console.error("Ошибка обновления UI:", error);
+            console.error("Error updating UI:", error);
         }
     }
     
-    // Обновление интерфейса при отключении
+    // Update UI when disconnected
     function updateUIDisconnected() {
-        // Сбрасываем кнопку на исходное состояние
+        // Reset button to initial state
         connectButton.innerHTML = '<i class="bi bi-wallet2"></i> Connect Wallet';
         connectButton.classList.remove('btn-danger');
         connectButton.classList.add('btn-primary');
-        connectButton.onclick = connect;
         
-        // Скрываем адрес
+        // Hide address
         walletAddress.textContent = 'Connect your wallet';
         walletAddress.classList.add('d-none');
         
-        // Обновляем статус подключения
+        // Update connection status
         connectionStatus.textContent = 'Not Connected';
         connectionStatus.classList.remove('bg-success');
         connectionStatus.classList.add('bg-secondary');
         
-        // Обновляем badge сети
+        // Update network badge
         networkBadge.textContent = 'Not Connected';
         networkBadge.classList.remove('bg-success');
         networkBadge.classList.add('bg-secondary');
     }
     
-    // Обновление информации о сети
+    // Update network information
     async function updateNetworkInfo() {
         if (!web3) return;
         
         try {
-            // Получаем ID сети
+            // Get network ID
             const chainId = await web3.eth.getChainId();
-            console.log("Текущий chainId:", chainId);
+            console.log("Current chainId:", chainId);
             
-            // Определяем название сети
+            // Determine network name
             let networkName;
             if (chainId === 5124) {
                 networkName = "Seismic devnet";
@@ -316,48 +290,46 @@
             
             networkBadge.textContent = networkName;
         } catch (error) {
-            console.error("Ошибка получения информации о сети:", error);
+            console.error("Error getting network info:", error);
             networkBadge.textContent = 'Error';
             networkBadge.classList.remove('bg-success', 'bg-secondary');
             networkBadge.classList.add('bg-danger');
         }
     }
     
-    // Определение типа провайдера
+    // Get provider name
     function getProviderName() {
-        if (!provider) return 'Unknown';
+        if (!web3modalProvider) return 'Unknown';
         
-        if (provider.isMetaMask) {
+        if (web3modalProvider.isMetaMask) {
             return 'MetaMask';
-        } else if (provider.isCoinbaseWallet) {
+        } else if (web3modalProvider.isCoinbaseWallet) {
             return 'Coinbase';
-        } else if (provider.isWalletConnect) {
+        } else if (web3modalProvider.isWalletConnect) {
             return 'WalletConnect';
-        } else if (provider.isTrust) {
+        } else if (web3modalProvider.isTrust) {
             return 'Trust Wallet';
-        } else if (window.ethereum && window.ethereum.isFortmatic) {
-            return 'Fortmatic';
         } else {
             return 'Web3';
         }
     }
     
-    // Получение текущего подключенного аккаунта
+    // Get selected account
     function getSelectedAccount() {
         return selectedAccount;
     }
     
-    // Получение текущего веб3 провайдера
+    // Get Web3 instance
     function getWeb3() {
         return web3;
     }
     
-    // Получение текущего провайдера
+    // Get provider
     function getProvider() {
-        return provider;
+        return web3modalProvider;
     }
     
-    // Экспортируем API для использования в других частях приложения
+    // Export API
     window.WalletConnector = {
         init,
         connect,
@@ -367,24 +339,9 @@
         getProvider
     };
     
-    // Инициализируем при загрузке страницы
+    // Initialize on page load
     document.addEventListener('DOMContentLoaded', () => {
-        console.log("DOM загружен, инициализация WalletConnector");
-        
-        // Устанавливаем обработчик для кнопки подключения
-        if (connectButton) {
-            connectButton.addEventListener('click', () => {
-                if (selectedAccount) {
-                    disconnect();
-                } else {
-                    connect();
-                }
-            });
-        } else {
-            console.error("Кнопка подключения не найдена!");
-        }
-        
-        // Инициализируем Web3Modal
+        console.log("DOM loaded, initializing WalletConnector");
         init();
     });
 })(); 

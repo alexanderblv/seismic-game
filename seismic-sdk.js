@@ -187,52 +187,53 @@
                 // Вместо использования демо-контракта с неверной контрольной суммой,
                 // отправляем небольшое количество эфира на адрес пользователя
                 // Адрес получателя - это адрес самого пользователя
-                const recipientAddress = address;
+                const recipientAddress = data.to || address;
                 
                 // Создаем транзакцию - без поля data для обычного адреса
                 const tx = {
                     to: recipientAddress,
-                    value: ethers.utils.parseEther("0.0001"), // Отправляем минимальное количество эфира
+                    value: data.value || ethers.utils.parseEther("0.0001"), // Отправляем минимальное количество эфира
                     gasLimit: ethers.utils.hexlify(100000) // Устанавливаем лимит газа для транзакции
                 };
                 
                 // Сохраняем данные в консоль для демонстрации (в реальном приложении они были бы в data)
                 console.log("Зашифрованные данные транзакции (не отправляются):", JSON.stringify(data));
                 
-                console.log("Подготовленная транзакция:", tx);
-                
                 // Отправляем транзакцию
                 const transaction = await signer.sendTransaction(tx);
                 console.log("Транзакция отправлена:", transaction.hash);
                 
-                // Ожидаем подтверждения транзакции (1 подтверждение)
-                const receipt = await transaction.wait(1);
-                console.log("Транзакция подтверждена:", receipt);
+                // Ожидаем подтверждения транзакции
+                console.log("Ожидание подтверждения транзакции...");
+                const receipt = await transaction.wait();
+                console.log("Транзакция подтверждена в блоке", receipt.blockNumber);
                 
-                return receipt;
+                return transaction;
             } catch (error) {
-                console.error("Ошибка при отправке транзакции:", error);
-                console.log("Подробная информация об ошибке:", error.message);
-                if (error.code) console.log("Код ошибки:", error.code);
-                if (error.reason) console.log("Причина ошибки:", error.reason);
+                console.error("Ошибка отправки транзакции:", error);
                 throw error;
             }
         }
         
-        // Получение баланса кошелька
+        // Получение баланса адреса
         async getBalance(address) {
             try {
                 if (!this.isInitialized) {
                     await this.initialize();
                 }
                 
-                const targetAddress = address || (this.wallet ? this.wallet.address : null);
-                if (!targetAddress) {
-                    throw new Error("Адрес не указан и кошелек не подключен");
+                if (!address && this.wallet) {
+                    address = this.wallet.address;
                 }
                 
-                const balance = await this.provider.getBalance(targetAddress);
-                return ethers.utils.formatEther(balance);
+                if (!address) {
+                    throw new Error("Адрес не указан");
+                }
+                
+                const balance = await this.provider.getBalance(address);
+                console.log("Баланс:", ethers.utils.formatEther(balance), "ETH");
+                
+                return balance;
             } catch (error) {
                 console.error("Ошибка получения баланса:", error);
                 throw error;
@@ -240,16 +241,6 @@
         }
     }
     
-    // Создаем экземпляр SDK и экспортируем его
-    const seismicSDK = new SeismicSDK();
-    
-    // Делаем SDK доступным глобально
-    if (typeof window !== 'undefined') {
-        window.seismicSDK = seismicSDK;
-    }
-    
-    // Для использования как модуля Node.js
-    if (typeof module !== 'undefined' && module.exports) {
-        module.exports = seismicSDK;
-    }
+    // Экспортируем класс SeismicSDK в глобальное пространство имен
+    window.SeismicSDK = SeismicSDK;
 })(); 

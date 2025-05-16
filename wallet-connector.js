@@ -55,20 +55,13 @@
     // Initialize Web3Modal
     function initWeb3Modal() {
         try {
-            // Загружаем последнюю версию Web3Modal
-            Promise.all([
-                loadScript('https://unpkg.com/web3modal@1.9.12/dist/index.js'),
-                loadScript('https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js'),
-                loadScript('https://unpkg.com/evm-chains@0.2.0/dist/umd/index.min.js'),
-                loadScript('https://unpkg.com/@coinbase/wallet-sdk@3.6.3/dist/index.js')
-            ])
-            .then(() => {
-                setupWeb3Modal();
-            })
-            .catch(err => {
-                console.error("Failed to load Web3Modal dependencies:", err);
-                alert("Не удалось загрузить Web3Modal. Пожалуйста, обновите страницу.");
-            });
+            // Простая проверка - если Web3Modal не доступен, выход
+            if (typeof Web3Modal === 'undefined') {
+                console.error("Web3Modal не найден, убедитесь что скрипты подключены правильно");
+                return;
+            }
+            
+            setupWeb3Modal();
         } catch (error) {
             console.error("Error initializing Web3Modal:", error);
         }
@@ -86,51 +79,35 @@
                     package: window.WalletConnectProvider.default,
                     options: {
                         rpc: {
-                            5124: 'https://node-2.seismicdev.net/rpc'
+                            5124: 'https://node-2.seismicdev.net/rpc',
+                            1: 'https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161'
                         },
-                        chainId: 5124,
-                        bridge: 'https://bridge.walletconnect.org'
-                    }
-                };
-            }
-            
-            // Coinbase Wallet
-            if (window.CoinbaseWalletSDK) {
-                console.log("Coinbase Wallet SDK found, adding to options");
-                providerOptions.coinbasewallet = {
-                    package: window.CoinbaseWalletSDK,
-                    options: {
-                        appName: "Seismic Transaction Sender",
-                        rpc: 'https://node-2.seismicdev.net/rpc',
                         chainId: 5124
                     }
                 };
             }
 
-            // Создаем экземпляр Web3Modal
+            // Отключаем Coinbase, так как он может конфликтовать с другими кошельками
+            // Определяем опции Web3Modal, делаем более простыми
             web3Modal = new Web3Modal.default({
-                cacheProvider: false, // We manage our own cache
+                cacheProvider: false,
                 providerOptions,
-                disableInjectedProvider: false, // Включаем все инжектируемые провайдеры (MetaMask, Rabby и т.д.)
+                disableInjectedProvider: false,
                 theme: "dark"
             });
             
-            console.log("Web3Modal initialized with options:", providerOptions);
-            console.log("Available providers:", web3Modal.providerController.providers);
+            // Выведем все доступные провайдеры
+            if (web3Modal && web3Modal.providerController) {
+                const availableProviders = web3Modal.providerController.providers;
+                console.log("Available providers:", availableProviders);
+                
+                // Перечислим названия доступных провайдеров
+                const providerNames = availableProviders.map(p => p.name || p.id || "Unknown");
+                console.log("Provider names:", providerNames);
+            }
         } catch (error) {
             console.error("Failed to setup Web3Modal:", error);
         }
-    }
-    
-    // Load script dynamically
-    function loadScript(src) {
-        return new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = src;
-            script.onload = resolve;
-            script.onerror = reject;
-            document.head.appendChild(script);
-        });
     }
     
     // Connect wallet
@@ -143,39 +120,26 @@
             
             // Make sure Web3Modal is initialized
             if (!web3Modal) {
-                console.log("Web3Modal not initialized yet, waiting...");
-                await new Promise(resolve => {
-                    const maxAttempts = 10;
-                    let attempts = 0;
-                    
-                    const checkInterval = setInterval(() => {
-                        attempts++;
-                        console.log(`Checking if Web3Modal is initialized (attempt ${attempts}/${maxAttempts})...`);
-                        
-                        if (web3Modal) {
-                            clearInterval(checkInterval);
-                            console.log("Web3Modal is now initialized.");
-                            resolve();
-                        } else if (attempts >= maxAttempts) {
-                            clearInterval(checkInterval);
-                            console.error("Timed out waiting for Web3Modal initialization.");
-                            throw new Error("Timed out waiting for Web3Modal to initialize");
-                        }
-                    }, 500);
-                });
+                console.error("Web3Modal is not initialized");
+                throw new Error("Web3Modal not initialized");
             }
             
             console.log("Opening Web3Modal...");
             
             // Open Web3Modal to let user choose a wallet
-            provider = await web3Modal.connect();
+            provider = await web3Modal.connect()
+                .catch(error => {
+                    console.log("User rejected modal or connection:", error);
+                    connecting = false;
+                    throw error; // Перебрасываем ошибку для правильной обработки
+                });
             
             if (!provider) {
                 console.error("No provider selected from Web3Modal");
                 throw new Error("Failed to connect - no provider selected");
             }
             
-            console.log("Provider connected:", provider);
+            console.log("Provider connected successfully:", provider);
             
             // Setup Web3
             web3 = new Web3(provider);
@@ -216,7 +180,6 @@
             return { success: true, account: selectedAccount };
         } catch (error) {
             console.error("Failed to connect wallet:", error);
-            connecting = false;
             return { success: false, error: error };
         } finally {
             connecting = false;
@@ -257,53 +220,57 @@
     function setupEventListeners() {
         if (!provider) return;
         
-        // Handle account changes
-        provider.on('accountsChanged', (accounts) => {
-            console.log("Accounts changed:", accounts);
+        try {
+            // Handle account changes
+            provider.on('accountsChanged', (accounts) => {
+                console.log("Accounts changed:", accounts);
+                
+                if (accounts.length === 0) {
+                    // User disconnected their wallet
+                    disconnect();
+                } else {
+                    // Update selected account
+                    selectedAccount = accounts[0];
+                    
+                    // Save to localStorage
+                    localStorage.setItem('connectedAccount', selectedAccount);
+                    
+                    // Update UI
+                    updateUI();
+                    
+                    // Dispatch account changed event
+                    const event = new CustomEvent('accountChanged', {
+                        detail: { account: selectedAccount }
+                    });
+                    document.dispatchEvent(event);
+                }
+            });
             
-            if (accounts.length === 0) {
-                // User disconnected their wallet
-                disconnect();
-            } else {
-                // Update selected account
-                selectedAccount = accounts[0];
+            // Handle chain/network changes
+            provider.on('chainChanged', (chainId) => {
+                console.log("Chain changed:", chainId);
                 
-                // Save to localStorage
-                localStorage.setItem('connectedAccount', selectedAccount);
+                // Update network info
+                updateNetworkInfo();
                 
-                // Update UI
-                updateUI();
-                
-                // Dispatch account changed event
-                const event = new CustomEvent('accountChanged', {
-                    detail: { account: selectedAccount }
+                // Dispatch chain changed event
+                const event = new CustomEvent('networkChanged', {
+                    detail: { chainId }
                 });
                 document.dispatchEvent(event);
-            }
-        });
-        
-        // Handle chain/network changes
-        provider.on('chainChanged', (chainId) => {
-            console.log("Chain changed:", chainId);
-            
-            // Update network info
-            updateNetworkInfo();
-            
-            // Dispatch chain changed event
-            const event = new CustomEvent('networkChanged', {
-                detail: { chainId }
+                
+                // Reload the page to ensure all data is fresh
+                // window.location.reload();
             });
-            document.dispatchEvent(event);
             
-            // Reload the page to ensure all data is fresh
-            // window.location.reload();
-        });
-        
-        // Handle disconnect
-        provider.on('disconnect', (error) => {
-            console.log("Provider disconnected", error);
-            disconnect();
-        });
+            // Handle disconnect
+            provider.on('disconnect', (error) => {
+                console.log("Provider disconnected", error);
+                disconnect();
+            });
+        } catch (error) {
+            console.error("Error setting up event listeners:", error);
+        }
     }
     
     // Update UI when connected

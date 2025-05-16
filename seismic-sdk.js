@@ -98,7 +98,9 @@
                 const result = await window.WalletConnector.connect();
                 
                 console.log("Результат подключения кошелька:", result);
-                if (!result || !result.success) {
+                
+                // Проверяем результат, но также проверяем, установлен ли аккаунт даже если result undefined
+                if ((!result || !result.success) && !window.WalletConnector.getSelectedAccount()) {
                     const errorMessage = result && result.error ? result.error.message : "Неизвестная ошибка";
                     console.error("Ошибка подключения через WalletConnector:", errorMessage);
                     throw new Error(`Не удалось подключить кошелек через WalletConnector: ${errorMessage}`);

@@ -21,61 +21,140 @@
             id: 'metamask',
             name: 'MetaMask',
             logo: 'https://raw.githubusercontent.com/MetaMask/brand-resources/master/SVG/metamask-fox.svg',
-            check: () => window.ethereum && window.ethereum.isMetaMask,
+            check: () => {
+                return window.ethereum && (window.ethereum.isMetaMask || 
+                       (window.ethereum.providers && 
+                        window.ethereum.providers.some(p => p.isMetaMask)));
+            },
             connect: async () => {
-                if (!window.ethereum || !window.ethereum.isMetaMask) {
-                    throw new Error('MetaMask is not installed');
+                if (!window.ethereum) {
+                    throw new Error('No Ethereum provider found');
                 }
                 
-                return window.ethereum;
+                // If we have multiple providers, try to find MetaMask
+                if (window.ethereum.providers) {
+                    const metaMaskProvider = window.ethereum.providers.find(p => p.isMetaMask);
+                    if (metaMaskProvider) return metaMaskProvider;
+                }
+                
+                // Otherwise use the main provider if it has MetaMask
+                if (window.ethereum.isMetaMask) {
+                    return window.ethereum;
+                }
+                
+                throw new Error('MetaMask is not installed');
             }
         },
         {
             id: 'rabby',
             name: 'Rabby',
             logo: 'https://rabby.io/assets/rabby-logo.svg',
-            check: () => window.ethereum && window.ethereum.isRabby,
+            check: () => {
+                return window.ethereum && (window.ethereum.isRabby || 
+                       (window.ethereum.providers && 
+                        window.ethereum.providers.some(p => p.isRabby)));
+            },
             connect: async () => {
-                if (!window.ethereum || !window.ethereum.isRabby) {
-                    throw new Error('Rabby is not installed');
+                if (!window.ethereum) {
+                    throw new Error('No Ethereum provider found');
                 }
                 
-                return window.ethereum;
+                // If we have multiple providers, try to find Rabby
+                if (window.ethereum.providers) {
+                    const rabbyProvider = window.ethereum.providers.find(p => p.isRabby);
+                    if (rabbyProvider) return rabbyProvider;
+                }
+                
+                // Otherwise use the main provider if it has Rabby
+                if (window.ethereum.isRabby) {
+                    return window.ethereum;
+                }
+                
+                throw new Error('Rabby is not installed');
             }
         },
         {
             id: 'coinbase',
             name: 'Coinbase Wallet',
             logo: 'https://avatars.githubusercontent.com/u/18060234',
-            check: () => window.ethereum && (window.ethereum.isCoinbaseWallet || window.ethereum.isCoinbaseBrowser),
+            check: () => {
+                return window.ethereum && (
+                    window.ethereum.isCoinbaseWallet || 
+                    window.ethereum.isCoinbaseBrowser ||
+                    (window.ethereum.providers && 
+                     window.ethereum.providers.some(p => p.isCoinbaseWallet || p.isCoinbaseBrowser))
+                );
+            },
             connect: async () => {
-                if (!window.ethereum || !(window.ethereum.isCoinbaseWallet || window.ethereum.isCoinbaseBrowser)) {
-                    throw new Error('Coinbase Wallet is not installed');
+                if (!window.ethereum) {
+                    throw new Error('No Ethereum provider found');
                 }
                 
-                return window.ethereum;
+                // If we have multiple providers, try to find Coinbase
+                if (window.ethereum.providers) {
+                    const coinbaseProvider = window.ethereum.providers.find(
+                        p => p.isCoinbaseWallet || p.isCoinbaseBrowser
+                    );
+                    if (coinbaseProvider) return coinbaseProvider;
+                }
+                
+                // Otherwise use the main provider if it's Coinbase
+                if (window.ethereum.isCoinbaseWallet || window.ethereum.isCoinbaseBrowser) {
+                    return window.ethereum;
+                }
+                
+                throw new Error('Coinbase Wallet is not installed');
             }
         },
         {
             id: 'binance',
             name: 'Binance Wallet',
             logo: 'https://public.bnbstatic.com/static/images/common/favicon.ico',
-            check: () => window.ethereum && window.ethereum.isBinanceChain,
+            check: () => {
+                return window.ethereum && (
+                    window.ethereum.isBinanceChain ||
+                    (window.ethereum.providers && 
+                     window.ethereum.providers.some(p => p.isBinanceChain))
+                );
+            },
             connect: async () => {
-                if (!window.ethereum || !window.ethereum.isBinanceChain) {
-                    throw new Error('Binance Wallet is not installed');
+                if (!window.ethereum) {
+                    throw new Error('No Ethereum provider found');
                 }
                 
-                return window.ethereum;
+                // If we have multiple providers, try to find Binance
+                if (window.ethereum.providers) {
+                    const binanceProvider = window.ethereum.providers.find(p => p.isBinanceChain);
+                    if (binanceProvider) return binanceProvider;
+                }
+                
+                // Otherwise use the main provider if it's Binance
+                if (window.ethereum.isBinanceChain) {
+                    return window.ethereum;
+                }
+                
+                throw new Error('Binance Wallet is not installed');
             }
         },
         {
             id: 'walletconnect',
             name: 'WalletConnect',
             logo: 'https://avatars.githubusercontent.com/u/37784886',
-            check: () => !!window.WalletConnectProvider,
+            check: () => !!window.WalletConnectProvider || window.ethereum?.isWalletConnect,
             connect: async () => {
                 try {
+                    // First check if WalletConnect is available via injected provider
+                    if (window.ethereum && window.ethereum.isWalletConnect) {
+                        return window.ethereum;
+                    }
+                    
+                    // If we have multiple providers, try to find WalletConnect 
+                    if (window.ethereum && window.ethereum.providers) {
+                        const wcProvider = window.ethereum.providers.find(p => p.isWalletConnect);
+                        if (wcProvider) return wcProvider;
+                    }
+                    
+                    // Fall back to WalletConnectProvider
                     if (!window.WalletConnectProvider) {
                         throw new Error('WalletConnect provider is not loaded');
                     }
@@ -139,6 +218,26 @@
                     showWalletSelector();
                 }
             });
+            
+            // Log ethereum provider info
+            if (window.ethereum) {
+                console.log("Ethereum provider found:", window.ethereum);
+                console.log("Provider properties:", Object.keys(window.ethereum));
+                console.log("isMetaMask:", window.ethereum.isMetaMask);
+                console.log("isRabby:", window.ethereum.isRabby);
+                
+                // Check for multiple providers
+                if (window.ethereum.providers) {
+                    console.log("Multiple providers found:", window.ethereum.providers);
+                    window.ethereum.providers.forEach((p, i) => {
+                        console.log(`Provider ${i} properties:`, Object.keys(p));
+                        console.log(`Provider ${i} isMetaMask:`, p.isMetaMask);
+                        console.log(`Provider ${i} isRabby:`, p.isRabby);
+                    });
+                }
+            } else {
+                console.log("No Ethereum provider found in window");
+            }
             
             // Check if we're already connected from localStorage
             const savedAccount = localStorage.getItem('connectedAccount');
@@ -305,7 +404,7 @@
                 throw new Error(`Failed to connect to ${walletProvider.name}`);
             }
             
-            console.log(`Connected to ${walletProvider.name}`);
+            console.log(`Connected to ${walletProvider.name}`, provider);
             
             // Setup Web3
             web3 = new Web3(provider);
@@ -315,6 +414,40 @@
             const accounts = await web3.eth.getAccounts();
             
             if (!accounts || accounts.length === 0) {
+                // Try directly with provider if web3.eth.getAccounts fails
+                try {
+                    console.log("Trying alternative method to get accounts...");
+                    const accounts = await provider.request({ method: 'eth_requestAccounts' });
+                    if (accounts && accounts.length > 0) {
+                        selectedAccount = accounts[0];
+                        console.log("Selected account (alternative method):", selectedAccount);
+                        
+                        // Save connected account to localStorage
+                        localStorage.setItem('connectedAccount', selectedAccount);
+                        localStorage.setItem('connectedProvider', walletProvider.id);
+                        
+                        // Update UI
+                        updateUI();
+                        
+                        // Setup event listeners
+                        setupEventListeners();
+                        
+                        // Dispatch connected event
+                        const event = new CustomEvent('walletConnected', {
+                            detail: { 
+                                account: selectedAccount,
+                                provider: provider,
+                                web3: web3
+                            }
+                        });
+                        document.dispatchEvent(event);
+                        
+                        return { success: true, account: selectedAccount };
+                    }
+                } catch (innerError) {
+                    console.error("Alternative method to get accounts failed:", innerError);
+                }
+                
                 throw new Error("No accounts found - wallet might be locked");
             }
             

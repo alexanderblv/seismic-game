@@ -54,7 +54,44 @@
                     
                     // Подключаем провайдер к MetaMask
                     const provider = new ethers.providers.Web3Provider(window.ethereum);
-                    this.provider = provider;
+                    
+                    // Проверяем, что пользователь подключен к нужной сети
+                    const network = await provider.getNetwork();
+                    if (network.chainId !== this.config.network.chainId) {
+                        // Если сеть неправильная, предлагаем переключиться
+                        try {
+                            await window.ethereum.request({
+                                method: 'wallet_switchEthereumChain',
+                                params: [{ chainId: '0x' + this.config.network.chainId.toString(16) }]
+                            });
+                            
+                            // Обновляем провайдер после переключения
+                            this.provider = new ethers.providers.Web3Provider(window.ethereum);
+                        } catch (switchError) {
+                            // Если сеть не добавлена, предлагаем добавить
+                            if (switchError.code === 4902) {
+                                await window.ethereum.request({
+                                    method: 'wallet_addEthereumChain',
+                                    params: [{
+                                        chainId: '0x' + this.config.network.chainId.toString(16),
+                                        chainName: this.config.network.name,
+                                        nativeCurrency: {
+                                            name: 'Ethereum',
+                                            symbol: this.config.network.symbol,
+                                            decimals: 18
+                                        },
+                                        rpcUrls: [this.config.network.rpcUrl],
+                                        blockExplorerUrls: [this.config.network.explorer]
+                                    }]
+                                });
+                                
+                                // Обновляем провайдер после добавления сети
+                                this.provider = new ethers.providers.Web3Provider(window.ethereum);
+                            } else {
+                                throw switchError;
+                            }
+                        }
+                    }
                     
                     // Получаем подписчика для отправки транзакций
                     this.signer = this.provider.getSigner();
@@ -71,8 +108,6 @@
                     };
                     
                     console.log("Кошелек подключен:", address);
-                    console.log("Сеть:", this.wallet.network.name);
-                    
                     return this.wallet;
                 } else {
                     throw new Error("MetaMask или другой провайдер Ethereum не обнаружен");

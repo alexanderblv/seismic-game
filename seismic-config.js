@@ -2,13 +2,13 @@
 const seismicConfig = {
     // Информация о сети Seismic Devnet
     network: {
-        name: "Sepolia",
+        name: "Seismic devnet",
         symbol: "ETH",
-        chainId: 11155111,
-        rpcUrl: "https://rpc.sepolia.org",
-        wsUrl: "wss://rpc.sepolia.org/ws",
-        explorer: "https://sepolia.etherscan.io",
-        faucet: "https://sepoliafaucet.com/"
+        chainId: 5124,
+        rpcUrl: "https://node-2.seismicdev.net/rpc",
+        wsUrl: "wss://node-2.seismicdev.net/ws",
+        explorer: "https://explorer-2.seismicdev.net/",
+        faucet: "https://faucet-2.seismicdev.net/"
     },
     
     // Конфигурация контракта для демонстрации

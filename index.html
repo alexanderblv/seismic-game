@@ -3,1072 +3,227 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Seismic Experience - Шифрование в блокчейне</title>
+    <title>Seismic Transaction Sender</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="style.css">
     
     <!-- Favicon -->
     <link rel="shortcut icon" href="data:image/x-icon;base64,AAABAAEAEBAAAAEAIABoBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8AVVVVB1VVVQdVVVUH////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8AVVVVBzw8ZzM7PGQzVVVVB////wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////ADw9Zi09PZ7/PT2e/zw8ZC3///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AFVVVQc8PWYtPT2e/z09nv88PGQtVVVVB////wD///8A////AP///wD///8A////AP///wD///8A////AP///wBVVVUHPD1mLT09nv89PZ7/PDxkLVVVVQf///8A////AP///wD///8A////AP///wD///8A////AP///wD///8APD1mLT09nv89PZ7/PT2e/z09nv89PZ7/PDxkLf///wD///8A////AP///wD///8A////AP///wD///8A////AFVVVQc8PWYtPT2e/z09nv88PGQtVVVVB////wD///8A////AP///wD///8A////AP///wD///8A////AP///wBVVVUHPD1mLT09nv89PZ7/PDxkLVVVVQf///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////ADw9Zi09PZ7/PT2e/zw8ZC3///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wBVVVUHPDxnMzs8ZDNVVVUHVVVVBzw8ZDNVVVUHVVVVBzw8ZDNVVVUHVVVVBzw8ZDNVVVUHPDxkM1VVVQZVVVUHVVVVB1VVVQdVVVUHVVVVB1VVVQc8PGQzPDxkM1VVVQdVVVUHPDxkM1VVVQdVVVUHPDxkM1VVVQf///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A" type="image/x-icon">
     
-    <!-- Основные библиотеки для Ethereum и веб3 -->
-    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js" type="application/javascript"></script>
+    <!-- Main libraries for Ethereum and web3 -->
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.8.0/web3.min.js"></script>
-    
-    <style>
-        /* Стили для частиц */
-        .data-particle {
-            position: absolute;
-            border-radius: 50%;
-            pointer-events: none;
-            z-index: 1;
-        }
-        
-        @keyframes float {
-            0%, 100% {
-                transform: translateY(0) translateX(0);
-            }
-            25% {
-                transform: translateY(-20px) translateX(10px);
-            }
-            50% {
-                transform: translateY(0) translateX(20px);
-            }
-            75% {
-                transform: translateY(20px) translateX(10px);
-            }
-        }
-        
-        /* Стили для потока данных */
-        .data-flow-container {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 2;
-        }
-        
-        .data-packet {
-            position: absolute;
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            color: white;
-            top: 80%;
-            left: 10%;
-            opacity: 0;
-            z-index: 10;
-            transition: all 0.3s ease;
-            transform: scale(0);
-        }
-        
-        .data-packet.packet-transit {
-            opacity: 1;
-            transform: scale(1);
-            animation: packetMotion 3s forwards;
-        }
-        
-        .packet-sensor {
-            background: linear-gradient(45deg, #3498db, #2980b9);
-            box-shadow: 0 0 15px rgba(52, 152, 219, 0.8);
-        }
-        
-        .packet-encrypted {
-            background: linear-gradient(45deg, #9b59b6, #8e44ad);
-            box-shadow: 0 0 15px rgba(155, 89, 182, 0.8);
-        }
-        
-        .packet-verified {
-            background: linear-gradient(45deg, #2ecc71, #27ae60);
-            box-shadow: 0 0 15px rgba(46, 204, 113, 0.8);
-        }
-        
-        @keyframes packetMotion {
-            0% {
-                top: 80%;
-                left: 10%;
-            }
-            40% {
-                top: 40%;
-                left: 40%;
-            }
-            100% {
-                top: 20%;
-                left: 85%;
-            }
-        }
-        
-        /* 3D эффекты для процессора TEE */
-        .tee-processor {
-            transform-style: preserve-3d;
-            transition: transform 0.5s ease;
-        }
-        
-        .tee-processor:hover {
-            transform: rotateY(10deg) rotateX(5deg);
-        }
-        
-        /* Переливающийся эффект для ZK-Proof */
-        .zk-proof-container {
-            background: linear-gradient(135deg, 
-                rgba(255, 255, 255, 0.1) 0%,
-                rgba(255, 255, 255, 0.2) 25%, 
-                rgba(255, 255, 255, 0.3) 50%, 
-                rgba(255, 255, 255, 0.2) 75%, 
-                rgba(255, 255, 255, 0.1) 100%);
-            background-size: 400% 400%;
-            animation: gradientShift 8s ease infinite;
-            border-radius: 10px;
-            backdrop-filter: blur(5px);
-        }
-        
-        @keyframes gradientShift {
-            0% {background-position: 0% 50%;}
-            50% {background-position: 100% 50%;}
-            100% {background-position: 0% 50%;}
-        }
-        
-        /* Стиль для блокчейн-блоков */
-        .blockchain-block {
-            position: relative;
-            background: linear-gradient(145deg, #2c3e50, #34495e);
-            border-radius: 8px;
-            padding: 15px;
-            color: white;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
-            transform: perspective(1000px) rotateX(5deg);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            border-left: 4px solid #3498db;
-        }
-        
-        .blockchain-block:hover {
-            transform: perspective(1000px) rotateX(0deg) translateY(-5px);
-            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4);
-        }
-        
-        .blockchain-block .block-hash {
-            font-family: monospace;
-            font-size: 10px;
-            color: #3498db;
-            word-break: break-all;
-            margin-top: 5px;
-        }
-    </style>
 </head>
 <body>
-    <header class="bg-dark text-white p-4">
+    <header class="bg-dark text-white p-3">
         <div class="container">
             <div class="d-flex justify-content-between align-items-center">
-                <h1><i class="bi bi-shield-lock-fill me-2"></i>Seismic Experience</h1>
-                <div>
-                    <button class="btn btn-outline-light me-2" onclick="scrollToSection('about')">О Seismic</button>
-                    <button class="btn btn-outline-light me-2" onclick="scrollToSection('interactive')">Интерактив</button>
-                    <button class="btn btn-outline-light" onclick="scrollToSection('examples')">Примеры</button>
+                <h1><i class="bi bi-shield-lock-fill me-2"></i>Seismic Transaction Sender</h1>
+                <div id="wallet-status" class="d-flex align-items-center">
+                    <span id="network-badge" class="badge bg-secondary me-2">Not Connected</span>
+                    <span id="wallet-address" class="d-none d-md-block text-truncate me-2" style="max-width: 200px;">Connect your wallet</span>
+                    <button id="connect-wallet" class="btn btn-primary">Connect Wallet</button>
                 </div>
             </div>
         </div>
     </header>
 
-    <!-- New Seismic Transaction Interface -->
-    <section id="seismic-tx-interface" class="py-5">
-        <div class="container">
-            <div class="row justify-content-center">
-                <div class="col-lg-8">
-                    <div class="card border-0 shadow">
-                        <div class="card-header bg-primary text-white">
-                            <h2 class="h4 mb-0"><i class="bi bi-send-fill me-2"></i>Отправка транзакций в Seismic</h2>
+    <main class="container py-5">
+        <div class="row">
+            <div class="col-md-6 mb-4">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="card-title mb-0">Network Information</h3>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Network
+                                <span id="network-name" class="badge bg-info">Seismic Devnet</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Chain ID
+                                <span id="chain-id">5124</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Native Token
+                                <span id="token-symbol">ETH</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Status
+                                <span id="connection-status" class="badge bg-secondary">Not Connected</span>
+                            </li>
+                        </ul>
+                        <div class="mt-3">
+                            <button id="add-network" class="btn btn-outline-primary w-100">Add Seismic Network to Wallet</button>
                         </div>
-                        <div class="card-body">
-                            <!-- Wallet Connection Status -->
-                            <div class="d-flex justify-content-between align-items-center mb-4">
-                                <div>
-                                    <span id="wallet-status" class="badge bg-secondary">Кошелек не подключен</span>
-                                    <span id="wallet-address" class="ms-2 small text-muted"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6 mb-4">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="card-title mb-0">Wallet Information</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Your Address</label>
+                            <div class="input-group">
+                                <input id="user-address" type="text" class="form-control" readonly placeholder="Connect your wallet">
+                                <button class="btn btn-outline-secondary" type="button" id="copy-address">
+                                    <i class="bi bi-clipboard"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Balance</label>
+                            <div class="input-group">
+                                <input id="user-balance" type="text" class="form-control" readonly placeholder="--">
+                                <span class="input-group-text">ETH</span>
+                                <button class="btn btn-outline-secondary" type="button" id="refresh-balance">
+                                    <i class="bi bi-arrow-clockwise"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <a id="faucet-link" href="https://faucet-2.seismicdev.net/" target="_blank" class="btn btn-outline-info w-100">Get Test ETH from Faucet</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-8 mx-auto">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="card-title mb-0">Send Transaction</h3>
+                    </div>
+                    <div class="card-body">
+                        <form id="transaction-form">
+                            <div class="mb-3">
+                                <label for="recipient-address" class="form-label">Recipient Address</label>
+                                <input type="text" class="form-control" id="recipient-address" placeholder="0x...">
+                            </div>
+                            <div class="mb-3">
+                                <label for="amount" class="form-label">Amount (ETH)</label>
+                                <input type="number" class="form-control" id="amount" placeholder="0.01" step="0.0001" min="0">
+                            </div>
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="enable-encryption" checked>
+                                    <label class="form-check-label" for="enable-encryption">Use Seismic Encryption</label>
                                 </div>
-                                <div>
-                                    <button id="connect-wallet-btn" class="btn btn-primary btn-sm">
-                                        <i class="bi bi-wallet2 me-1"></i>Подключить кошелек
-                                    </button>
-                                    <a id="faucet-link" href="https://faucet-2.seismicdev.net/" target="_blank" class="btn btn-outline-secondary btn-sm ms-2" style="display: none;">
-                                        <i class="bi bi-droplet-fill me-1"></i>Получить тестовые токены
-                                    </a>
-                                </div>
+                                <small class="form-text text-muted">When enabled, transaction data will be encrypted using Seismic's privacy technology</small>
+                            </div>
+                            <div class="mb-3">
+                                <label for="encrypted-data" class="form-label">Optional Encrypted Data (hex)</label>
+                                <textarea class="form-control" id="encrypted-data" rows="3" placeholder="0x..."></textarea>
+                                <small class="form-text text-muted">Add encrypted data to your transaction (advanced)</small>
                             </div>
 
-                            <!-- Transaction Form -->
-                            <form id="tx-form">
-                                <div class="mb-3">
-                                    <label for="tx-type" class="form-label">Тип данных для шифрования</label>
-                                    <select class="form-select" id="tx-type">
-                                        <option value="suint">suint - Зашифрованное число</option>
-                                        <option value="saddress">saddress - Зашифрованный адрес</option>
-                                        <option value="sbool">sbool - Зашифрованный булев тип</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label for="tx-value" class="form-label">Значение</label>
-                                    <input type="text" class="form-control" id="tx-value" placeholder="Введите значение для шифрования">
-                                    <div class="form-text">Введите значение, которое будет зашифровано перед отправкой в блокчейн.</div>
-                                </div>
-                                
-                                <div class="d-grid gap-2">
-                                    <button type="button" id="encrypt-btn" class="btn btn-secondary">
-                                        <i class="bi bi-lock-fill me-1"></i>Зашифровать данные
-                                    </button>
-                                    <button type="button" id="send-tx-btn" class="btn btn-primary" disabled>
-                                        <i class="bi bi-send-fill me-1"></i>Отправить транзакцию
-                                    </button>
-                                </div>
-                            </form>
-                            
-                            <!-- Transaction Status -->
-                            <div class="mt-4">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <h5 class="mb-0">Статус транзакции</h5>
-                                    <button id="clear-log-btn" class="btn btn-sm btn-outline-secondary">
-                                        <i class="bi bi-trash me-1"></i>Очистить
-                                    </button>
-                                </div>
-                                <div id="tx-status" class="border rounded p-3 bg-light" style="height: 200px; overflow-y: auto; font-family: monospace; font-size: 0.85rem;">
-                                    <div class="text-muted">Лог транзакций будет отображаться здесь...</div>
-                                </div>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-success btn-lg" id="send-transaction">Send Transaction</button>
                             </div>
-                            
-                            <!-- Encrypted Data Preview -->
-                            <div class="mt-4" id="encrypted-data-container" style="display: none;">
-                                <h5>Зашифрованные данные</h5>
-                                <div class="border rounded p-3 bg-dark text-light" style="font-family: monospace; overflow-x: auto;">
-                                    <div id="encrypted-data-preview"></div>
-                                </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-lg-8 mx-auto">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="card-title mb-0">Transaction History</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info" id="no-transactions" role="alert">
+                            <i class="bi bi-info-circle me-2"></i> No transactions yet. Send a transaction to see it here.
+                        </div>
+                        <div id="transaction-history" class="d-none">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Tx Hash</th>
+                                            <th>Recipient</th>
+                                            <th>Value</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="transaction-list">
+                                        <!-- Transaction history will be added here by JavaScript -->
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </section>
+    </main>
 
-    <section id="hero" class="py-5 text-center position-relative">
-        <div class="container">
-            <div class="row align-items-center">
-                <div class="col-lg-6 text-lg-start">
-                    <h2 class="display-4 fw-bold mb-4">Ощутите будущее<br>приватности в блокчейне</h2>
-                    <p class="lead mb-4">Seismic — это первый в мире блокчейн с шифрованием на уровне EVM, где ваши данные остаются скрытыми, но транзакции проверяются и выполняются прозрачно.</p>
-                    <button class="btn btn-primary btn-lg px-4 me-3" onclick="scrollToSection('interactive')">
-                        Попробовать сейчас
-                    </button>
-                    <button class="btn btn-outline-dark btn-lg px-4" onclick="window.open('https://docs.seismic.systems/', '_blank')">
-                        Документация
-                    </button>
-                </div>
-                <div class="col-lg-6 mt-5 mt-lg-0">
-                    <div class="animation-container">
-                        <div class="blockchain-animation">
-                            <div class="block public">
-                                <div class="block-header">Публичный блок</div>
-                                <div class="tx-row">
-                                    <span>От: 0x71C7...</span>
-                                    <span>Кому: 0xa5cc...</span>
-                                </div>
-                                <div class="tx-row">
-                                    <span>Сумма: 1000 ETH</span>
-                                </div>
-                            </div>
-                            <div class="block encrypted">
-                                <div class="block-header">Зашифрованный блок</div>
-                                <div class="tx-row">
-                                    <span>От: 0x71C7...</span>
-                                    <span>Кому: <span class="encrypted-text">0xe72b...</span></span>
-                                </div>
-                                <div class="tx-row">
-                                    <span>Сумма: <span class="encrypted-text">*****</span></span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section id="about" class="py-5 bg-light">
-        <div class="container">
-            <h2 class="display-5 text-center mb-5">Что такое Seismic?</h2>
-            <div class="row g-4">
-                <div class="col-md-4">
-                    <div class="card h-100 border-0 shadow-sm">
-                        <div class="card-body p-4">
-                            <div class="feature-icon mb-3">
-                                <i class="bi bi-lock-fill fs-1 text-primary"></i>
-                            </div>
-                            <h3 class="card-title h4">Шифрование на EVM</h3>
-                            <p class="card-text">Seismic вводит шифрование непосредственно в Ethereum Virtual Machine (EVM), позволяя защищать конфиденциальные данные в смарт-контрактах.</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card h-100 border-0 shadow-sm">
-                        <div class="card-body p-4">
-                            <div class="feature-icon mb-3">
-                                <i class="bi bi-code-slash fs-1 text-primary"></i>
-                            </div>
-                            <h3 class="card-title h4">Специальные типы данных</h3>
-                            <p class="card-text">Используйте типы <code>suint</code>, <code>saddress</code> и <code>sbool</code> для автоматического шифрования чувствительной информации в контрактах.</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card h-100 border-0 shadow-sm">
-                        <div class="card-body p-4">
-                            <div class="feature-icon mb-3">
-                                <i class="bi bi-shield-check fs-1 text-primary"></i>
-                            </div>
-                            <h3 class="card-title h4">Прозрачное исполнение</h3>
-                            <p class="card-text">Несмотря на шифрование данных, выполнение смарт-контрактов остается проверяемым, сохраняя преимущества децентрализации.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section id="how-it-works" class="py-5">
-        <div class="container">
-            <h2 class="display-5 text-center mb-5">Как работает Seismic?</h2>
-            <div class="row align-items-center mb-5">
-                <div class="col-lg-6">
-                    <div class="bg-light p-4 rounded shadow text-center">
-                        <i class="bi bi-lock-fill text-primary" style="font-size: 5rem;"></i>
-                        <h5 class="mt-3">Шифрование данных</h5>
-                    </div>
-                </div>
-                <div class="col-lg-6 mt-4 mt-lg-0">
-                    <h3>1. Шифрование данных транзакции</h3>
-                    <p class="lead">Когда вы используете типы данных с префиксом 's' (например, saddress или suint), Seismic автоматически шифрует эти значения перед отправкой транзакции в сеть.</p>
-                    <div class="code-snippet bg-dark text-light p-3 rounded mb-3">
-                        <code>function payRent(saddress landlord, suint256 amount) external {
-    // Адрес landlord и сумма amount зашифрованы!
-}</code>
-                    </div>
-                </div>
-            </div>
-            <div class="row align-items-center mb-5">
-                <div class="col-lg-6 order-lg-2">
-                    <div class="bg-light p-4 rounded shadow text-center">
-                        <i class="bi bi-cpu text-primary" style="font-size: 5rem;"></i>
-                        <h5 class="mt-3">Trusted Execution Environment</h5>
-                    </div>
-                </div>
-                <div class="col-lg-6 order-lg-1 mt-4 mt-lg-0">
-                    <h3>2. Исполнение в Trusted Execution Environment</h3>
-                    <p class="lead">Seismic использует технологию TEE (Trusted Execution Environment) для безопасного выполнения зашифрованных смарт-контрактов без раскрытия данных.</p>
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle-fill me-2"></i> TEE обеспечивает изолированную среду, где код выполняется безопасно, а данные защищены от внешнего доступа.
-                    </div>
-                </div>
-            </div>
-            <div class="row align-items-center">
-                <div class="col-lg-6">
-                    <div class="bg-light p-4 rounded shadow text-center">
-                        <i class="bi bi-shield-check text-primary" style="font-size: 5rem;"></i>
-                        <h5 class="mt-3">Верификация без раскрытия</h5>
-                    </div>
-                </div>
-                <div class="col-lg-6 mt-4 mt-lg-0">
-                    <h3>3. Верификация без раскрытия данных</h3>
-                    <p class="lead">Транзакции верифицируются в сети без раскрытия зашифрованных данных, обеспечивая как приватность, так и целостность блокчейна.</p>
-                    <div class="badge bg-success p-2 fs-6 mb-2">Приватность</div>
-                    <div class="badge bg-success p-2 fs-6 mb-2">Безопасность</div>
-                    <div class="badge bg-success p-2 fs-6">Прозрачность</div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section id="interactive" class="py-5 bg-light">
-        <div class="container">
-            <h2 class="display-5 text-center mb-5">Интерактивная демонстрация</h2>
-            <div class="row">
-                <div class="col-lg-8 mx-auto">
-                    <div class="card border-0 shadow">
-                        <div class="card-header bg-primary text-white">
-                            <h3 class="m-0">Симулятор транзакций Seismic</h3>
-                        </div>
-                        <div class="card-body p-4">
-                            <form id="tx-simulator-form">
-                                <div class="mb-3">
-                                    <label for="tx-type" class="form-label">Тип транзакции</label>
-                                    <select class="form-select" id="tx-type">
-                                        <option value="payment">Платеж</option>
-                                        <option value="nft">NFT Трансфер</option>
-                                        <option value="vote">Голосование</option>
-                                    </select>
-                                </div>
-                                <div id="payment-fields">
-                                    <div class="mb-3">
-                                        <label for="recipient" class="form-label">Получатель</label>
-                                        <input type="text" class="form-control" id="recipient" value="0xa5cc3c03994DB5b0d9A5eEdD10CabaB0813678AC">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="amount" class="form-label">Сумма</label>
-                                        <input type="number" class="form-control" id="amount" value="1000">
-                                    </div>
-                                </div>
-                                <div id="nft-fields" style="display:none">
-                                    <div class="mb-3">
-                                        <label for="nft-recipient" class="form-label">Получатель NFT</label>
-                                        <input type="text" class="form-control" id="nft-recipient" value="0xb794f5ea0ba39494ce839613fffba74279579268">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="token-id" class="form-label">Token ID</label>
-                                        <input type="number" class="form-control" id="token-id" value="42">
-                                    </div>
-                                </div>
-                                <div id="vote-fields" style="display:none">
-                                    <div class="mb-3">
-                                        <label for="proposal" class="form-label">ID Предложения</label>
-                                        <input type="number" class="form-control" id="proposal" value="5">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="vote-choice" class="form-label">Ваш голос</label>
-                                        <select class="form-select" id="vote-choice">
-                                            <option value="1">За</option>
-                                            <option value="0">Против</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="mb-3 form-check">
-                                    <input type="checkbox" class="form-check-input" id="use-encryption" checked>
-                                    <label class="form-check-label" for="use-encryption">Использовать шифрование Seismic</label>
-                                </div>
-                                <button type="button" id="generate-tx-btn" class="btn btn-primary">Сгенерировать транзакцию</button>
-                            </form>
-
-                            <div class="mt-4">
-                                <h4>Результат:</h4>
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <div class="card h-100">
-                                            <div class="card-header bg-danger text-white">
-                                                Стандартная транзакция (публичная)
-                                            </div>
-                                            <div class="card-body">
-                                                <pre id="public-tx-output" class="bg-light p-3 rounded" style="height: 250px; overflow-y: auto;"></pre>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="card h-100">
-                                            <div class="card-header bg-success text-white">
-                                                Seismic транзакция (приватная)
-                                            </div>
-                                            <div class="card-body">
-                                                <pre id="encrypted-tx-output" class="bg-light p-3 rounded" style="height: 250px; overflow-y: auto;"></pre>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section id="games" class="py-5">
-        <div class="container">
-            <div class="row">
-                <div class="col-12 text-center mb-5">
-                    <h2 class="section-title">Интерактивное обучение</h2>
-                    <p class="section-subtitle">Узнайте больше о технологии Seismic через игры и интерактивные демонстрации</p>
-                </div>
-            </div>
-            
-            <!-- Игра "Криптографический пазл" -->
-            <div class="row mb-5">
-                <div class="col-12">
-                    <div class="game-container" id="crypto-puzzle-game">
-                        <!-- Стартовый экран -->
-                        <div class="game-overlay" id="crypto-puzzle-start">
-                            <div class="overlay-content bg-white p-4 rounded shadow-lg">
-                                <h3 class="mb-3">Криптографический пазл</h3>
-                                <p>Соберите шаги шифрования в правильном порядке и узнайте, как работает технология Seismic!</p>
-                                <button id="crypto-puzzle-start-btn" class="btn btn-primary">Начать игру</button>
-                            </div>
-                        </div>
-                        
-                        <!-- Финальный экран -->
-                        <div class="game-overlay" id="crypto-puzzle-end" style="display: none;">
-                            <div class="overlay-content bg-white p-4 rounded shadow-lg">
-                                <h3 class="mb-3">Игра завершена!</h3>
-                                <p>Вы прошли <span id="puzzle-final-level">0</span> уровней.</p>
-                                <p id="puzzle-final-message"></p>
-                                <button id="crypto-puzzle-restart-btn" class="btn btn-primary">Играть снова</button>
-                            </div>
-                        </div>
-                        
-                        <!-- Основной игровой интерфейс -->
-                        <div class="game-interface bg-light p-3 rounded">
-                            <div class="game-header d-flex justify-content-between align-items-center mb-3">
-                                <div>
-                                    <span class="badge bg-primary">Уровень: <span id="puzzle-level">1</span></span>
-                                </div>
-                                <div>
-                                    <span class="badge bg-danger">Время: <span id="puzzle-timer">60</span> сек</span>
-                                </div>
-                            </div>
-                            
-                            <div class="game-description mb-3">
-                                <p id="puzzle-description" class="mb-0">Соберите шаги для создания Seismic-транзакции в правильном порядке</p>
-                            </div>
-                            
-                            <div class="game-board">
-                                <div class="row">
-                                    <div class="col-12 mb-3">
-                                        <div class="solution-container bg-light border rounded p-3" id="puzzle-solution-container">
-                                            <div class="text-center text-secondary">Перетащите блоки сюда</div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="col-12">
-                                        <div class="data-container bg-white border rounded p-3" id="puzzle-data-container">
-                                            <!-- Элементы для перетаскивания будут добавлены через JavaScript -->
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="game-controls mt-3 text-center">
-                                    <button id="puzzle-submit-btn" class="btn btn-success">Проверить</button>
-                                </div>
-                                
-                                <div id="puzzle-feedback" class="alert mt-3" style="display: none;"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Здесь можно добавить другие игры -->
-            
-            <!-- Игра "Seismic Explorer" -->
-            <div class="row mt-5">
-                <div class="col-12">
-                    <div class="game-container" id="seismic-explorer-game">
-                        <!-- Стартовый экран -->
-                        <div class="game-overlay" id="seismic-explorer-start">
-                            <div class="overlay-content bg-white p-4 rounded shadow-lg">
-                                <h3 class="mb-3">Seismic Explorer</h3>
-                                <p>Создайте и отправьте зашифрованные транзакции в реальном блокчейне Seismic!</p>
-                                <p class="small text-muted mb-3">Эта игра подключается к тестовой сети Seismic и демонстрирует работу со скрытыми данными</p>
-                                <button id="seismic-explorer-start-btn" class="btn btn-primary">Начать исследование</button>
-                            </div>
-                        </div>
-                        
-                        <!-- Основной контейнер игры -->
-                        <div class="game-interface bg-dark text-light p-3 rounded" style="display: none;">
-                            <div class="d-flex justify-content-between align-items-center mb-4">
-                                <h4 class="m-0">Seismic Explorer</h4>
-                                <div>
-                                    <span class="badge bg-success connection-status">Подключение...</span>
-                                    <button id="seismic-explorer-connect-btn" class="btn btn-sm btn-outline-light ms-2">Подключить кошелек</button>
-                                    <a id="seismic-faucet-btn" href="https://faucet-2.seismicdev.net/" target="_blank" class="btn btn-sm btn-outline-warning ms-2" style="display: none;">
-                                        <i class="bi bi-droplet-fill"></i> Получить тестовые токены
-                                    </a>
-                                </div>
-                            </div>
-                            
-                            <div class="row">
-                                <div class="col-md-6 mb-4">
-                                    <div class="card bg-dark text-light border border-secondary">
-                                        <div class="card-header bg-primary">
-                                            Создание транзакции
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="mb-3">
-                                                <label for="seismic-tx-type" class="form-label">Тип данных</label>
-                                                <select class="form-select" id="seismic-tx-type">
-                                                    <option value="suint">suint - Зашифрованное число</option>
-                                                    <option value="saddress">saddress - Зашифрованный адрес</option>
-                                                    <option value="sbool">sbool - Зашифрованный булев тип</option>
-                                                </select>
-                                            </div>
-                                            
-                                            <div class="mb-3">
-                                                <label for="seismic-tx-value" class="form-label">Значение</label>
-                                                <input type="text" class="form-control" id="seismic-tx-value" placeholder="Введите значение для шифрования">
-                                            </div>
-                                            
-                                            <button id="seismic-encrypt-btn" class="btn btn-primary">Зашифровать данные</button>
-                                            <button id="seismic-send-tx-btn" class="btn btn-success ms-2" disabled>Отправить в блокчейн</button>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="col-md-6 mb-4">
-                                    <div class="card bg-dark text-light border border-secondary">
-                                        <div class="card-header bg-primary">
-                                            Визуализация шифрования
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="encryption-visualization" id="encryption-animation">
-                                                <!-- Здесь будет анимация процесса шифрования -->
-                                                <div class="text-center py-5">
-                                                    <p class="mb-2">Нажмите "Зашифровать данные", чтобы начать</p>
-                                                    <div class="encryption-state-initial">
-                                                        <i class="bi bi-unlock fs-1"></i>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="row mt-3">
-                                <div class="col-12">
-                                    <div class="card bg-dark text-light border border-secondary">
-                                        <div class="card-header bg-primary d-flex justify-content-between align-items-center">
-                                            <span>Лог событий блокчейна</span>
-                                            <button id="seismic-clear-log-btn" class="btn btn-sm btn-outline-light">Очистить</button>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="blockchain-log p-2 bg-dark" id="seismic-tx-log" style="height: 200px; overflow-y: auto; font-family: monospace; font-size: 0.8rem; border: 1px solid #444;">
-                                                <div class="text-secondary">Лог транзакций будет отображаться здесь...</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Пояснение принципов работы -->
-                            <div class="mt-4 p-3 border border-secondary rounded">
-                                <h5>Как это работает?</h5>
-                                <p class="small mb-2">Seismic использует Homomorphic Encryption и Zero-Knowledge Proofs для защиты данных:</p>
-                                <ol class="small mb-0">
-                                    <li>Данные шифруются на стороне клиента с использованием FHE (Fully Homomorphic Encryption)</li>
-                                    <li>Зашифрованные данные отправляются в блокчейн и обрабатываются без расшифровки</li>
-                                    <li>Trusted Execution Environment (TEE) обрабатывает данные, сохраняя конфиденциальность</li>
-                                    <li>ZK-доказательства подтверждают корректность операций без раскрытия данных</li>
-                                </ol>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Секция для сейсмической визуализации -->
-            <section id="seismic-explorer" class="game-section">
-                <h2 class="section-title">Сейсмический исследователь</h2>
-                <div class="game-description">
-                    <p>Визуализация процесса обработки сейсмических данных с использованием шифрования и Trusted Execution Environment (TEE).</p>
-                </div>
-                
-                <div class="visualization-container">
-                    <div id="encryptionAnimation" class="encryption-visualization"></div>
-                    
-                    <div class="controls-panel">
-                        <button id="sendTransactionBtn" class="btn btn-primary">
-                            <i class="fas fa-play"></i> Запустить транзакцию
-                        </button>
-                        <button id="resetVisualizationBtn" class="btn btn-secondary">
-                            <i class="fas fa-redo"></i> Сбросить
-                        </button>
-                        <button id="toggleSeismicAnimationBtn" class="btn btn-info">
-                            <i class="fas fa-wave-square"></i> Сейсмические волны
-                        </button>
-                    </div>
-                    
-                    <div class="info-panel">
-                        <div class="info-item">
-                            <div class="info-title">Шифрование</div>
-                            <div class="info-content">
-                                Данные шифруются перед обработкой для сохранения конфиденциальности.
-                            </div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-title">TEE</div>
-                            <div class="info-content">
-                                Trusted Execution Environment обеспечивает изоляцию вычислений.
-                            </div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-title">Zero-Knowledge Proof</div>
-                            <div class="info-content">
-                                Доказательство корректности вычислений без раскрытия данных.
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-            
-        </div>
-    </section>
-
-    <section id="examples" class="py-5 bg-light">
-        <div class="container">
-            <h2 class="display-5 text-center mb-5">Реальные примеры использования</h2>
-            <div class="row g-4">
-                <div class="col-md-6 col-lg-4">
-                    <div class="card h-100 border-0 shadow-sm">
-                        <div class="card-body">
-                            <h3 class="card-title h4 mb-3">Платежная система</h3>
-                            <p class="card-text">Отправляйте средства без раскрытия суммы или получателя. Идеально для конфиденциальных финансовых операций компаний.</p>
-                            <div class="code-snippet bg-dark text-light p-3 rounded mb-3">
-                                <code>function transfer(saddress to, suint256 amount)</code>
-                            </div>
-                            <button class="btn btn-outline-primary mt-2" data-bs-toggle="modal" data-bs-target="#paymentModal">Подробнее</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6 col-lg-4">
-                    <div class="card h-100 border-0 shadow-sm">
-                        <div class="card-body">
-                            <h3 class="card-title h4 mb-3">Приватное голосование</h3>
-                            <p class="card-text">Создавайте системы голосования, где выбор участников зашифрован, а итоговый результат прозрачен.</p>
-                            <div class="code-snippet bg-dark text-light p-3 rounded mb-3">
-                                <code>function vote(uint256 proposalId, sbool choice)</code>
-                            </div>
-                            <button class="btn btn-outline-primary mt-2" data-bs-toggle="modal" data-bs-target="#votingModal">Подробнее</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6 col-lg-4">
-                    <div class="card h-100 border-0 shadow-sm">
-                        <div class="card-body">
-                            <h3 class="card-title h4 mb-3">Скрытые ставки</h3>
-                            <p class="card-text">Участвуйте в аукционах и размещайте ставки, которые остаются скрытыми до завершения периода торгов.</p>
-                            <div class="code-snippet bg-dark text-light p-3 rounded mb-3">
-                                <code>function makeBid(uint256 auctionId, suint256 bid)</code>
-                            </div>
-                            <button class="btn btn-outline-primary mt-2" data-bs-toggle="modal" data-bs-target="#auctionModal">Подробнее</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section id="developer-resources" class="py-5 bg-light">
-        <div class="container">
-            <h2 class="display-5 text-center mb-5">Ресурсы для разработчиков</h2>
-            <div class="row g-4">
-                <div class="col-md-4">
-                    <div class="card text-center h-100 border-0 shadow-sm">
-                        <div class="card-body">
-                            <i class="bi bi-book fs-1 text-primary mb-3"></i>
-                            <h3 class="card-title h4">Документация</h3>
-                            <p class="card-text">Подробное руководство по началу работы с Seismic, примеры контрактов и API.</p>
-                            <a href="https://docs.seismic.systems/" class="btn btn-primary mt-3" target="_blank">Перейти</a>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card text-center h-100 border-0 shadow-sm">
-                        <div class="card-body">
-                            <i class="bi bi-github fs-1 text-primary mb-3"></i>
-                            <h3 class="card-title h4">GitHub</h3>
-                            <p class="card-text">Исходный код, примеры проектов и библиотеки для разработки на Seismic.</p>
-                            <a href="https://github.com/SeismicSystems" class="btn btn-primary mt-3" target="_blank">Перейти</a>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card text-center h-100 border-0 shadow-sm">
-                        <div class="card-body">
-                            <i class="bi bi-chat-dots fs-1 text-primary mb-3"></i>
-                            <h3 class="card-title h4">Сообщество</h3>
-                            <p class="card-text">Присоединяйтесь к сообществу разработчиков Seismic в Telegram и Discord.</p>
-                            <a href="#" class="btn btn-primary mt-3">Присоединиться</a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <footer class="bg-dark text-white py-4">
+    <footer class="bg-dark text-white py-4 mt-5">
         <div class="container">
             <div class="row">
                 <div class="col-md-6">
-                    <h3>Seismic Experience</h3>
-                    <p>Демонстрационный проект технологии Seismic - блокчейна с шифрованием данных.</p>
+                    <h5>Seismic Blockchain</h5>
+                    <p class="mb-0">The first encrypted blockchain with EVM compatibility.</p>
                 </div>
                 <div class="col-md-6 text-md-end">
-                    <div class="social-links">
-                        <a href="https://github.com/SeismicSystems" class="text-white me-3" target="_blank"><i class="bi bi-github fs-4"></i></a>
-                        <a href="https://twitter.com/SeismicSys" class="text-white me-3" target="_blank"><i class="bi bi-twitter-x fs-4"></i></a>
-                        <a href="#" class="text-white"><i class="bi bi-telegram fs-4"></i></a>
+                    <div class="mb-2">
+                        <a href="https://docs.seismic.systems/" target="_blank" class="btn btn-outline-light btn-sm me-2">
+                            <i class="bi bi-book me-1"></i> Documentation
+                        </a>
+                        <a href="https://explorer-2.seismicdev.net/" target="_blank" class="btn btn-outline-light btn-sm">
+                            <i class="bi bi-search me-1"></i> Explorer
+                        </a>
                     </div>
-                    <p class="mt-2">Построено на основе <a href="https://github.com/SeismicSystems/wwye" class="text-white" target="_blank">WWYE</a></p>
                 </div>
             </div>
         </div>
     </footer>
 
-    <!-- Modals -->
-    <div class="modal fade" id="paymentModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+    <!-- Transaction result modal -->
+    <div class="modal fade" id="transaction-modal" tabindex="-1" aria-labelledby="transaction-modal-label" aria-hidden="true">
+        <div class="modal-dialog">
             <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title">Платежная система Seismic</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="modal-header">
+                    <h5 class="modal-title" id="transaction-modal-label">Transaction Result</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
-                    <h4>Пример контракта для конфиденциальных платежей</h4>
-                    <pre class="bg-light p-3 rounded">
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
-
-contract PrivatePayments {
-    // Сопоставление адреса с зашифрованным балансом
-    mapping(address => suint256) private balances;
-    
-    // Событие о пополнении средств
-    event Deposit(address indexed account);
-    
-    // Событие о переводе средств
-    event Transfer(address indexed from);
-    
-    // Пополнение баланса
-    function deposit(suint256 amount) external payable {
-        // Увеличиваем зашифрованный баланс
-        balances[msg.sender] += amount;
-        
-        emit Deposit(msg.sender);
-    }
-    
-    // Приватный перевод средств
-    function transfer(saddress to, suint256 amount) external {
-        // Проверяем, что у отправителя достаточно средств
-        require(balances[msg.sender] >= amount, "Insufficient balance");
-        
-        // Уменьшаем баланс отправителя
-        balances[msg.sender] -= amount;
-        
-        // Увеличиваем баланс получателя
-        // Зашифрованный адрес 'to' расшифровывается внутри TEE
-        address recipient = to; // неявное преобразование
-        balances[recipient] += amount;
-        
-        emit Transfer(msg.sender);
-    }
-}
-                    </pre>
-                    <p class="mt-3">Этот контракт позволяет:</p>
-                    <ul>
-                        <li>Хранить зашифрованные балансы пользователей</li>
-                        <li>Выполнять переводы без раскрытия суммы или получателя</li>
-                        <li>Проверять достаточность средств без их раскрытия</li>
-                    </ul>
+                <div class="modal-body" id="transaction-result">
+                    <!-- Transaction result will be shown here -->
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                    <a href="https://docs.seismic.systems/" target="_blank" class="btn btn-primary">Подробнее в документации</a>
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Close</button>
+                    <a id="tx-explorer-link" href="#" target="_blank" class="btn btn-outline-primary">
+                        View in Explorer
+                    </a>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="modal fade" id="votingModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title">Приватное голосование на Seismic</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+    <!-- Loading overlay -->
+    <div id="loading-overlay" class="position-fixed top-0 start-0 w-100 h-100 d-none" style="background: rgba(0,0,0,0.5); z-index: 9999;">
+        <div class="d-flex justify-content-center align-items-center h-100">
+            <div class="card p-4 text-center">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
                 </div>
-                <div class="modal-body">
-                    <h4>Пример контракта для приватного голосования</h4>
-                    <pre class="bg-light p-3 rounded">
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
-
-contract PrivateVoting {
-    struct Proposal {
-        string description;
-        suint256 yesVotes;
-        suint256 noVotes;
-        uint256 endTime;
-        bool finalized;
-    }
-    
-    // Список предложений
-    mapping(uint256 => Proposal) public proposals;
-    
-    // Отслеживание голосования
-    mapping(uint256 => mapping(address => bool)) private hasVoted;
-    
-    // Событие создания предложения
-    event ProposalCreated(uint256 indexed proposalId, string description, uint256 endTime);
-    
-    // Событие голосования
-    event Voted(uint256 indexed proposalId, address voter);
-    
-    // Создание нового предложения
-    function createProposal(string memory description, uint256 duration) external returns (uint256) {
-        uint256 proposalId = uint256(keccak256(abi.encodePacked(description, block.timestamp)));
-        
-        proposals[proposalId] = Proposal({
-            description: description,
-            yesVotes: suint256(0),
-            noVotes: suint256(0),
-            endTime: block.timestamp + duration,
-            finalized: false
-        });
-        
-        emit ProposalCreated(proposalId, description, block.timestamp + duration);
-        return proposalId;
-    }
-    
-    // Голосование за предложение
-    function vote(uint256 proposalId, sbool choice) external {
-        Proposal storage proposal = proposals[proposalId];
-        
-        require(block.timestamp < proposal.endTime, "Voting period ended");
-        require(!hasVoted[proposalId][msg.sender], "Already voted");
-        
-        // Зашифрованный выбор обрабатывается в TEE
-        if (choice) {
-            proposal.yesVotes += suint256(1);
-        } else {
-            proposal.noVotes += suint256(1);
-        }
-        
-        hasVoted[proposalId][msg.sender] = true;
-        
-        emit Voted(proposalId, msg.sender);
-    }
-}
-                    </pre>
-                    <p class="mt-3">Преимущества приватного голосования на Seismic:</p>
-                    <ul>
-                        <li>Голоса остаются зашифрованными, что предотвращает влияние на других участников</li>
-                        <li>Подсчет голосов происходит автоматически и безопасно внутри TEE</li>
-                        <li>Невозможно узнать, как проголосовал конкретный пользователь</li>
-                    </ul>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                    <a href="https://docs.seismic.systems/" target="_blank" class="btn btn-primary">Подробнее в документации</a>
-                </div>
+                <h5 id="loading-text">Processing Transaction...</h5>
             </div>
         </div>
     </div>
 
-    <div class="modal fade" id="auctionModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title">Скрытые ставки на аукционах</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <h4>Пример контракта для аукциона со скрытыми ставками</h4>
-                    <pre class="bg-light p-3 rounded">
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
-
-contract PrivateAuction {
-    struct Auction {
-        address seller;
-        string itemDescription;
-        uint256 endTime;
-        bool finalized;
-        address highestBidder;
-        suint256 highestBid;
-    }
-    
-    // Аукционы по ID
-    mapping(uint256 => Auction) public auctions;
-    
-    // Ставки участников
-    mapping(uint256 => mapping(address => suint256)) private bids;
-    
-    // События
-    event AuctionCreated(uint256 indexed auctionId, string itemDescription, uint256 endTime);
-    event BidPlaced(uint256 indexed auctionId, address bidder);
-    event AuctionFinalized(uint256 indexed auctionId, address winner);
-    
-    // Создание аукциона
-    function createAuction(string memory itemDescription, uint256 duration) external returns (uint256) {
-        uint256 auctionId = uint256(keccak256(abi.encodePacked(itemDescription, block.timestamp)));
-        
-        auctions[auctionId] = Auction({
-            seller: msg.sender,
-            itemDescription: itemDescription,
-            endTime: block.timestamp + duration,
-            finalized: false,
-            highestBidder: address(0),
-            highestBid: suint256(0)
-        });
-        
-        emit AuctionCreated(auctionId, itemDescription, block.timestamp + duration);
-        return auctionId;
-    }
-    
-    // Размещение ставки
-    function makeBid(uint256 auctionId, suint256 bidAmount) external payable {
-        Auction storage auction = auctions[auctionId];
-        
-        require(block.timestamp < auction.endTime, "Auction ended");
-        require(!auction.finalized, "Auction already finalized");
-        
-        // Сохраняем ставку пользователя
-        bids[auctionId][msg.sender] = bidAmount;
-        
-        // Обновляем наивысшую ставку если текущая выше
-        if (bidAmount > auction.highestBid) {
-            auction.highestBid = bidAmount;
-            auction.highestBidder = msg.sender;
-        }
-        
-        emit BidPlaced(auctionId, msg.sender);
-    }
-    
-    // Завершение аукциона
-    function finalizeAuction(uint256 auctionId) external {
-        Auction storage auction = auctions[auctionId];
-        
-        require(msg.sender == auction.seller, "Only seller can finalize");
-        require(block.timestamp >= auction.endTime, "Auction not ended yet");
-        require(!auction.finalized, "Already finalized");
-        
-        auction.finalized = true;
-        
-        emit AuctionFinalized(auctionId, auction.highestBidder);
-    }
-}
-                    </pre>
-                    <p class="mt-3">Преимущества скрытых ставок:</p>
-                    <ul>
-                        <li>Участники не видят ставки других участников до завершения аукциона</li>
-                        <li>Предотвращает последовательное повышение ставок</li>
-                        <li>Обеспечивает справедливую конкуренцию без знания минимальной суммы для победы</li>
-                    </ul>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                    <a href="https://docs.seismic.systems/" target="_blank" class="btn btn-primary">Подробнее в документации</a>
-                </div>
-            </div>
-        </div>
-    </div>
-
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- Конфигурация и SDK для Seismic Devnet -->
     <script src="seismic-config.js"></script>
     <script src="seismic-sdk.js"></script>
-    
-    <!-- Основной JS файл -->
     <script src="app.js"></script>
-    
-    <!-- Скрипт для сейсмической анимации -->
-    <script src="seismic-animation.js"></script>
 </body>
 </html> 

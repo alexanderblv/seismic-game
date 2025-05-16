@@ -143,4 +143,258 @@
     100% {
         background-color: rgba(74, 123, 255, 0.1);
     }
+}
+
+/* Main Styles for Seismic Transaction Interface */
+
+:root {
+    --primary-color: #3498db;
+    --primary-dark: #2980b9;
+    --secondary-color: #9b59b6;
+    --secondary-dark: #8e44ad;
+    --success-color: #2ecc71;
+    --danger-color: #e74c3c;
+    --light-color: #ecf0f1;
+    --dark-color: #2c3e50;
+    --text-color: #34495e;
+    --bg-light: #f5f7fa;
+    --bg-dark: #1a1a2e;
+}
+
+body {
+    background-color: var(--bg-light);
+    color: var(--text-color);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Header styles */
+header {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Card styles */
+.card {
+    border: none;
+    border-radius: 10px;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    font-weight: 600;
+    border-bottom: none;
+}
+
+/* Button styles */
+.btn {
+    border-radius: 6px;
+    font-weight: 500;
+    padding: 0.5rem 1.25rem;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-dark);
+    border-color: var(--primary-dark);
+}
+
+.btn-success {
+    background-color: var(--success-color);
+    border-color: var(--success-color);
+}
+
+.btn-success:hover {
+    filter: brightness(0.9);
+}
+
+/* Form styles */
+.form-control {
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    padding: 0.75rem 1rem;
+}
+
+.form-control:focus {
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+    border-color: var(--primary-color);
+}
+
+/* Badge styles */
+.badge {
+    padding: 0.5rem 0.75rem;
+    font-weight: 500;
+    border-radius: 6px;
+}
+
+/* Address display */
+.text-truncate {
+    max-width: 150px;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+/* Transaction history */
+.table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.table th {
+    font-weight: 600;
+    color: var(--dark-color);
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.transaction-status {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 5px;
+}
+
+.transaction-status.pending {
+    background-color: #f39c12;
+}
+
+.transaction-status.confirmed {
+    background-color: #2ecc71;
+}
+
+.transaction-status.failed {
+    background-color: #e74c3c;
+}
+
+/* Address format */
+.address-display {
+    font-family: monospace;
+    font-size: 0.875rem;
+}
+
+/* Animation for loading */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.pulse {
+    animation: pulse 1.5s infinite ease-in-out;
+}
+
+/* Transaction details */
+.tx-details {
+    background-color: #f8f9fa;
+    border-radius: 6px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.tx-details-label {
+    font-weight: bold;
+    color: var(--dark-color);
+}
+
+.tx-hash {
+    word-break: break-all;
+    font-family: monospace;
+    font-size: 0.875rem;
+}
+
+/* Footer styling */
+footer {
+    border-top: 1px solid rgba(0,0,0,0.1);
+}
+
+/* Encryption toggle switch */
+.form-switch .form-check-input {
+    width: 3em;
+    height: 1.5em;
+}
+
+.form-switch .form-check-input:checked {
+    background-color: var(--secondary-color);
+    border-color: var(--secondary-color);
+}
+
+/* Encrypted field indicator */
+.encrypted-field {
+    background-color: rgba(155, 89, 182, 0.1);
+    border-color: var(--secondary-color);
+}
+
+/* Network badge styles */
+#network-badge {
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+#network-badge.connected {
+    background-color: var(--success-color);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Loading animation */
+.loading-spinner {
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    border-left-color: var(--primary-color);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .card {
+        margin-bottom: 1.5rem;
+    }
+    
+    .btn {
+        padding: 0.4rem 1rem;
+    }
+    
+    h1 {
+        font-size: 1.5rem;
+    }
+    
+    .badge {
+        padding: 0.25rem 0.5rem;
+    }
 } 

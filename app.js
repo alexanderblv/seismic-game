@@ -228,7 +228,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // Set the flag that connection process has started
             walletConnectInitiated = true;
             
+            console.log("Начинаем подключение кошелька...");
             const wallet = await seismic.connect();
+            console.log("Кошелек успешно подключен:", wallet);
             
             if (wallet) {
                 // Update UI to show connected state
@@ -257,10 +259,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Reset initiated flag
                 walletConnectInitiated = false;
+                
+                showSuccess("Кошелек успешно подключен!");
             }
         } catch (error) {
             console.error('Failed to connect wallet:', error);
-            showError('Failed to connect wallet: ' + (error.message || 'Unknown error'));
+            
+            // Проверяем специфические ошибки и показываем понятные пользователю сообщения
+            let errorMessage = 'Failed to connect wallet';
+            
+            if (error.message.includes('User closed modal')) {
+                errorMessage = 'Вы закрыли окно выбора кошелька';
+            } else if (error.message.includes('User rejected')) {
+                errorMessage = 'Вы отклонили подключение кошелька';
+            } else if (error.message.includes('WalletConnector не найден')) {
+                errorMessage = 'Ошибка инициализации: WalletConnector не найден';
+            } else {
+                errorMessage = error.message || 'Unknown error';
+            }
+            
+            showError(`Ошибка подключения кошелька: ${errorMessage}`);
             walletConnectInitiated = false;
         } finally {
             connectWalletBtn.disabled = false;

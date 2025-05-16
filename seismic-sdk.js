@@ -86,36 +86,42 @@
                     }
                 }
                 
-                // Используем WalletConnector для подключения кошелька
-                if (window.WalletConnector) {
-                    console.log("Вызываем WalletConnector.connect()...");
-                    try {
-                        const result = await window.WalletConnector.connect();
-                        
-                        if (!result || !result.success) {
-                            const errorMessage = result && result.error ? result.error : "Неизвестная ошибка";
-                            console.error("Ошибка при вызове WalletConnector.connect():", errorMessage);
-                            throw new Error(`Не удалось подключить кошелек: ${errorMessage}`);
-                        }
-                        
-                        // Получаем адрес кошелька
-                        const address = window.WalletConnector.getSelectedAccount();
-                        console.log("Получен адрес:", address);
-                        
-                        if (!address) {
-                            throw new Error("Не удалось получить адрес аккаунта");
-                        }
-                        
-                        // Финализируем подключение
-                        return await this.completeConnection(address, window.WalletConnector.getProvider());
-                    } catch (connectError) {
-                        console.error("Ошибка в процессе подключения:", connectError);
-                        throw connectError; // Пробрасываем ошибку дальше
-                    }
-                } else {
+                // Проверяем наличие WalletConnector
+                if (!window.WalletConnector) {
+                    console.error("WalletConnector не найден. Проверьте порядок загрузки скриптов.");
                     this.connectionInProgress = false;
                     throw new Error("WalletConnector не найден. Убедитесь, что wallet-connector.js подключен перед seismic-sdk.js");
                 }
+                
+                // Используем WalletConnector для подключения кошелька
+                console.log("Вызов WalletConnector.connect()...");
+                const result = await window.WalletConnector.connect();
+                
+                console.log("Результат подключения кошелька:", result);
+                if (!result || !result.success) {
+                    const errorMessage = result && result.error ? result.error.message : "Неизвестная ошибка";
+                    console.error("Ошибка подключения через WalletConnector:", errorMessage);
+                    throw new Error(`Не удалось подключить кошелек через WalletConnector: ${errorMessage}`);
+                }
+                
+                // Получаем адрес кошелька
+                const address = window.WalletConnector.getSelectedAccount();
+                
+                if (!address) {
+                    console.error("Не удалось получить адрес аккаунта после успешного подключения");
+                    throw new Error("Не удалось получить адрес аккаунта");
+                }
+                
+                // Получаем провайдер
+                const provider = window.WalletConnector.getProvider();
+                if (!provider) {
+                    console.error("Не удалось получить провайдер после успешного подключения");
+                    throw new Error("Не удалось получить провайдер");
+                }
+                
+                // Финализируем подключение
+                console.log("Финализация подключения с адресом:", address);
+                return await this.completeConnection(address, provider);
             } catch (error) {
                 this.connectionInProgress = false;
                 console.error("Ошибка подключения кошелька:", error);

@@ -14,7 +14,6 @@
             this.isInitialized = false;
             this.wallet = null;
             this.connectionInProgress = false; // Флаг для отслеживания процесса подключения
-            this.web3Modal = null; // Web3Modal инстанс
         }
         
         // Инициализация SDK
@@ -24,226 +23,101 @@
                     return true; // Если уже инициализирован, просто возвращаем true
                 }
                 
-                // Инициализируем Web3Modal если он доступен
-                if (typeof Web3Modal !== 'undefined') {
-                    const providerOptions = this._getProviderOptions();
-                    
-                    this.web3Modal = new Web3Modal({
-                        cacheProvider: true, // Запоминаем последний выбранный провайдер
-                        providerOptions: providerOptions,
-                        theme: "dark",
-                        disableInjectedProvider: false, // Разрешаем встроенные провайдеры (MetaMask и др.)
-                        // Настройка пользовательского интерфейса Web3Modal
-                        themeVariables: {
-                            '--w3m-background-color': '#1a1e23',
-                            '--w3m-accent-color': '#3B82F6',
-                            '--w3m-text-color': '#ffffff'
-                        },
-                        // Логотип и название приложения
-                        network: this.config.network.name,
-                        description: "Подключите свой кошелек для отправки транзакций через Seismic",
-                        showQrModal: true // Показываем QR-код для WalletConnect
-                    });
-                    
-                    // Если есть кешированный провайдер, пробуем подключиться автоматически
-                    if (this.web3Modal.cachedProvider) {
-                        await this._connectWithWeb3Modal();
-                    }
+                // Проверяем инициализирован ли WalletConnector
+                if (typeof window.WalletConnector === 'undefined') {
+                    console.error("WalletConnector не найден. Убедитесь, что wallet-connector.js подключен до seismic-sdk.js");
                 }
                 
-                if (typeof ethers !== 'undefined') {
-                    // Создаем провайдер для подключения к Seismic Devnet
-                    if (!this.provider) {
-                        this.provider = new ethers.providers.JsonRpcProvider(this.config.network.rpcUrl);
-                    }
+                // Проверяем есть ли у нас уже подключенный кошелек через WalletConnector
+                const account = window.WalletConnector?.getSelectedAccount();
+                const web3Instance = window.WalletConnector?.getWeb3();
+                
+                if (account && web3Instance) {
+                    console.log("Найден подключенный кошелек через WalletConnector:", account);
                     
-                    console.log("Seismic SDK инициализирован");
-                    this.isInitialized = true;
-                    return true;
-                } else if (typeof Web3 !== 'undefined') {
-                    // Альтернативный вариант с Web3
-                    this.web3 = new Web3(this.config.network.rpcUrl);
-                    console.log("Seismic SDK инициализирован через Web3");
-                    this.isInitialized = true;
-                    return true;
+                    // Используем провайдер из WalletConnector
+                    this.provider = new ethers.providers.Web3Provider(web3Instance.currentProvider);
+                    this.signer = this.provider.getSigner();
+                    
+                    // Создаем объект wallet
+                    this.wallet = {
+                        address: account,
+                        provider: this.provider,
+                        signer: this.signer,
+                        network: await this.provider.getNetwork(),
+                        connected: true
+                    };
+                    
+                    console.log("SDK инициализирован с существующим подключением к кошельку");
                 } else {
-                    console.error("Для работы SDK необходим ethers.js или web3.js");
-                    return false;
+                    // Создаем провайдер для подключения к Seismic Devnet
+                    this.provider = new ethers.providers.JsonRpcProvider(this.config.network.rpcUrl);
+                    console.log("SDK инициализирован с RPC провайдером");
                 }
+                
+                this.isInitialized = true;
+                
+                // Устанавливаем обработчики событий WalletConnector
+                this._setupWalletConnectorListeners();
+                
+                return true;
             } catch (error) {
                 console.error("Ошибка инициализации Seismic SDK:", error);
                 return false;
             }
         }
         
-        // Получить опции провайдеров для Web3Modal
-        _getProviderOptions() {
-            const providerOptions = {};
-            
-            // Добавляем WalletConnect если он доступен
-            if (typeof WalletConnectProvider !== 'undefined') {
-                providerOptions.walletconnect = {
-                    package: WalletConnectProvider,
-                    options: {
-                        rpc: {
-                            [this.config.network.chainId]: this.config.network.rpcUrl
-                        },
-                        chainId: this.config.network.chainId
-                    }
-                };
-            }
-            
-            // Добавляем Coinbase Wallet если он доступен
-            if (typeof CoinbaseWalletSDK !== 'undefined') {
-                providerOptions.coinbasewallet = {
-                    package: CoinbaseWalletSDK,
-                    options: {
-                        appName: "Seismic Transaction Sender",
-                        rpc: this.config.network.rpcUrl,
-                        chainId: this.config.network.chainId
-                    }
-                };
-            }
-            
-            // Добавляем Fortmatic если он доступен
-            if (typeof Fortmatic !== 'undefined') {
-                providerOptions.fortmatic = {
-                    package: Fortmatic,
-                    options: {
-                        key: "pk_test_" // В продакшене нужен настоящий ключ
-                    }
-                };
-            }
-            
-            // Добавляем Torus если он доступен
-            if (typeof Torus !== 'undefined') {
-                providerOptions.torus = {
-                    package: Torus
-                };
-            }
-            
-            // Добавляем Trust Wallet если он доступен
-            if (typeof TrustWalletConnector !== 'undefined') {
-                providerOptions.trust = {
-                    package: TrustWalletConnector,
-                    options: {
-                        rpc: {
-                            [this.config.network.chainId]: this.config.network.rpcUrl
-                        },
-                        chainId: this.config.network.chainId
-                    }
-                };
-            }
-            
-            // Поддержка Ledger Live если он доступен
-            if (typeof LedgerConnectProvider !== 'undefined') {
-                providerOptions.ledger = {
-                    package: LedgerConnectProvider
-                };
-            }
-            
-            return providerOptions;
-        }
-        
-        // Подключение с использованием Web3Modal
-        async _connectWithWeb3Modal() {
-            try {
-                const provider = await this.web3Modal.connect();
+        // Устанавливаем слушатели событий от WalletConnector
+        _setupWalletConnectorListeners() {
+            // Слушаем событие успешного подключения кошелька
+            document.addEventListener('walletConnected', async (event) => {
+                const { account, provider } = event.detail;
+                console.log("SDK: Получено событие walletConnected, аккаунт:", account);
                 
-                // Сохраняем тип провайдера для отображения пользователю
-                this.providerType = this._detectProviderType(provider);
-                console.log(`Подключен кошелек типа: ${this.providerType}`);
-                
-                // Настраиваем обработчики событий провайдера
-                provider.on("accountsChanged", (accounts) => {
-                    console.log("Аккаунт сменился:", accounts);
-                    if (accounts.length === 0) {
-                        // Пользователь отключился
-                        this.wallet = null;
-                        window.location.reload();
-                    } else if (this.wallet && this.wallet.address !== accounts[0]) {
-                        // Пользователь сменил аккаунт
-                        this.completeConnection(accounts[0]);
-                    }
-                });
-                
-                provider.on("chainChanged", (chainId) => {
-                    console.log("Сеть изменилась:", chainId);
-                    // Проверяем, изменилась ли сеть на нашу целевую
-                    const chainIdNum = parseInt(chainId, 16);
-                    if (chainIdNum === this.config.network.chainId) {
-                        console.log("Сеть изменена на нужную, обновляем соединение");
-                        this._refreshConnection();
-                    } else {
-                        // Перезагружаем страницу при смене сети
-                        window.location.reload();
-                    }
-                });
-                
-                provider.on("disconnect", (error) => {
-                    console.log("Отключен от кошелька:", error);
-                    // Пользователь отключился
-                    this.wallet = null;
-                    this.web3Modal.clearCachedProvider();
-                    window.location.reload();
-                });
-                
-                // Используем ethers.js для работы с провайдером
+                // Обновляем провайдер и кошелек в SDK
                 this.provider = new ethers.providers.Web3Provider(provider);
+                this.signer = this.provider.getSigner();
                 
-                // Получаем адрес пользователя
-                const accounts = await this.provider.listAccounts();
+                // Создаем объект wallet
+                this.wallet = {
+                    address: account,
+                    provider: this.provider,
+                    signer: this.signer,
+                    network: await this.provider.getNetwork(),
+                    connected: true
+                };
                 
-                if (accounts.length === 0) {
-                    throw new Error("Не найдено ни одного аккаунта");
-                }
-                
-                return await this.completeConnection(accounts[0]);
-            } catch (error) {
-                console.error("Ошибка при подключении через Web3Modal:", error);
-                throw error;
-            }
-        }
-        
-        // Определение типа провайдера кошелька
-        _detectProviderType(provider) {
-            if (provider.isMetaMask) {
-                return "MetaMask";
-            } else if (provider.isCoinbaseWallet) {
-                return "Coinbase Wallet";
-            } else if (provider.isWalletConnect) {
-                return "WalletConnect";
-            } else if (provider.isTrust) {
-                return "Trust Wallet";
-            } else if (provider.isLedger) {
-                return "Ledger";
-            } else if (provider.isTorus) {
-                return "Torus";
-            } else if (provider.isFortmatic) {
-                return "Fortmatic";
-            } else if (provider.isPortis) {
-                return "Portis";
-            } else {
-                return "Unknown Wallet";
-            }
-        }
-        
-        // Обновление соединения при смене сети
-        async _refreshConnection() {
-            if (!this.wallet) return;
+                console.log("SDK: Кошелек обновлен после подключения");
+            });
             
-            try {
-                // Обновляем сеть
-                this.wallet.network = await this.provider.getNetwork();
+            // Слушаем событие отключения кошелька
+            document.addEventListener('walletDisconnected', () => {
+                console.log("SDK: Получено событие walletDisconnected");
                 
-                // Обновляем подписчика
+                // Сбрасываем кошелек в SDK
+                this.wallet = null;
+                this.signer = null;
+                
+                // Возвращаемся к RPC провайдеру
+                this.provider = new ethers.providers.JsonRpcProvider(this.config.network.rpcUrl);
+                
+                console.log("SDK: Кошелек сброшен после отключения");
+            });
+            
+            // Слушаем событие смены аккаунта
+            document.addEventListener('accountChanged', async (event) => {
+                const { account } = event.detail;
+                console.log("SDK: Получено событие accountChanged, новый аккаунт:", account);
+                
+                if (!this.wallet) return;
+                
+                // Обновляем адрес в объекте wallet
+                this.wallet.address = account;
                 this.signer = this.provider.getSigner();
                 this.wallet.signer = this.signer;
                 
-                console.log("Соединение обновлено для сети:", this.wallet.network.name);
-            } catch (error) {
-                console.error("Ошибка обновления соединения:", error);
-            }
+                console.log("SDK: Кошелек обновлен после смены аккаунта");
+            });
         }
         
         // Подключение кошелька
@@ -277,34 +151,28 @@
                 
                 // Если кошелек уже подключен, просто возвращаем его
                 if (this.wallet) {
-                    // Проверяем, что аккаунт не сменился
-                    if (window.ethereum && window.ethereum.selectedAddress && 
-                        window.ethereum.selectedAddress.toLowerCase() === this.wallet.address.toLowerCase()) {
-                        console.log("Используем существующее подключение кошелька:", this.wallet.address);
-                        this.connectionInProgress = false;
-                        return this.wallet;
-                    }
+                    console.log("Используем существующее подключение кошелька:", this.wallet.address);
+                    this.connectionInProgress = false;
+                    return this.wallet;
                 }
                 
-                // Если есть Web3Modal, используем его для подключения
-                if (this.web3Modal) {
-                    return await this._connectWithWeb3Modal();
-                } else if (window.ethereum) {
-                    // Запрашиваем доступ к кошельку пользователя (MetaMask и др.)
-                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                // Используем WalletConnector для подключения кошелька
+                if (typeof window.WalletConnector !== 'undefined') {
+                    // Запускаем подключение через WalletConnector
+                    await window.WalletConnector.connect();
                     
-                    // Проверяем, получили ли мы адреса
-                    if (!accounts || accounts.length === 0) {
-                        throw new Error("Не удалось получить адреса аккаунтов");
+                    // Получаем аккаунт из WalletConnector
+                    const account = window.WalletConnector.getSelectedAccount();
+                    
+                    if (!account) {
+                        throw new Error("Не удалось получить адрес аккаунта");
                     }
                     
-                    // Финализируем подключение
-                    const address = accounts[0];
-                    return await this.completeConnection(address);
-                    
+                    // Завершаем подключение с полученным адресом
+                    return await this.completeConnection(account);
                 } else {
                     this.connectionInProgress = false;
-                    throw new Error("Web3 провайдер не обнаружен. Установите MetaMask или другой кошелек.");
+                    throw new Error("WalletConnector не найден. Убедитесь, что wallet-connector.js подключен.");
                 }
             } catch (error) {
                 this.connectionInProgress = false;
@@ -315,14 +183,24 @@
         
         // Отключение кошелька
         async disconnect() {
-            if (this.web3Modal) {
-                this.web3Modal.clearCachedProvider();
+            try {
+                // Используем WalletConnector для отключения
+                if (typeof window.WalletConnector !== 'undefined') {
+                    await window.WalletConnector.disconnect();
+                }
+                
+                // Сбрасываем wallet в SDK
+                this.wallet = null;
+                this.signer = null;
+                
+                // Возвращаемся к RPC провайдеру
+                this.provider = new ethers.providers.JsonRpcProvider(this.config.network.rpcUrl);
+                
+                return true;
+            } catch (error) {
+                console.error("Ошибка отключения кошелька:", error);
+                throw error;
             }
-            
-            this.wallet = null;
-            this.provider = new ethers.providers.JsonRpcProvider(this.config.network.rpcUrl);
-            
-            return true;
         }
         
         // Завершение подключения кошелька по известному адресу
@@ -338,66 +216,11 @@
                     return this.wallet;
                 }
                 
-                // Если не используем Web3Modal, подключаем провайдер напрямую
-                if (!this.web3Modal && window.ethereum) {
-                    this.provider = new ethers.providers.Web3Provider(window.ethereum);
-                    this.providerType = "MetaMask или другой инжектированный провайдер";
-                }
-                
-                // Проверяем, что пользователь подключен к нужной сети
-                const network = await this.provider.getNetwork();
-                if (network.chainId !== this.config.network.chainId) {
-                    try {
-                        const provider = this.provider.provider;
-                        
-                        // Проверяем, является ли провайдер WalletConnect, который использует другой метод
-                        if (provider.isWalletConnect) {
-                            console.log("Используем WalletConnect, просим пользователя сменить сеть вручную");
-                            throw new Error(`Пожалуйста, смените сеть в вашем кошельке на ${this.config.network.name} (Chain ID: ${this.config.network.chainId})`);
-                        }
-                        
-                        // Пробуем переключить сеть
-                        await provider.request({
-                            method: 'wallet_switchEthereumChain',
-                            params: [{ chainId: '0x' + this.config.network.chainId.toString(16) }]
-                        });
-                        
-                        // Обновляем провайдер после переключения
-                        if (!this.web3Modal) {
-                            this.provider = new ethers.providers.Web3Provider(window.ethereum);
-                        }
-                    } catch (switchError) {
-                        // Если сеть не добавлена, предлагаем добавить
-                        if (switchError.code === 4902) {
-                            try {
-                                const provider = this.provider.provider;
-                                await provider.request({
-                                    method: 'wallet_addEthereumChain',
-                                    params: [{
-                                        chainId: '0x' + this.config.network.chainId.toString(16),
-                                        chainName: this.config.network.name,
-                                        nativeCurrency: {
-                                            name: 'Ethereum',
-                                            symbol: this.config.network.symbol,
-                                            decimals: 18
-                                        },
-                                        rpcUrls: [this.config.network.rpcUrl],
-                                        blockExplorerUrls: [this.config.network.explorer]
-                                    }]
-                                });
-                                
-                                // Обновляем провайдер после добавления сети
-                                if (!this.web3Modal) {
-                                    this.provider = new ethers.providers.Web3Provider(window.ethereum);
-                                }
-                            } catch (addError) {
-                                console.error("Ошибка добавления сети:", addError);
-                                throw new Error(`Не удалось добавить сеть ${this.config.network.name}. Пожалуйста, добавьте её вручную.`);
-                            }
-                        } else {
-                            console.error("Ошибка переключения сети:", switchError);
-                            throw new Error(`Пожалуйста, переключитесь на сеть ${this.config.network.name} (Chain ID: ${this.config.network.chainId}) в вашем кошельке.`);
-                        }
+                // Используем провайдер из WalletConnector
+                if (typeof window.WalletConnector !== 'undefined') {
+                    const web3Instance = window.WalletConnector.getWeb3();
+                    if (web3Instance) {
+                        this.provider = new ethers.providers.Web3Provider(web3Instance.currentProvider);
                     }
                 }
                 
@@ -410,13 +233,10 @@
                     provider: this.provider,
                     signer: this.signer,
                     network: await this.provider.getNetwork(),
-                    walletType: this.providerType || "Unknown Wallet",
-                    connected: true,
-                    connectedAt: new Date()
+                    connected: true
                 };
                 
                 console.log("Кошелек подключен:", address);
-                console.log("Тип кошелька:", this.wallet.walletType);
                 return this.wallet;
             } catch (error) {
                 console.error("Ошибка завершения подключения кошелька:", error);

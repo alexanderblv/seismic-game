@@ -56,18 +56,26 @@
         try {
             console.log("Connecting wallet...");
             
-            // Check if MetaMask or other injected provider is available
+            // Check if injected providers are available
             if (!window.ethereum) {
-                alert("No Ethereum wallet detected! Please install MetaMask or another wallet.");
+                alert("No Ethereum wallet detected! Please install a wallet extension like MetaMask, Coinbase Wallet, or others.");
                 return false;
             }
             
-            // Request accounts
-            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-            console.log("Connected accounts:", accounts);
-            
-            if (!accounts || accounts.length === 0) {
-                throw new Error("No accounts found - wallet might be locked");
+            // Use EIP-1193 requestWallets to show the wallet selector
+            // This allows user to choose from all available wallet providers
+            let accounts;
+            try {
+                // This will show the wallet selector with all installed wallets
+                accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                console.log("Connected accounts:", accounts);
+                
+                if (!accounts || accounts.length === 0) {
+                    throw new Error("No accounts found - wallet might be locked");
+                }
+            } catch (requestError) {
+                console.error("Error requesting accounts:", requestError);
+                throw new Error("Failed to connect wallet. Please try a different wallet or try again later.");
             }
             
             // Setup Web3

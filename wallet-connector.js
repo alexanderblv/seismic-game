@@ -15,6 +15,42 @@
     // Modal elements
     let modalContainer = null;
     
+    // Helper function to detect wallets
+    function detectInstalledWallets() {
+        const detectedWallets = {
+            hasEthereum: !!window.ethereum,
+            hasProviders: !!(window.ethereum && window.ethereum.providers),
+            injectedProviders: []
+        };
+        
+        if (window.ethereum) {
+            // Check main ethereum object
+            if (window.ethereum.isMetaMask) detectedWallets.injectedProviders.push('metamask');
+            if (window.ethereum.isRabby) detectedWallets.injectedProviders.push('rabby');
+            if (window.ethereum.isCoinbaseWallet || window.ethereum.isCoinbaseBrowser) detectedWallets.injectedProviders.push('coinbase');
+            if (window.ethereum.isBinanceChain) detectedWallets.injectedProviders.push('binance');
+            if (window.ethereum.isWalletConnect) detectedWallets.injectedProviders.push('walletconnect');
+            
+            // Check for multiple providers
+            if (window.ethereum.providers && Array.isArray(window.ethereum.providers)) {
+                window.ethereum.providers.forEach((p, i) => {
+                    if (p.isMetaMask) detectedWallets.injectedProviders.push(`metamask-${i}`);
+                    if (p.isRabby) detectedWallets.injectedProviders.push(`rabby-${i}`);
+                    if (p.isCoinbaseWallet || p.isCoinbaseBrowser) detectedWallets.injectedProviders.push(`coinbase-${i}`);
+                    if (p.isBinanceChain) detectedWallets.injectedProviders.push(`binance-${i}`);
+                    if (p.isWalletConnect) detectedWallets.injectedProviders.push(`walletconnect-${i}`);
+                });
+            }
+        }
+        
+        // Check for WalletConnect specifically
+        if (window.WalletConnectProvider) {
+            detectedWallets.injectedProviders.push('walletconnect-lib');
+        }
+        
+        return detectedWallets;
+    }
+    
     // Available wallet providers
     const walletProviders = [
         {
@@ -219,6 +255,10 @@
                 }
             });
             
+            // Log detailed wallet detection information
+            const detectedWallets = detectInstalledWallets();
+            console.log("Detected wallets:", detectedWallets);
+            
             // Log ethereum provider info
             if (window.ethereum) {
                 console.log("Ethereum provider found:", window.ethereum);
@@ -397,87 +437,98 @@
             console.log(`Connecting to ${walletProvider.name}...`);
             hideWalletSelector();
             
-            // Get provider instance
-            provider = await walletProvider.connect();
-            
-            if (!provider) {
-                throw new Error(`Failed to connect to ${walletProvider.name}`);
-            }
-            
-            console.log(`Connected to ${walletProvider.name}`, provider);
-            
-            // Setup Web3
-            web3 = new Web3(provider);
-            
-            // Request accounts
-            console.log("Requesting accounts...");
-            const accounts = await web3.eth.getAccounts();
-            
-            if (!accounts || accounts.length === 0) {
-                // Try directly with provider if web3.eth.getAccounts fails
-                try {
-                    console.log("Trying alternative method to get accounts...");
-                    const accounts = await provider.request({ method: 'eth_requestAccounts' });
-                    if (accounts && accounts.length > 0) {
-                        selectedAccount = accounts[0];
-                        console.log("Selected account (alternative method):", selectedAccount);
-                        
-                        // Save connected account to localStorage
-                        localStorage.setItem('connectedAccount', selectedAccount);
-                        localStorage.setItem('connectedProvider', walletProvider.id);
-                        
-                        // Update UI
-                        updateUI();
-                        
-                        // Setup event listeners
-                        setupEventListeners();
-                        
-                        // Dispatch connected event
-                        const event = new CustomEvent('walletConnected', {
-                            detail: { 
-                                account: selectedAccount,
-                                provider: provider,
-                                web3: web3
-                            }
-                        });
-                        document.dispatchEvent(event);
-                        
-                        return { success: true, account: selectedAccount };
-                    }
-                } catch (innerError) {
-                    console.error("Alternative method to get accounts failed:", innerError);
+            try {
+                // Get provider instance
+                provider = await walletProvider.connect();
+                
+                if (!provider) {
+                    throw new Error(`Failed to connect to ${walletProvider.name}`);
                 }
                 
-                throw new Error("No accounts found - wallet might be locked");
-            }
-            
-            // Set selected account
-            selectedAccount = accounts[0];
-            console.log("Selected account:", selectedAccount);
-            
-            // Save connected account to localStorage
-            localStorage.setItem('connectedAccount', selectedAccount);
-            localStorage.setItem('connectedProvider', walletProvider.id);
-            
-            // Update UI
-            updateUI();
-            
-            // Setup event listeners
-            setupEventListeners();
-            
-            // Dispatch connected event
-            const event = new CustomEvent('walletConnected', {
-                detail: { 
-                    account: selectedAccount,
-                    provider: provider,
-                    web3: web3
+                console.log(`Connected to ${walletProvider.name}`, provider);
+                
+                // Setup Web3
+                web3 = new Web3(provider);
+                
+                // Request accounts
+                console.log("Requesting accounts...");
+                let accounts;
+                
+                try {
+                    accounts = await web3.eth.getAccounts();
+                } catch (err) {
+                    console.warn("Failed to get accounts with web3.eth.getAccounts():", err);
+                    accounts = [];
                 }
-            });
-            document.dispatchEvent(event);
-            
-            return { success: true, account: selectedAccount };
+                
+                if (!accounts || accounts.length === 0) {
+                    // Try directly with provider if web3.eth.getAccounts fails
+                    try {
+                        console.log("Trying eth_requestAccounts method...");
+                        accounts = await provider.request({ method: 'eth_requestAccounts' });
+                    } catch (err) {
+                        console.warn("Failed to get accounts with eth_requestAccounts:", err);
+                        
+                        // Try with enable method (older wallets)
+                        try {
+                            console.log("Trying enable method...");
+                            accounts = await provider.enable();
+                        } catch (enableErr) {
+                            console.warn("Failed to get accounts with enable method:", enableErr);
+                            throw new Error("No accounts found - wallet might be locked or access denied");
+                        }
+                    }
+                }
+                
+                if (!accounts || accounts.length === 0) {
+                    throw new Error("No accounts found - wallet might be locked");
+                }
+                
+                // Set selected account
+                selectedAccount = accounts[0];
+                console.log("Selected account:", selectedAccount);
+                
+                // Save connected account to localStorage
+                localStorage.setItem('connectedAccount', selectedAccount);
+                localStorage.setItem('connectedProvider', walletProvider.id);
+                
+                // Update UI
+                updateUI();
+                
+                // Setup event listeners
+                setupEventListeners();
+                
+                // Dispatch connected event
+                const event = new CustomEvent('walletConnected', {
+                    detail: { 
+                        account: selectedAccount,
+                        provider: provider,
+                        web3: web3
+                    }
+                });
+                document.dispatchEvent(event);
+                
+                return { success: true, account: selectedAccount };
+            } catch (error) {
+                console.error(`Failed to connect with ${walletProvider.name}:`, error);
+                
+                // For debugging, log all available wallet providers
+                console.log("Checking available providers:");
+                if (window.ethereum) {
+                    console.log("Main ethereum object:", window.ethereum);
+                    if (window.ethereum.providers) {
+                        window.ethereum.providers.forEach((p, i) => {
+                            console.log(`Provider ${i}:`, p);
+                        });
+                    }
+                } else {
+                    console.log("No window.ethereum object found");
+                }
+                
+                throw error;
+            }
         } catch (error) {
-            console.error(`Failed to connect with ${walletProvider.name}:`, error);
+            console.error(`Connection error for ${walletProvider.name}:`, error);
             return { success: false, error: error };
         } finally {
             connecting = false;

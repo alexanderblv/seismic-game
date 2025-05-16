@@ -29,6 +29,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const transactionModal = new bootstrap.Modal(document.getElementById('transaction-modal'));
     const transactionResult = document.getElementById('transaction-result');
     const txExplorerLink = document.getElementById('tx-explorer-link');
+    
+    // Encrypted Types Form Elements
+    const encryptedTypeSelect = document.getElementById('encrypted-type');
+    const suintInputGroup = document.getElementById('suint-input-group');
+    const saddressInputGroup = document.getElementById('saddress-input-group');
+    const sboolInputGroup = document.getElementById('sbool-input-group');
+    const suintValue = document.getElementById('suint-value');
+    const saddressValue = document.getElementById('saddress-value');
+    const sboolTrueRadio = document.getElementById('sbool-true');
+    const sboolFalseRadio = document.getElementById('sbool-false');
+    const encryptionResult = document.getElementById('encryption-result');
+    const encryptDataBtn = document.getElementById('encrypt-data-btn');
+    const sendEncryptedTxBtn = document.getElementById('send-encrypted-tx-btn');
+    
+    // Current encryption result
+    let currentEncryptedData = null;
 
     // Initialize the SDK
     async function initializeSdk() {
@@ -141,7 +157,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 .then(() => {
                     // Change button icon temporarily
                     copyAddressBtn.innerHTML = '<i class="bi bi-check-lg"></i>';
-                    setTimeout(() => {
+            setTimeout(() => {
                         copyAddressBtn.innerHTML = '<i class="bi bi-clipboard"></i>';
                     }, 1500);
                 })
@@ -157,9 +173,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (!seismic.wallet) {
             showError('Please connect your wallet first');
-            return;
-        }
-        
+                return;
+            }
+            
         const recipientAddress = recipientAddressInput.value.trim();
         const amount = amountInput.value.trim();
         const useEncryption = enableEncryptionToggle.checked;
@@ -168,14 +184,14 @@ document.addEventListener('DOMContentLoaded', () => {
         // Validate inputs
         if (!ethers.utils.isAddress(recipientAddress)) {
             showError('Please enter a valid Ethereum address');
-            return;
-        }
-        
+                return;
+            }
+            
         if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
             showError('Please enter a valid amount');
-            return;
-        }
-        
+                return;
+            }
+            
         try {
             loadingOverlay.classList.remove('d-none');
             loadingText.textContent = 'Preparing transaction...';
@@ -235,7 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Refresh balance
             refreshBalance();
             
-        } catch (error) {
+            } catch (error) {
             console.error('Failed to send transaction:', error);
             showError('Failed to send transaction. Please check your inputs and try again.');
         } finally {
@@ -248,9 +264,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (transactionHistory.length === 0) {
             noTransactionsAlert.classList.remove('d-none');
             transactionHistoryDiv.classList.add('d-none');
-            return;
-        }
-        
+                return;
+            }
+            
         noTransactionsAlert.classList.add('d-none');
         transactionHistoryDiv.classList.remove('d-none');
         
@@ -290,6 +306,182 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
+    // Toggle input fields based on selected encrypted type
+    function toggleEncryptedTypeInputs() {
+        const selectedType = encryptedTypeSelect.value;
+        
+        // Hide all input groups
+        suintInputGroup.classList.add('d-none');
+        saddressInputGroup.classList.add('d-none');
+        sboolInputGroup.classList.add('d-none');
+        
+        // Show the selected input group
+        switch (selectedType) {
+            case 'suint':
+                suintInputGroup.classList.remove('d-none');
+                break;
+            case 'saddress':
+                saddressInputGroup.classList.remove('d-none');
+                break;
+            case 'sbool':
+                sboolInputGroup.classList.remove('d-none');
+                break;
+        }
+        
+        // Reset the encryption result
+        encryptionResult.textContent = 'Encrypted value will appear here after encryption';
+        currentEncryptedData = null;
+        sendEncryptedTxBtn.disabled = true;
+    }
+    
+    // Encrypt data using Seismic SDK
+    async function encryptData() {
+        if (!seismic.wallet) {
+            showError('Please connect your wallet first');
+            return;
+        }
+        
+        const type = encryptedTypeSelect.value;
+        let value;
+        
+        // Get the value based on type
+        switch (type) {
+            case 'suint':
+                value = suintValue.value.trim();
+                if (!value || isNaN(parseInt(value))) {
+                    showError('Please enter a valid integer');
+                    return;
+                }
+                value = parseInt(value);
+                break;
+            
+            case 'saddress':
+                value = saddressValue.value.trim();
+                if (!ethers.utils.isAddress(value)) {
+                    showError('Please enter a valid Ethereum address');
+                    return;
+                }
+                break;
+            
+            case 'sbool':
+                value = sboolTrueRadio.checked;
+                break;
+        }
+        
+        try {
+            loadingOverlay.classList.remove('d-none');
+            loadingText.textContent = 'Encrypting data...';
+            
+            // Encrypt the data
+            const encrypted = await seismic.encrypt(type, value);
+            currentEncryptedData = encrypted;
+            
+            // Display the encrypted result
+            encryptionResult.innerHTML = `
+                <div class="mb-2"><span class="badge bg-secondary">Type:</span> ${type}</div>
+                <div class="mb-2"><span class="badge bg-secondary">Original:</span> ${value.toString()}</div>
+                <div><span class="badge bg-success">Encrypted:</span> ${encrypted.encryptedValue}</div>
+            `;
+            
+            // Enable the send button
+            sendEncryptedTxBtn.disabled = false;
+            
+            showSuccess('Data encrypted successfully!');
+        } catch (error) {
+            console.error('Failed to encrypt data:', error);
+            showError('Failed to encrypt data. Please try again.');
+        } finally {
+            loadingOverlay.classList.add('d-none');
+        }
+    }
+    
+    // Send encrypted transaction
+    async function sendEncryptedTransaction() {
+        if (!seismic.wallet) {
+            showError('Please connect your wallet first');
+            return;
+        }
+        
+        if (!currentEncryptedData) {
+            showError('Please encrypt data first');
+            return;
+        }
+        
+        try {
+            loadingOverlay.classList.remove('d-none');
+            loadingText.textContent = 'Preparing encrypted transaction...';
+            
+            // For demo purposes, we're sending to a demo contract address
+            // In a real implementation, you would deploy a contract that accepts encrypted data
+            const demoContractAddress = seismic.wallet.address; // Using user's address for demo
+            
+            // Prepare transaction data
+            const txData = {
+                to: demoContractAddress,
+                value: ethers.utils.parseEther("0.0001"), // Minimal amount for demo
+                encryptedData: currentEncryptedData
+            };
+            
+            loadingText.textContent = 'Sending encrypted transaction...';
+            
+            // Send transaction
+            const tx = await seismic.sendTransaction(txData);
+            
+            loadingText.textContent = 'Transaction submitted. Waiting for confirmation...';
+            
+            // Add to transaction history with a special tag for encrypted data
+            const txRecord = {
+                hash: tx.hash,
+                to: demoContractAddress,
+                value: "0.0001",
+                status: 'pending',
+                timestamp: Date.now(),
+                encrypted: true,
+                encryptedType: currentEncryptedData.type
+            };
+            
+            transactionHistory.unshift(txRecord);
+            updateTransactionHistory();
+            
+            // Wait for confirmation
+            const receipt = await tx.wait();
+            
+            // Update transaction status
+            const txIndex = transactionHistory.findIndex(t => t.hash === tx.hash);
+            if (txIndex !== -1) {
+                transactionHistory[txIndex].status = receipt.status === 1 ? 'confirmed' : 'failed';
+                updateTransactionHistory();
+            }
+            
+            // Show success message
+            showTransactionResult(tx, receipt);
+            
+            // Refresh balance
+            refreshBalance();
+            
+            // Reset form
+            resetEncryptedForm();
+            
+        } catch (error) {
+            console.error('Failed to send encrypted transaction:', error);
+            showError('Failed to send encrypted transaction. Please try again.');
+        } finally {
+            loadingOverlay.classList.add('d-none');
+        }
+    }
+    
+    // Reset encrypted form
+    function resetEncryptedForm() {
+        encryptionResult.textContent = 'Encrypted value will appear here after encryption';
+        currentEncryptedData = null;
+        sendEncryptedTxBtn.disabled = true;
+        
+        // Reset inputs
+        suintValue.value = '';
+        saddressValue.value = '';
+        sboolTrueRadio.checked = true;
+    }
+    
     // Show transaction result in modal
     function showTransactionResult(tx, receipt) {
         let resultHTML = '';
@@ -300,7 +492,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <i class="bi bi-check-circle-fill me-2"></i> Transaction confirmed successfully!
                 </div>
             `;
-        } else {
+                        } else {
             resultHTML = `
                 <div class="alert alert-danger">
                     <i class="bi bi-x-circle-fill me-2"></i> Transaction failed!
@@ -384,6 +576,11 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshBalanceBtn.addEventListener('click', refreshBalance);
     copyAddressBtn.addEventListener('click', copyAddress);
     transactionForm.addEventListener('submit', sendTransaction);
+    
+    // Encrypted types form event listeners
+    encryptedTypeSelect.addEventListener('change', toggleEncryptedTypeInputs);
+    encryptDataBtn.addEventListener('click', encryptData);
+    sendEncryptedTxBtn.addEventListener('click', sendEncryptedTransaction);
     
     // Check if MetaMask is installed
     if (!window.ethereum) {

@@ -142,11 +142,37 @@ document.addEventListener('DOMContentLoaded', () => {
         connectWalletBtn.classList.add('btn-danger');
         connectWalletBtn.onclick = disconnectWallet;
         
+        // Добавим значок кошелька на кнопку
+        connectWalletBtn.innerHTML = '<i class="bi bi-wallet2"></i> Disconnect';
+        
         // Show user address
         const shortAddress = `${wallet.address.substring(0, 6)}...${wallet.address.substring(wallet.address.length - 4)}`;
         walletAddress.textContent = shortAddress;
         walletAddress.classList.remove('d-none');
         userAddressInput.value = wallet.address;
+        
+        // Добавим отображение типа кошелька
+        let walletTypeIcon = '';
+        
+        switch (wallet.walletType) {
+            case 'MetaMask':
+                walletTypeIcon = '<i class="bi bi-browser-chrome text-warning me-1" title="MetaMask"></i>';
+                break;
+            case 'Coinbase Wallet':
+                walletTypeIcon = '<i class="bi bi-currency-bitcoin text-primary me-1" title="Coinbase Wallet"></i>';
+                break;
+            case 'WalletConnect':
+                walletTypeIcon = '<i class="bi bi-phone text-info me-1" title="WalletConnect"></i>';
+                break;
+            case 'Trust Wallet':
+                walletTypeIcon = '<i class="bi bi-shield-check text-success me-1" title="Trust Wallet"></i>';
+                break;
+            default:
+                walletTypeIcon = '<i class="bi bi-wallet2 me-1" title="' + wallet.walletType + '"></i>';
+        }
+        
+        // Добавляем иконку и тип кошелька к отображаемому адресу
+        walletAddress.innerHTML = walletTypeIcon + shortAddress;
         
         // Update network status
         networkBadge.textContent = seismicConfig.network.name;

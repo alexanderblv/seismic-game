@@ -15,11 +15,33 @@
     <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.8.0/web3.min.js"></script>
     
-    <!-- Web3Modal and wallet providers -->
+    <!-- Web3Modal и провайдеры кошельков -->
     <script src="https://unpkg.com/web3modal@1.9.12/dist/index.js"></script>
     <script src="https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
     <script src="https://unpkg.com/fortmatic@2.4.0/dist/fortmatic.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@coinbase/wallet-sdk@3.6.0/dist/index.min.js"></script>
+    
+    <!-- Дополнительные провайдеры кошельков -->
+    <script src="https://unpkg.com/@toruslabs/torus-embed"></script>
+    <script src="https://unpkg.com/@ledgerhq/web3-provider@1.1.1/dist/index.umd.min.js"></script>
+    
+    <!-- Стили кнопки подключения кошелька -->
+    <style>
+        .wallet-connect-btn {
+            transition: all 0.3s ease;
+        }
+        
+        .wallet-connect-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .wallet-connect-btn .bi {
+            font-size: 1.2em;
+            vertical-align: middle;
+            margin-right: 5px;
+        }
+    </style>
 </head>
 <body>
     <header class="bg-dark text-white p-3">
@@ -29,7 +51,9 @@
                 <div id="wallet-status" class="d-flex align-items-center">
                     <span id="network-badge" class="badge bg-secondary me-2">Not Connected</span>
                     <span id="wallet-address" class="d-none d-md-block text-truncate me-2" style="max-width: 200px;">Connect your wallet</span>
-                    <button id="connect-wallet" class="btn btn-primary">Connect Wallet</button>
+                    <button id="connect-wallet" class="btn btn-primary wallet-connect-btn">
+                        <i class="bi bi-wallet2"></i> Connect Wallet
+                    </button>
                 </div>
             </div>
         </div>
@@ -260,6 +284,92 @@
             </div>
         </div>
     </main>
+
+    <!-- Раздел о поддерживаемых кошельках -->
+    <div class="container py-4 mb-5">
+        <div class="row">
+            <div class="col-lg-8 mx-auto">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light">
+                        <h3 class="card-title mb-0">Поддерживаемые кошельки</h3>
+                    </div>
+                    <div class="card-body">
+                        <p class="lead">
+                            Seismic поддерживает различные кошельки Web3, выберите тот, который вам удобнее:
+                        </p>
+                        
+                        <div class="row row-cols-2 row-cols-md-4 g-3 mb-4">
+                            <!-- MetaMask -->
+                            <div class="col">
+                                <div class="card h-100 text-center">
+                                    <div class="card-body">
+                                        <i class="bi bi-browser-chrome text-warning" style="font-size: 2rem;"></i>
+                                        <h5 class="card-title mt-2">MetaMask</h5>
+                                    </div>
+                                    <div class="card-footer bg-transparent">
+                                        <a href="https://metamask.io/download" target="_blank" class="btn btn-sm btn-outline-primary">Установить</a>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Coinbase Wallet -->
+                            <div class="col">
+                                <div class="card h-100 text-center">
+                                    <div class="card-body">
+                                        <i class="bi bi-currency-bitcoin text-primary" style="font-size: 2rem;"></i>
+                                        <h5 class="card-title mt-2">Coinbase</h5>
+                                    </div>
+                                    <div class="card-footer bg-transparent">
+                                        <a href="https://www.coinbase.com/wallet" target="_blank" class="btn btn-sm btn-outline-primary">Установить</a>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Trust Wallet -->
+                            <div class="col">
+                                <div class="card h-100 text-center">
+                                    <div class="card-body">
+                                        <i class="bi bi-shield-check text-success" style="font-size: 2rem;"></i>
+                                        <h5 class="card-title mt-2">Trust Wallet</h5>
+                                    </div>
+                                    <div class="card-footer bg-transparent">
+                                        <a href="https://trustwallet.com/download" target="_blank" class="btn btn-sm btn-outline-primary">Установить</a>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- WalletConnect -->
+                            <div class="col">
+                                <div class="card h-100 text-center">
+                                    <div class="card-body">
+                                        <i class="bi bi-phone text-info" style="font-size: 2rem;"></i>
+                                        <h5 class="card-title mt-2">WalletConnect</h5>
+                                    </div>
+                                    <div class="card-footer bg-transparent">
+                                        <a href="https://walletconnect.com/registry" target="_blank" class="btn btn-sm btn-outline-primary">Все кошельки</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <h4 class="mb-3">Как подключить кошелек</h4>
+                        <ol class="list-group list-group-numbered mb-4">
+                            <li class="list-group-item">Установите один из поддерживаемых кошельков (если еще не установлен)</li>
+                            <li class="list-group-item">Нажмите на кнопку "Connect Wallet" в верхней части страницы</li>
+                            <li class="list-group-item">Выберите ваш кошелек из списка доступных</li>
+                            <li class="list-group-item">Подтвердите подключение в интерфейсе кошелька</li>
+                            <li class="list-group-item">Готово! Теперь вы можете отправлять транзакции через Seismic</li>
+                        </ol>
+                        
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle-fill me-2"></i>
+                            <strong>Совет:</strong> Для безопасности всегда проверяйте адреса и суммы транзакций перед их подтверждением.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <footer class="bg-dark text-white py-4 mt-5">
         <div class="container">

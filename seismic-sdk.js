@@ -31,7 +31,18 @@
                     this.web3Modal = new Web3Modal({
                         cacheProvider: true, // Запоминаем последний выбранный провайдер
                         providerOptions: providerOptions,
-                        theme: "dark"
+                        theme: "dark",
+                        disableInjectedProvider: false, // Разрешаем встроенные провайдеры (MetaMask и др.)
+                        // Настройка пользовательского интерфейса Web3Modal
+                        themeVariables: {
+                            '--w3m-background-color': '#1a1e23',
+                            '--w3m-accent-color': '#3B82F6',
+                            '--w3m-text-color': '#ffffff'
+                        },
+                        // Логотип и название приложения
+                        network: this.config.network.name,
+                        description: "Подключите свой кошелек для отправки транзакций через Seismic",
+                        showQrModal: true // Показываем QR-код для WalletConnect
                     });
                     
                     // Если есть кешированный провайдер, пробуем подключиться автоматически
@@ -94,6 +105,43 @@
                 };
             }
             
+            // Добавляем Fortmatic если он доступен
+            if (typeof Fortmatic !== 'undefined') {
+                providerOptions.fortmatic = {
+                    package: Fortmatic,
+                    options: {
+                        key: "pk_test_" // В продакшене нужен настоящий ключ
+                    }
+                };
+            }
+            
+            // Добавляем Torus если он доступен
+            if (typeof Torus !== 'undefined') {
+                providerOptions.torus = {
+                    package: Torus
+                };
+            }
+            
+            // Добавляем Trust Wallet если он доступен
+            if (typeof TrustWalletConnector !== 'undefined') {
+                providerOptions.trust = {
+                    package: TrustWalletConnector,
+                    options: {
+                        rpc: {
+                            [this.config.network.chainId]: this.config.network.rpcUrl
+                        },
+                        chainId: this.config.network.chainId
+                    }
+                };
+            }
+            
+            // Поддержка Ledger Live если он доступен
+            if (typeof LedgerConnectProvider !== 'undefined') {
+                providerOptions.ledger = {
+                    package: LedgerConnectProvider
+                };
+            }
+            
             return providerOptions;
         }
         
@@ -102,8 +150,13 @@
             try {
                 const provider = await this.web3Modal.connect();
                 
+                // Сохраняем тип провайдера для отображения пользователю
+                this.providerType = this._detectProviderType(provider);
+                console.log(`Подключен кошелек типа: ${this.providerType}`);
+                
                 // Настраиваем обработчики событий провайдера
                 provider.on("accountsChanged", (accounts) => {
+                    console.log("Аккаунт сменился:", accounts);
                     if (accounts.length === 0) {
                         // Пользователь отключился
                         this.wallet = null;
@@ -115,11 +168,20 @@
                 });
                 
                 provider.on("chainChanged", (chainId) => {
-                    // Пользователь сменил сеть
-                    window.location.reload();
+                    console.log("Сеть изменилась:", chainId);
+                    // Проверяем, изменилась ли сеть на нашу целевую
+                    const chainIdNum = parseInt(chainId, 16);
+                    if (chainIdNum === this.config.network.chainId) {
+                        console.log("Сеть изменена на нужную, обновляем соединение");
+                        this._refreshConnection();
+                    } else {
+                        // Перезагружаем страницу при смене сети
+                        window.location.reload();
+                    }
                 });
                 
-                provider.on("disconnect", () => {
+                provider.on("disconnect", (error) => {
+                    console.log("Отключен от кошелька:", error);
                     // Пользователь отключился
                     this.wallet = null;
                     this.web3Modal.clearCachedProvider();
@@ -133,13 +195,54 @@
                 const accounts = await this.provider.listAccounts();
                 
                 if (accounts.length === 0) {
-                    throw new Error("No accounts found");
+                    throw new Error("Не найдено ни одного аккаунта");
                 }
                 
                 return await this.completeConnection(accounts[0]);
             } catch (error) {
                 console.error("Ошибка при подключении через Web3Modal:", error);
                 throw error;
+            }
+        }
+        
+        // Определение типа провайдера кошелька
+        _detectProviderType(provider) {
+            if (provider.isMetaMask) {
+                return "MetaMask";
+            } else if (provider.isCoinbaseWallet) {
+                return "Coinbase Wallet";
+            } else if (provider.isWalletConnect) {
+                return "WalletConnect";
+            } else if (provider.isTrust) {
+                return "Trust Wallet";
+            } else if (provider.isLedger) {
+                return "Ledger";
+            } else if (provider.isTorus) {
+                return "Torus";
+            } else if (provider.isFortmatic) {
+                return "Fortmatic";
+            } else if (provider.isPortis) {
+                return "Portis";
+            } else {
+                return "Unknown Wallet";
+            }
+        }
+        
+        // Обновление соединения при смене сети
+        async _refreshConnection() {
+            if (!this.wallet) return;
+            
+            try {
+                // Обновляем сеть
+                this.wallet.network = await this.provider.getNetwork();
+                
+                // Обновляем подписчика
+                this.signer = this.provider.getSigner();
+                this.wallet.signer = this.signer;
+                
+                console.log("Соединение обновлено для сети:", this.wallet.network.name);
+            } catch (error) {
+                console.error("Ошибка обновления соединения:", error);
             }
         }
         
@@ -238,13 +341,23 @@
                 // Если не используем Web3Modal, подключаем провайдер напрямую
                 if (!this.web3Modal && window.ethereum) {
                     this.provider = new ethers.providers.Web3Provider(window.ethereum);
+                    this.providerType = "MetaMask или другой инжектированный провайдер";
                 }
                 
                 // Проверяем, что пользователь подключен к нужной сети
                 const network = await this.provider.getNetwork();
                 if (network.chainId !== this.config.network.chainId) {
                     try {
-                        await window.ethereum.request({
+                        const provider = this.provider.provider;
+                        
+                        // Проверяем, является ли провайдер WalletConnect, который использует другой метод
+                        if (provider.isWalletConnect) {
+                            console.log("Используем WalletConnect, просим пользователя сменить сеть вручную");
+                            throw new Error(`Пожалуйста, смените сеть в вашем кошельке на ${this.config.network.name} (Chain ID: ${this.config.network.chainId})`);
+                        }
+                        
+                        // Пробуем переключить сеть
+                        await provider.request({
                             method: 'wallet_switchEthereumChain',
                             params: [{ chainId: '0x' + this.config.network.chainId.toString(16) }]
                         });
@@ -256,27 +369,34 @@
                     } catch (switchError) {
                         // Если сеть не добавлена, предлагаем добавить
                         if (switchError.code === 4902) {
-                            await window.ethereum.request({
-                                method: 'wallet_addEthereumChain',
-                                params: [{
-                                    chainId: '0x' + this.config.network.chainId.toString(16),
-                                    chainName: this.config.network.name,
-                                    nativeCurrency: {
-                                        name: 'Ethereum',
-                                        symbol: this.config.network.symbol,
-                                        decimals: 18
-                                    },
-                                    rpcUrls: [this.config.network.rpcUrl],
-                                    blockExplorerUrls: [this.config.network.explorer]
-                                }]
-                            });
-                            
-                            // Обновляем провайдер после добавления сети
-                            if (!this.web3Modal) {
-                                this.provider = new ethers.providers.Web3Provider(window.ethereum);
+                            try {
+                                const provider = this.provider.provider;
+                                await provider.request({
+                                    method: 'wallet_addEthereumChain',
+                                    params: [{
+                                        chainId: '0x' + this.config.network.chainId.toString(16),
+                                        chainName: this.config.network.name,
+                                        nativeCurrency: {
+                                            name: 'Ethereum',
+                                            symbol: this.config.network.symbol,
+                                            decimals: 18
+                                        },
+                                        rpcUrls: [this.config.network.rpcUrl],
+                                        blockExplorerUrls: [this.config.network.explorer]
+                                    }]
+                                });
+                                
+                                // Обновляем провайдер после добавления сети
+                                if (!this.web3Modal) {
+                                    this.provider = new ethers.providers.Web3Provider(window.ethereum);
+                                }
+                            } catch (addError) {
+                                console.error("Ошибка добавления сети:", addError);
+                                throw new Error(`Не удалось добавить сеть ${this.config.network.name}. Пожалуйста, добавьте её вручную.`);
                             }
                         } else {
-                            throw switchError;
+                            console.error("Ошибка переключения сети:", switchError);
+                            throw new Error(`Пожалуйста, переключитесь на сеть ${this.config.network.name} (Chain ID: ${this.config.network.chainId}) в вашем кошельке.`);
                         }
                     }
                 }
@@ -289,10 +409,14 @@
                     address: address,
                     provider: this.provider,
                     signer: this.signer,
-                    network: await this.provider.getNetwork()
+                    network: await this.provider.getNetwork(),
+                    walletType: this.providerType || "Unknown Wallet",
+                    connected: true,
+                    connectedAt: new Date()
                 };
                 
                 console.log("Кошелек подключен:", address);
+                console.log("Тип кошелька:", this.wallet.walletType);
                 return this.wallet;
             } catch (error) {
                 console.error("Ошибка завершения подключения кошелька:", error);

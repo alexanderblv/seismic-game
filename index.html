@@ -297,6 +297,24 @@
         </div>
     </div>
 
+    <!-- Transaction details modal -->
+    <div class="modal fade" id="tx-details-modal" tabindex="-1" aria-labelledby="tx-details-modal-label" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="tx-details-modal-label">Transaction Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="tx-details-content">
+                    <!-- Transaction details will be shown here -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Loading overlay -->
     <div id="loading-overlay" class="position-fixed top-0 start-0 w-100 h-100 d-none" style="background: rgba(0,0,0,0.5); z-index: 9999;">
         <div class="d-flex justify-content-center align-items-center h-100">

@@ -553,34 +553,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const tx = transactionHistory.find(t => t.hash === txHash);
         if (!tx) return;
         
-        // Create modal if it doesn't exist
-        let detailsModal = document.getElementById('tx-details-modal');
-        if (!detailsModal) {
-            const modalHtml = `
-                <div class="modal fade" id="tx-details-modal" tabindex="-1" aria-labelledby="tx-details-modal-label" aria-hidden="true">
-                    <div class="modal-dialog modal-lg">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="tx-details-modal-label">Transaction Details</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body" id="tx-details-content">
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            const modalElement = document.createElement('div');
-            modalElement.innerHTML = modalHtml;
-            document.body.appendChild(modalElement.firstChild);
-            
-            detailsModal = new bootstrap.Modal(document.getElementById('tx-details-modal'));
-        }
-        
         // Format date
         const txDate = new Date(tx.timestamp);
         const formattedDate = txDate.toLocaleString();
@@ -738,10 +710,9 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
         
-        // Show the modal
-        const modal = bootstrap.Modal.getInstance(document.getElementById('tx-details-modal')) || 
-                      new bootstrap.Modal(document.getElementById('tx-details-modal'));
-        modal.show();
+        // Show the modal using Bootstrap
+        const txDetailsModal = new bootstrap.Modal(document.getElementById('tx-details-modal'));
+        txDetailsModal.show();
     }
     
     // Helper function to get status badge HTML

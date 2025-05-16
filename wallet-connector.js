@@ -1,4 +1,4 @@
-// Web3Modal Wallet Connector
+// Web3Modal Wallet Connector for Vercel Deployment
 (function() {
     // Global variables
     let provider = null;
@@ -37,14 +37,14 @@
         networkBadge = document.getElementById('network-badge');
         connectionStatus = document.getElementById('connection-status');
         
-        // Initialize Web3Modal
+        // Initialize Web3Modal with WalletConnect v1
         const providerOptions = {
             walletconnect: {
                 package: WalletConnectProvider.default, 
                 options: {
                     rpc: {
                         5124: seismicNetwork.rpcUrls[0]
-                    },
+                    }
                 }
             }
         };
@@ -168,16 +168,25 @@
                 } else {
                     selectedAccount = accounts[0];
                     updateUI();
+                    
+                    // Dispatch account changed event
+                    dispatchEvent('accountChanged', { account: selectedAccount });
                 }
             });
             
             provider.on('chainChanged', (chainId) => {
                 updateNetworkInfo();
                 updateUI();
+                
+                // Dispatch network changed event
+                dispatchEvent('networkChanged', { chainId });
             });
             
             provider.on('disconnect', () => {
                 disconnect();
+                
+                // Dispatch wallet disconnected event
+                dispatchEvent('walletDisconnected');
             });
             
             // Update UI for connected state
@@ -194,6 +203,9 @@
                 }
             }
             
+            // Dispatch wallet connected event
+            dispatchEvent('walletConnected', { account: selectedAccount });
+            
             connecting = false;
             return true;
             
@@ -204,6 +216,12 @@
             updateUIDisconnected();
             return false;
         }
+    }
+    
+    // Dispatch custom events
+    function dispatchEvent(eventName, detail = {}) {
+        const event = new CustomEvent(eventName, { detail });
+        document.dispatchEvent(event);
     }
     
     // Disconnect wallet
@@ -226,6 +244,9 @@
         
         // Update UI
         updateUIDisconnected();
+        
+        // Dispatch wallet disconnected event
+        dispatchEvent('walletDisconnected');
     }
     
     // Update UI for connected state
@@ -297,74 +318,61 @@
         }
     }
     
-    // Update network information in UI
+    // Update network information
     async function updateNetworkInfo() {
         if (!isConnected()) return;
         
         try {
             const chainId = await web3.eth.getChainId();
             
-            // Network name display
-            const networkNameElement = document.getElementById('network-name');
-            
-            // Connection status
-            connectionStatus.classList.remove('bg-secondary', 'bg-success', 'bg-warning', 'bg-danger');
-            
-            // Update chain ID element
-            const chainIdElement = document.getElementById('chain-id');
-            if (chainIdElement) {
-                chainIdElement.innerText = chainId;
-            }
-            
-            // Check if on Seismic network
+            // Update network badge
             if (chainId === 5124) {
-                // On Seismic network
-                networkBadge.innerText = 'Seismic';
+                // Seismic Devnet
+                networkBadge.innerText = 'Seismic Devnet';
                 networkBadge.classList.remove('bg-secondary', 'bg-warning', 'bg-danger');
                 networkBadge.classList.add('bg-success');
                 
                 connectionStatus.innerText = 'Connected';
+                connectionStatus.classList.remove('bg-secondary', 'bg-warning', 'bg-danger');
                 connectionStatus.classList.add('bg-success');
-                
-                if (networkNameElement) {
-                    networkNameElement.innerText = 'Seismic Devnet';
-                }
             } else {
-                // On other network
-                networkBadge.innerText = 'Wrong Network';
+                // Other network
+                let networkName;
+                switch(chainId) {
+                    case 1:
+                        networkName = 'Ethereum Mainnet';
+                        break;
+                    case 5:
+                        networkName = 'Goerli Testnet';
+                        break;
+                    case 11155111:
+                        networkName = 'Sepolia Testnet';
+                        break;
+                    case 42161:
+                        networkName = 'Arbitrum One';
+                        break;
+                    case 10:
+                        networkName = 'Optimism';
+                        break;
+                    case 8453:
+                        networkName = 'Base';
+                        break;
+                    case 137:
+                        networkName = 'Polygon';
+                        break;
+                    default:
+                        networkName = 'Unknown Network';
+                }
+                
+                networkBadge.innerText = networkName;
                 networkBadge.classList.remove('bg-secondary', 'bg-success', 'bg-danger');
                 networkBadge.classList.add('bg-warning');
                 
                 connectionStatus.innerText = 'Wrong Network';
+                connectionStatus.classList.remove('bg-secondary', 'bg-success', 'bg-danger');
                 connectionStatus.classList.add('bg-warning');
-                
-                if (networkNameElement) {
-                    networkNameElement.innerText = 'Unknown Network';
-                    
-                    // Try to get network name
-                    try {
-                        switch (chainId) {
-                            case 1: 
-                                networkNameElement.innerText = 'Ethereum Mainnet';
-                                break;
-                            case 5: 
-                                networkNameElement.innerText = 'Goerli Testnet';
-                                break;
-                            case 11155111: 
-                                networkNameElement.innerText = 'Sepolia Testnet';
-                                break;
-                            case 137: 
-                                networkNameElement.innerText = 'Polygon';
-                                break;
-                            case 80001: 
-                                networkNameElement.innerText = 'Mumbai Testnet';
-                                break;
-                        }
-                    } catch (error) {
-                        console.error('Error determining network name:', error);
-                    }
-                }
             }
+            
         } catch (error) {
             console.error('Error updating network info:', error);
             

@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Set up wallet event handlers
     function setupWalletListeners() {
-        if (window.WalletConnector) {
+        if (window.walletConnector) {
             // Listen to wallet connected event
             document.addEventListener('walletConnected', (event) => {
                 console.log('Wallet connected event:', event.detail);
@@ -106,10 +106,10 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             if (!seismic.wallet || seismic.wallet.address !== address) {
                 loadingOverlay.classList.remove('d-none');
-                loadingText.textContent = 'Завершение подключения...';
+                loadingText.textContent = 'Completing connection...';
                 
-                // Получаем провайдер из WalletConnector
-                const provider = window.WalletConnector ? window.WalletConnector.getProvider() : null;
+                // Get provider from walletConnector
+                const provider = window.walletConnector ? window.walletConnector.getProvider() : null;
                 
                 // Complete wallet connection in SDK
                 const wallet = await seismic.completeConnection(address, provider);
@@ -161,13 +161,13 @@ document.addEventListener('DOMContentLoaded', () => {
             await seismic.initialize();
             console.log('Seismic SDK initialized successfully');
             
-            // Проверяем подключение кошелька и автоматически инициируем подключение 
-            // если WalletConnector уже подключен
-            if (window.WalletConnector && window.WalletConnector.isConnected()) {
-                // Устанавливаем состояние подключения
+            // Check if wallet is already connected and automatically initiate connection
+            // if walletConnector is already connected
+            if (window.walletConnector && window.walletConnector.isConnected()) {
+                // Set connection state
                 connectWalletBtn.disabled = true;
                 loadingOverlay.classList.remove('d-none');
-                loadingText.textContent = 'Автоматическое подключение кошелька...';
+                loadingText.textContent = 'Automatically connecting wallet...';
                 
                 try {
                     const wallet = await seismic.connect();
@@ -200,89 +200,91 @@ document.addEventListener('DOMContentLoaded', () => {
                         console.log('Wallet connected automatically:', wallet.address);
                     }
                 } catch (error) {
-                    console.error('Failed to auto-connect wallet:', error);
-                    // Если автоматическое подключение не удалось, не показываем ошибку,
-                    // чтобы не смущать пользователя
+                    console.error('Failed to connect wallet automatically:', error);
                 } finally {
-                    connectWalletBtn.disabled = false;
                     loadingOverlay.classList.add('d-none');
+                    connectWalletBtn.disabled = false;
                 }
             }
-            
-            // Set up Wallet event listeners after initialization
-            setupWalletListeners();
         } catch (error) {
             console.error('Failed to initialize Seismic SDK:', error);
-            showError('Failed to initialize the Seismic SDK. Please try again later.');
+            showError('Failed to initialize Seismic SDK. Please refresh the page and try again.');
         }
     }
 
-    // Connect wallet
+    // Connect wallet button handler
     async function connectWallet() {
-        try {
-            // Отключаем кнопку во время подключения
-            connectWalletBtn.disabled = true;
-            loadingOverlay.classList.remove('d-none');
-            loadingText.textContent = 'Connecting wallet...';
+        if (walletConnectInitiated) {
+            console.log('Wallet connection already in progress');
+            return;
+        }
+        
+        if (seismic.wallet) {
+            // Already connected - disconnect
+            console.log('Disconnecting wallet');
             
-            // Set the flag that connection process has started
-            walletConnectInitiated = true;
-            
-            console.log("Начинаем подключение кошелька...");
-            const wallet = await seismic.connect();
-            console.log("Кошелек успешно подключен:", wallet);
-            
-            if (wallet) {
-                // Update UI to show connected state
-                connectWalletBtn.textContent = 'Connected';
-                connectWalletBtn.classList.remove('btn-primary');
-                connectWalletBtn.classList.add('btn-success');
+            try {
+                await seismic.disconnect();
                 
-                // Show user address
-                const shortAddress = `${wallet.address.substring(0, 6)}...${wallet.address.substring(wallet.address.length - 4)}`;
-                walletAddress.textContent = shortAddress;
-                walletAddress.classList.remove('d-none');
-                userAddressInput.value = wallet.address;
+                // Reset UI
+                connectWalletBtn.textContent = 'Connect Wallet';
+                connectWalletBtn.classList.remove('btn-success');
+                connectWalletBtn.classList.add('btn-primary');
+                
+                walletAddress.textContent = 'Connect your wallet';
+                walletAddress.classList.add('d-none');
+                
+                userAddressInput.value = '';
+                userBalanceInput.value = '';
                 
                 // Update network status
-                networkBadge.textContent = seismicConfig.network.name;
-                networkBadge.classList.remove('bg-secondary');
-                networkBadge.classList.add('bg-success');
+                networkBadge.textContent = 'Not Connected';
+                networkBadge.classList.remove('bg-success');
+                networkBadge.classList.add('bg-secondary');
                 
                 // Update connection status
-                connectionStatus.textContent = 'Connected';
-                connectionStatus.classList.remove('bg-secondary');
-                connectionStatus.classList.add('bg-success');
+                connectionStatus.textContent = 'Not Connected';
+                connectionStatus.classList.remove('bg-success');
+                connectionStatus.classList.add('bg-secondary');
                 
-                // Get and display balance
-                refreshBalance();
+                // Also disconnect Web3Modal if available
+                if (window.walletConnector) {
+                    await window.walletConnector.disconnect();
+                }
                 
-                // Reset initiated flag
+                console.log('Wallet disconnected');
+                
+            } catch (error) {
+                console.error('Failed to disconnect wallet:', error);
+                showError('Failed to disconnect wallet. Please try again.');
+            }
+            
+        } else {
+            // Connect new wallet
+            console.log('Initiating wallet connection');
+            walletConnectInitiated = true;
+            
+            try {
+                // Use Web3Modal for connection
+                if (window.walletConnector) {
+                    connectWalletBtn.disabled = true;
+                    const connected = await window.walletConnector.connect();
+                    
+                    if (!connected) {
+                        walletConnectInitiated = false;
+                        connectWalletBtn.disabled = false;
+                        console.log('User canceled wallet connection');
+                    }
+                } else {
+                    showError('Wallet connector not found. Please refresh the page and try again.');
+                    walletConnectInitiated = false;
+                }
+            } catch (error) {
+                console.error('Failed to connect wallet:', error);
+                showError('Failed to connect wallet: ' + (error.message || 'Unknown error'));
                 walletConnectInitiated = false;
-                
-                showSuccess("Кошелек успешно подключен!");
+                connectWalletBtn.disabled = false;
             }
-        } catch (error) {
-            console.error('Failed to connect wallet:', error);
-            
-            // Проверяем специфические ошибки и показываем понятные пользователю сообщения
-            let errorMessage = 'Failed to connect wallet';
-            
-            if (error.message.includes('User closed modal')) {
-                errorMessage = 'Вы закрыли окно выбора кошелька';
-            } else if (error.message.includes('User rejected')) {
-                errorMessage = 'Вы отклонили подключение кошелька';
-            } else if (error.message.includes('WalletConnector не найден')) {
-                errorMessage = 'Ошибка инициализации: WalletConnector не найден';
-            } else {
-                errorMessage = error.message || 'Unknown error';
-            }
-            
-            showError(`Ошибка подключения кошелька: ${errorMessage}`);
-            walletConnectInitiated = false;
-        } finally {
-            connectWalletBtn.disabled = false;
-            loadingOverlay.classList.add('d-none');
         }
     }
     

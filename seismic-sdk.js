@@ -50,13 +50,13 @@
                 
                 if (window.ethereum) {
                     // Запрашиваем доступ к кошельку пользователя (MetaMask и др.)
-                    await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                     
                     // Подключаем провайдер к MetaMask
-                    const provider = new ethers.providers.Web3Provider(window.ethereum);
+                    this.provider = new ethers.providers.Web3Provider(window.ethereum);
                     
                     // Проверяем, что пользователь подключен к нужной сети
-                    const network = await provider.getNetwork();
+                    const network = await this.provider.getNetwork();
                     if (network.chainId !== this.config.network.chainId) {
                         // Если сеть неправильная, предлагаем переключиться
                         try {
@@ -96,8 +96,9 @@
                     // Получаем подписчика для отправки транзакций
                     this.signer = this.provider.getSigner();
                     
-                    // Получаем адрес кошелька
-                    const address = await this.signer.getAddress();
+                    // Используем адрес, полученный напрямую от ethereum provider
+                    // вместо использования signer.getAddress() что может вызывать несоответствие
+                    const address = accounts[0];
                     
                     // Создаем объект кошелька
                     this.wallet = {
@@ -178,10 +179,12 @@
                     throw new Error("MetaMask не обнаружен. Пожалуйста, установите MetaMask для взаимодействия с блокчейном.");
                 }
                 
-                const provider = new ethers.providers.Web3Provider(window.ethereum);
-                const signer = provider.getSigner();
-                const address = await signer.getAddress();
+                // Используем сохраненный wallet объект для согласованности
+                if (!this.wallet) {
+                    throw new Error("Кошелек не подключен. Сначала подключите кошелек.");
+                }
                 
+                const address = this.wallet.address;
                 console.log("Адрес отправителя:", address);
                 
                 // Вместо использования демо-контракта с неверной контрольной суммой,
@@ -200,7 +203,7 @@
                 console.log("Зашифрованные данные транзакции (не отправляются):", JSON.stringify(data));
                 
                 // Отправляем транзакцию
-                const transaction = await signer.sendTransaction(tx);
+                const transaction = await this.wallet.signer.sendTransaction(tx);
                 console.log("Транзакция отправлена:", transaction.hash);
                 
                 // Ожидаем подтверждения транзакции

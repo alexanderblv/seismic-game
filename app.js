@@ -51,6 +51,11 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             await seismic.initialize();
             console.log('Seismic SDK initialized successfully');
+            
+            // Check if already connected to MetaMask
+            if (window.ethereum && window.ethereum.selectedAddress) {
+                connectWallet();
+            }
         } catch (error) {
             console.error('Failed to initialize Seismic SDK:', error);
             showError('Failed to initialize the Seismic SDK. Please try again later.');
@@ -173,8 +178,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (!seismic.wallet) {
             showError('Please connect your wallet first');
-                return;
-            }
+            return;
+        }
             
         const recipientAddress = recipientAddressInput.value.trim();
         const amount = amountInput.value.trim();
@@ -184,13 +189,13 @@ document.addEventListener('DOMContentLoaded', () => {
         // Validate inputs
         if (!ethers.utils.isAddress(recipientAddress)) {
             showError('Please enter a valid Ethereum address');
-                return;
-            }
+            return;
+        }
             
         if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
             showError('Please enter a valid amount');
-                return;
-            }
+            return;
+        }
             
         try {
             loadingOverlay.classList.remove('d-none');

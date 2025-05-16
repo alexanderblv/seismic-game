@@ -88,21 +88,30 @@
                 
                 // Используем WalletConnector для подключения кошелька
                 if (window.WalletConnector) {
-                    const result = await window.WalletConnector.connect();
-                    
-                    if (!result || !result.success) {
-                        throw new Error("Не удалось подключить кошелек через WalletConnector");
+                    console.log("Вызываем WalletConnector.connect()...");
+                    try {
+                        const result = await window.WalletConnector.connect();
+                        
+                        if (!result || !result.success) {
+                            const errorMessage = result && result.error ? result.error : "Неизвестная ошибка";
+                            console.error("Ошибка при вызове WalletConnector.connect():", errorMessage);
+                            throw new Error(`Не удалось подключить кошелек: ${errorMessage}`);
+                        }
+                        
+                        // Получаем адрес кошелька
+                        const address = window.WalletConnector.getSelectedAccount();
+                        console.log("Получен адрес:", address);
+                        
+                        if (!address) {
+                            throw new Error("Не удалось получить адрес аккаунта");
+                        }
+                        
+                        // Финализируем подключение
+                        return await this.completeConnection(address, window.WalletConnector.getProvider());
+                    } catch (connectError) {
+                        console.error("Ошибка в процессе подключения:", connectError);
+                        throw connectError; // Пробрасываем ошибку дальше
                     }
-                    
-                    // Получаем адрес кошелька
-                    const address = window.WalletConnector.getSelectedAccount();
-                    
-                    if (!address) {
-                        throw new Error("Не удалось получить адрес аккаунта");
-                    }
-                    
-                    // Финализируем подключение
-                    return await this.completeConnection(address, window.WalletConnector.getProvider());
                 } else {
                     this.connectionInProgress = false;
                     throw new Error("WalletConnector не найден. Убедитесь, что wallet-connector.js подключен перед seismic-sdk.js");

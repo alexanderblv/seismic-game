@@ -13,11 +13,16 @@
             this.web3 = null;
             this.isInitialized = false;
             this.wallet = null;
+            this.connectionInProgress = false; // Флаг для отслеживания процесса подключения
         }
         
         // Инициализация SDK
         async initialize() {
             try {
+                if (this.isInitialized) {
+                    return true; // Если уже инициализирован, просто возвращаем true
+                }
+                
                 if (typeof ethers !== 'undefined') {
                     // Создаем провайдер для подключения к Seismic Devnet
                     this.provider = new ethers.providers.JsonRpcProvider(this.config.network.rpcUrl);
@@ -44,13 +49,51 @@
         // Подключение кошелька
         async connect() {
             try {
+                // Если подключение уже идет, ждем его завершения
+                if (this.connectionInProgress) {
+                    console.log("Подключение уже в процессе, ожидаем завершения...");
+                    await new Promise(resolve => {
+                        const checkInterval = setInterval(() => {
+                            if (!this.connectionInProgress) {
+                                clearInterval(checkInterval);
+                                resolve();
+                            }
+                        }, 100);
+                    });
+                    
+                    // Если кошелек уже подключен после ожидания, возвращаем его
+                    if (this.wallet) {
+                        console.log("Кошелек уже подключен:", this.wallet.address);
+                        return this.wallet;
+                    }
+                }
+                
+                // Устанавливаем флаг, что подключение началось
+                this.connectionInProgress = true;
+                
                 if (!this.isInitialized) {
                     await this.initialize();
+                }
+                
+                // Если кошелек уже подключен, просто возвращаем его
+                if (this.wallet) {
+                    // Проверяем, что аккаунт не сменился
+                    if (window.ethereum && window.ethereum.selectedAddress && 
+                        window.ethereum.selectedAddress.toLowerCase() === this.wallet.address.toLowerCase()) {
+                        console.log("Используем существующее подключение кошелька:", this.wallet.address);
+                        this.connectionInProgress = false;
+                        return this.wallet;
+                    }
                 }
                 
                 if (window.ethereum) {
                     // Запрашиваем доступ к кошельку пользователя (MetaMask и др.)
                     const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    
+                    // Проверяем, получили ли мы адреса
+                    if (!accounts || accounts.length === 0) {
+                        throw new Error("Не удалось получить адреса аккаунтов");
+                    }
                     
                     // Подключаем провайдер к MetaMask
                     this.provider = new ethers.providers.Web3Provider(window.ethereum);
@@ -88,6 +131,7 @@
                                 // Обновляем провайдер после добавления сети
                                 this.provider = new ethers.providers.Web3Provider(window.ethereum);
                             } else {
+                                this.connectionInProgress = false;
                                 throw switchError;
                             }
                         }
@@ -97,7 +141,6 @@
                     this.signer = this.provider.getSigner();
                     
                     // Используем адрес, полученный напрямую от ethereum provider
-                    // вместо использования signer.getAddress() что может вызывать несоответствие
                     const address = accounts[0];
                     
                     // Создаем объект кошелька
@@ -109,11 +152,14 @@
                     };
                     
                     console.log("Кошелек подключен:", address);
+                    this.connectionInProgress = false;
                     return this.wallet;
                 } else {
+                    this.connectionInProgress = false;
                     throw new Error("MetaMask или другой провайдер Ethereum не обнаружен");
                 }
             } catch (error) {
+                this.connectionInProgress = false;
                 console.error("Ошибка подключения кошелька:", error);
                 throw error;
             }

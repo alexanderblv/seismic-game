@@ -52,9 +52,52 @@ document.addEventListener('DOMContentLoaded', () => {
             await seismic.initialize();
             console.log('Seismic SDK initialized successfully');
             
-            // Check if already connected to MetaMask
+            // Проверяем подключение MetaMask и автоматически инициируем подключение, 
+            // только если есть выбранные аккаунты
             if (window.ethereum && window.ethereum.selectedAddress) {
-                connectWallet();
+                // Устанавливаем состояние подключения
+                connectWalletBtn.disabled = true;
+                loadingOverlay.classList.remove('d-none');
+                loadingText.textContent = 'Автоматическое подключение кошелька...';
+                
+                try {
+                    const wallet = await seismic.connect();
+                    
+                    if (wallet) {
+                        // Update UI to show connected state
+                        connectWalletBtn.textContent = 'Connected';
+                        connectWalletBtn.classList.remove('btn-primary');
+                        connectWalletBtn.classList.add('btn-success');
+                        
+                        // Show user address
+                        const shortAddress = `${wallet.address.substring(0, 6)}...${wallet.address.substring(wallet.address.length - 4)}`;
+                        walletAddress.textContent = shortAddress;
+                        walletAddress.classList.remove('d-none');
+                        userAddressInput.value = wallet.address;
+                        
+                        // Update network status
+                        networkBadge.textContent = seismicConfig.network.name;
+                        networkBadge.classList.remove('bg-secondary');
+                        networkBadge.classList.add('bg-success');
+                        
+                        // Update connection status
+                        connectionStatus.textContent = 'Connected';
+                        connectionStatus.classList.remove('bg-secondary');
+                        connectionStatus.classList.add('bg-success');
+                        
+                        // Get and display balance
+                        refreshBalance();
+                        
+                        console.log('Wallet connected automatically:', wallet.address);
+                    }
+                } catch (error) {
+                    console.error('Failed to auto-connect wallet:', error);
+                    // Если автоматическое подключение не удалось, не показываем ошибку,
+                    // чтобы не смущать пользователя
+                } finally {
+                    connectWalletBtn.disabled = false;
+                    loadingOverlay.classList.add('d-none');
+                }
             }
         } catch (error) {
             console.error('Failed to initialize Seismic SDK:', error);
@@ -65,6 +108,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Connect wallet
     async function connectWallet() {
         try {
+            // Отключаем кнопку во время подключения
+            connectWalletBtn.disabled = true;
             loadingOverlay.classList.remove('d-none');
             loadingText.textContent = 'Connecting wallet...';
             
@@ -101,6 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Failed to connect wallet:', error);
             showError('Failed to connect wallet. Please make sure you have MetaMask installed and try again.');
         } finally {
+            connectWalletBtn.disabled = false;
             loadingOverlay.classList.add('d-none');
         }
     }

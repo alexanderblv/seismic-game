@@ -95,65 +95,10 @@
                         throw new Error("Не удалось получить адреса аккаунтов");
                     }
                     
-                    // Подключаем провайдер к MetaMask
-                    this.provider = new ethers.providers.Web3Provider(window.ethereum);
-                    
-                    // Проверяем, что пользователь подключен к нужной сети
-                    const network = await this.provider.getNetwork();
-                    if (network.chainId !== this.config.network.chainId) {
-                        // Если сеть неправильная, предлагаем переключиться
-                        try {
-                            await window.ethereum.request({
-                                method: 'wallet_switchEthereumChain',
-                                params: [{ chainId: '0x' + this.config.network.chainId.toString(16) }]
-                            });
-                            
-                            // Обновляем провайдер после переключения
-                            this.provider = new ethers.providers.Web3Provider(window.ethereum);
-                        } catch (switchError) {
-                            // Если сеть не добавлена, предлагаем добавить
-                            if (switchError.code === 4902) {
-                                await window.ethereum.request({
-                                    method: 'wallet_addEthereumChain',
-                                    params: [{
-                                        chainId: '0x' + this.config.network.chainId.toString(16),
-                                        chainName: this.config.network.name,
-                                        nativeCurrency: {
-                                            name: 'Ethereum',
-                                            symbol: this.config.network.symbol,
-                                            decimals: 18
-                                        },
-                                        rpcUrls: [this.config.network.rpcUrl],
-                                        blockExplorerUrls: [this.config.network.explorer]
-                                    }]
-                                });
-                                
-                                // Обновляем провайдер после добавления сети
-                                this.provider = new ethers.providers.Web3Provider(window.ethereum);
-                            } else {
-                                this.connectionInProgress = false;
-                                throw switchError;
-                            }
-                        }
-                    }
-                    
-                    // Получаем подписчика для отправки транзакций
-                    this.signer = this.provider.getSigner();
-                    
-                    // Используем адрес, полученный напрямую от ethereum provider
+                    // Финализируем подключение
                     const address = accounts[0];
+                    return await this.completeConnection(address);
                     
-                    // Создаем объект кошелька
-                    this.wallet = {
-                        address: address,
-                        provider: this.provider,
-                        signer: this.signer,
-                        network: await this.provider.getNetwork()
-                    };
-                    
-                    console.log("Кошелек подключен:", address);
-                    this.connectionInProgress = false;
-                    return this.wallet;
                 } else {
                     this.connectionInProgress = false;
                     throw new Error("MetaMask или другой провайдер Ethereum не обнаружен");
@@ -162,6 +107,80 @@
                 this.connectionInProgress = false;
                 console.error("Ошибка подключения кошелька:", error);
                 throw error;
+            }
+        }
+        
+        // Завершение подключения кошелька по известному адресу
+        async completeConnection(address) {
+            try {
+                if (!this.isInitialized) {
+                    await this.initialize();
+                }
+                
+                // Проверяем, если кошелек уже подключен с тем же адресом
+                if (this.wallet && this.wallet.address.toLowerCase() === address.toLowerCase()) {
+                    console.log("Кошелек уже подключен с этим адресом:", address);
+                    return this.wallet;
+                }
+                
+                // Подключаем провайдер к MetaMask
+                this.provider = new ethers.providers.Web3Provider(window.ethereum);
+                
+                // Проверяем, что пользователь подключен к нужной сети
+                const network = await this.provider.getNetwork();
+                if (network.chainId !== this.config.network.chainId) {
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: '0x' + this.config.network.chainId.toString(16) }]
+                        });
+                        
+                        // Обновляем провайдер после переключения
+                        this.provider = new ethers.providers.Web3Provider(window.ethereum);
+                    } catch (switchError) {
+                        // Если сеть не добавлена, предлагаем добавить
+                        if (switchError.code === 4902) {
+                            await window.ethereum.request({
+                                method: 'wallet_addEthereumChain',
+                                params: [{
+                                    chainId: '0x' + this.config.network.chainId.toString(16),
+                                    chainName: this.config.network.name,
+                                    nativeCurrency: {
+                                        name: 'Ethereum',
+                                        symbol: this.config.network.symbol,
+                                        decimals: 18
+                                    },
+                                    rpcUrls: [this.config.network.rpcUrl],
+                                    blockExplorerUrls: [this.config.network.explorer]
+                                }]
+                            });
+                            
+                            // Обновляем провайдер после добавления сети
+                            this.provider = new ethers.providers.Web3Provider(window.ethereum);
+                        } else {
+                            throw switchError;
+                        }
+                    }
+                }
+                
+                // Получаем подписчика для отправки транзакций
+                this.signer = this.provider.getSigner();
+                
+                // Создаем объект кошелька
+                this.wallet = {
+                    address: address,
+                    provider: this.provider,
+                    signer: this.signer,
+                    network: await this.provider.getNetwork()
+                };
+                
+                console.log("Кошелек подключен:", address);
+                return this.wallet;
+            } catch (error) {
+                console.error("Ошибка завершения подключения кошелька:", error);
+                throw error;
+            } finally {
+                this.connectionInProgress = false;
             }
         }
         

@@ -14,6 +14,7 @@
             this.isInitialized = false;
             this.wallet = null;
             this.connectionInProgress = false; // Флаг для отслеживания процесса подключения
+            this.web3Modal = null; // Web3Modal инстанс
         }
         
         // Инициализация SDK
@@ -23,14 +24,26 @@
                     return true; // Если уже инициализирован, просто возвращаем true
                 }
                 
+                // Инициализируем Web3Modal если он доступен
+                if (typeof Web3Modal !== 'undefined') {
+                    const providerOptions = this._getProviderOptions();
+                    
+                    this.web3Modal = new Web3Modal({
+                        cacheProvider: true, // Запоминаем последний выбранный провайдер
+                        providerOptions: providerOptions,
+                        theme: "dark"
+                    });
+                    
+                    // Если есть кешированный провайдер, пробуем подключиться автоматически
+                    if (this.web3Modal.cachedProvider) {
+                        await this._connectWithWeb3Modal();
+                    }
+                }
+                
                 if (typeof ethers !== 'undefined') {
                     // Создаем провайдер для подключения к Seismic Devnet
-                    this.provider = new ethers.providers.JsonRpcProvider(this.config.network.rpcUrl);
-                    
-                    // Initialize Onboard.js
-                    if (window.OnboardService) {
-                        await window.OnboardService.initialize(this.config.network);
-                        console.log("Onboard.js initialized in Seismic SDK");
+                    if (!this.provider) {
+                        this.provider = new ethers.providers.JsonRpcProvider(this.config.network.rpcUrl);
                     }
                     
                     console.log("Seismic SDK инициализирован");
@@ -49,6 +62,84 @@
             } catch (error) {
                 console.error("Ошибка инициализации Seismic SDK:", error);
                 return false;
+            }
+        }
+        
+        // Получить опции провайдеров для Web3Modal
+        _getProviderOptions() {
+            const providerOptions = {};
+            
+            // Добавляем WalletConnect если он доступен
+            if (typeof WalletConnectProvider !== 'undefined') {
+                providerOptions.walletconnect = {
+                    package: WalletConnectProvider,
+                    options: {
+                        rpc: {
+                            [this.config.network.chainId]: this.config.network.rpcUrl
+                        },
+                        chainId: this.config.network.chainId
+                    }
+                };
+            }
+            
+            // Добавляем Coinbase Wallet если он доступен
+            if (typeof CoinbaseWalletSDK !== 'undefined') {
+                providerOptions.coinbasewallet = {
+                    package: CoinbaseWalletSDK,
+                    options: {
+                        appName: "Seismic Transaction Sender",
+                        rpc: this.config.network.rpcUrl,
+                        chainId: this.config.network.chainId
+                    }
+                };
+            }
+            
+            return providerOptions;
+        }
+        
+        // Подключение с использованием Web3Modal
+        async _connectWithWeb3Modal() {
+            try {
+                const provider = await this.web3Modal.connect();
+                
+                // Настраиваем обработчики событий провайдера
+                provider.on("accountsChanged", (accounts) => {
+                    if (accounts.length === 0) {
+                        // Пользователь отключился
+                        this.wallet = null;
+                        window.location.reload();
+                    } else if (this.wallet && this.wallet.address !== accounts[0]) {
+                        // Пользователь сменил аккаунт
+                        this.completeConnection(accounts[0]);
+                    }
+                });
+                
+                provider.on("chainChanged", (chainId) => {
+                    // Пользователь сменил сеть
+                    window.location.reload();
+                });
+                
+                provider.on("disconnect", () => {
+                    // Пользователь отключился
+                    this.wallet = null;
+                    this.web3Modal.clearCachedProvider();
+                    window.location.reload();
+                });
+                
+                // Используем ethers.js для работы с провайдером
+                this.provider = new ethers.providers.Web3Provider(provider);
+                
+                // Получаем адрес пользователя
+                const accounts = await this.provider.listAccounts();
+                
+                if (accounts.length === 0) {
+                    throw new Error("No accounts found");
+                }
+                
+                return await this.completeConnection(accounts[0]);
+            } catch (error) {
+                console.error("Ошибка при подключении через Web3Modal:", error);
+                throw error;
             }
         }
         
@@ -83,42 +174,20 @@
                 
                 // Если кошелек уже подключен, просто возвращаем его
                 if (this.wallet) {
-                    this.connectionInProgress = false;
-                    return this.wallet;
+                    // Проверяем, что аккаунт не сменился
+                    if (window.ethereum && window.ethereum.selectedAddress && 
+                        window.ethereum.selectedAddress.toLowerCase() === this.wallet.address.toLowerCase()) {
+                        console.log("Используем существующее подключение кошелька:", this.wallet.address);
+                        this.connectionInProgress = false;
+                        return this.wallet;
+                    }
                 }
                 
-                // Use Onboard.js for wallet connection if available
-                if (window.OnboardService) {
-                    try {
-                        const wallet = await window.OnboardService.connectWallet();
-                        
-                        if (wallet) {
-                            // Update SDK wallet with Onboard wallet info
-                            return await this.completeConnection(wallet.address);
-                        } else {
-                            throw new Error("No wallet connected through Onboard.js");
-                        }
-                    } catch (error) {
-                        console.error("Ошибка при подключении через Onboard.js:", error);
-                        // Fall back to MetaMask
-                        if (window.ethereum) {
-                            // Request access to the user's wallet (MetaMask etc.)
-                            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                            
-                            // Check if we got addresses
-                            if (!accounts || accounts.length === 0) {
-                                throw new Error("Не удалось получить адреса аккаунтов");
-                            }
-                            
-                            // Complete the connection
-                            const address = accounts[0];
-                            return await this.completeConnection(address);
-                        } else {
-                            throw new Error("No Web3 wallet provider found");
-                        }
-                    }
+                // Если есть Web3Modal, используем его для подключения
+                if (this.web3Modal) {
+                    return await this._connectWithWeb3Modal();
                 } else if (window.ethereum) {
-                    // Fallback to regular connection if Onboard not available
+                    // Запрашиваем доступ к кошельку пользователя (MetaMask и др.)
                     const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                     
                     // Проверяем, получили ли мы адреса
@@ -129,15 +198,28 @@
                     // Финализируем подключение
                     const address = accounts[0];
                     return await this.completeConnection(address);
+                    
                 } else {
                     this.connectionInProgress = false;
-                    throw new Error("MetaMask или другой провайдер Ethereum не обнаружен");
+                    throw new Error("Web3 провайдер не обнаружен. Установите MetaMask или другой кошелек.");
                 }
             } catch (error) {
                 this.connectionInProgress = false;
                 console.error("Ошибка подключения кошелька:", error);
                 throw error;
             }
+        }
+        
+        // Отключение кошелька
+        async disconnect() {
+            if (this.web3Modal) {
+                this.web3Modal.clearCachedProvider();
+            }
+            
+            this.wallet = null;
+            this.provider = new ethers.providers.JsonRpcProvider(this.config.network.rpcUrl);
+            
+            return true;
         }
         
         // Завершение подключения кошелька по известному адресу
@@ -153,30 +235,10 @@
                     return this.wallet;
                 }
                 
-                // If we're using Onboard.js and have an active wallet, use it directly
-                if (window.OnboardService && window.OnboardService.wallet) {
-                    const onboardWallet = window.OnboardService.getWallet();
-                    if (onboardWallet && onboardWallet.address.toLowerCase() === address.toLowerCase()) {
-                        this.provider = onboardWallet.provider;
-                        this.signer = onboardWallet.signer;
-                        
-                        // Create wallet object
-                        this.wallet = {
-                            address: address,
-                            provider: this.provider,
-                            signer: this.signer,
-                            network: await this.provider.getNetwork(),
-                            label: onboardWallet.label
-                        };
-                        
-                        console.log("Wallet connected via Onboard.js:", address);
-                        return this.wallet;
-                    }
+                // Если не используем Web3Modal, подключаем провайдер напрямую
+                if (!this.web3Modal && window.ethereum) {
+                    this.provider = new ethers.providers.Web3Provider(window.ethereum);
                 }
-                
-                // Fallback to MetaMask connection
-                // Подключаем провайдер к MetaMask
-                this.provider = new ethers.providers.Web3Provider(window.ethereum);
                 
                 // Проверяем, что пользователь подключен к нужной сети
                 const network = await this.provider.getNetwork();
@@ -188,7 +250,9 @@
                         });
                         
                         // Обновляем провайдер после переключения
-                        this.provider = new ethers.providers.Web3Provider(window.ethereum);
+                        if (!this.web3Modal) {
+                            this.provider = new ethers.providers.Web3Provider(window.ethereum);
+                        }
                     } catch (switchError) {
                         // Если сеть не добавлена, предлагаем добавить
                         if (switchError.code === 4902) {
@@ -208,7 +272,9 @@
                             });
                             
                             // Обновляем провайдер после добавления сети
-                            this.provider = new ethers.providers.Web3Provider(window.ethereum);
+                            if (!this.web3Modal) {
+                                this.provider = new ethers.providers.Web3Provider(window.ethereum);
+                            }
                         } else {
                             throw switchError;
                         }
@@ -250,69 +316,108 @@
                 await new Promise(resolve => setTimeout(resolve, 500));
                 
                 // Генерируем "зашифрованные" данные
-                const encryptedValue = `0x${Array.from({length: 64}, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
+                let encryptedValue;
+                switch (type) {
+                    case 'suint':
+                        // Имитация шифрования числа
+                        encryptedValue = "0x" + Array.from({length: 20}, () => 
+                            Math.floor(Math.random() * 16).toString(16)).join('');
+                        break;
+                        
+                    case 'saddress':
+                        // Имитация шифрования адреса
+                        encryptedValue = "0x" + Array.from({length: 40}, () => 
+                            Math.floor(Math.random() * 16).toString(16)).join('');
+                        break;
+                        
+                    case 'sbool':
+                        // Имитация шифрования булевого значения
+                        encryptedValue = "0x" + Array.from({length: 4}, () => 
+                            Math.floor(Math.random() * 16).toString(16)).join('');
+                        break;
+                        
+                    default:
+                        throw new Error(`Неподдерживаемый тип данных: ${type}`);
+                }
                 
+                // Возвращаем результат шифрования с метаданными
                 return {
                     type: type,
-                    value: value,
-                    encrypted: encryptedValue
+                    originalValue: value,
+                    encryptedValue: encryptedValue,
+                    timestamp: Date.now()
                 };
             } catch (error) {
-                console.error("Ошибка при шифровании данных:", error);
+                console.error("Ошибка шифрования данных:", error);
                 throw error;
             }
         }
         
-        // Отправка транзакции через Seismic
+        // Отправка транзакции в Seismic Devnet
         async sendTransaction(data) {
             try {
-                if (!this.wallet || !this.signer) {
-                    throw new Error("Кошелек не подключен");
+                console.log("Начало отправки транзакции с данными:", data);
+                
+                // Проверяем подключение к кошельку
+                if (!this.wallet) {
+                    throw new Error("Кошелек не подключен. Сначала подключите кошелек.");
                 }
                 
-                // Подготавливаем транзакцию
+                const address = this.wallet.address;
+                console.log("Адрес отправителя:", address);
+                
+                // Вместо использования демо-контракта с неверной контрольной суммой,
+                // отправляем небольшое количество эфира на адрес пользователя
+                // Адрес получателя - это адрес самого пользователя
+                const recipientAddress = data.to || address;
+                
+                // Создаем транзакцию - без поля data для обычного адреса
                 const tx = {
-                    to: data.to,
-                    value: data.value
+                    to: recipientAddress,
+                    value: data.value || ethers.utils.parseEther("0.0001"), // Отправляем минимальное количество эфира
+                    gasLimit: ethers.utils.hexlify(100000) // Устанавливаем лимит газа для транзакции
                 };
                 
-                // Отправляем транзакцию
-                const transaction = await this.signer.sendTransaction(tx);
+                // Сохраняем данные в консоль для демонстрации (в реальном приложении они были бы в data)
+                console.log("Зашифрованные данные транзакции (не отправляются):", JSON.stringify(data));
                 
-                // Ждем подтверждения транзакции
+                // Отправляем транзакцию
+                const transaction = await this.wallet.signer.sendTransaction(tx);
                 console.log("Транзакция отправлена:", transaction.hash);
+                
+                // Ожидаем подтверждения транзакции
+                console.log("Ожидание подтверждения транзакции...");
+                const receipt = await transaction.wait();
+                console.log("Транзакция подтверждена в блоке", receipt.blockNumber);
                 
                 return transaction;
             } catch (error) {
-                console.error("Ошибка при отправке транзакции:", error);
+                console.error("Ошибка отправки транзакции:", error);
                 throw error;
             }
         }
         
-        // Получение баланса
+        // Получение баланса адреса
         async getBalance(address) {
             try {
                 if (!this.isInitialized) {
                     await this.initialize();
                 }
                 
-                if (!address) {
-                    throw new Error("Не указан адрес для проверки баланса");
+                if (!address && this.wallet) {
+                    address = this.wallet.address;
                 }
                 
-                // Используем ethers.js для получения баланса
-                if (this.provider) {
-                    const balance = await this.provider.getBalance(address);
-                    return balance;
-                } else if (this.web3) {
-                    // Альтернативный вариант с Web3
-                    const balance = await this.web3.eth.getBalance(address);
-                    return balance;
-                } else {
-                    throw new Error("Провайдер не инициализирован");
+                if (!address) {
+                    throw new Error("Адрес не указан");
                 }
+                
+                const balance = await this.provider.getBalance(address);
+                console.log("Баланс:", ethers.utils.formatEther(balance), "ETH");
+                
+                return balance;
             } catch (error) {
-                console.error("Ошибка при получении баланса:", error);
+                console.error("Ошибка получения баланса:", error);
                 throw error;
             }
         }

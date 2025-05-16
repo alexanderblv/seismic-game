@@ -116,28 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (wallet) {
                     // Update UI to show connected state
-                    connectWalletBtn.textContent = 'Connected';
-                    connectWalletBtn.classList.remove('btn-primary');
-                    connectWalletBtn.classList.add('btn-success');
-                    
-                    // Show user address
-                    const shortAddress = `${wallet.address.substring(0, 6)}...${wallet.address.substring(wallet.address.length - 4)}`;
-                    walletAddress.textContent = shortAddress;
-                    walletAddress.classList.remove('d-none');
-                    userAddressInput.value = wallet.address;
-                    
-                    // Update network status
-                    networkBadge.textContent = seismicConfig.network.name;
-                    networkBadge.classList.remove('bg-secondary');
-                    networkBadge.classList.add('bg-success');
-                    
-                    // Update connection status
-                    connectionStatus.textContent = 'Connected';
-                    connectionStatus.classList.remove('bg-secondary');
-                    connectionStatus.classList.add('bg-success');
-                    
-                    // Get and display balance
-                    refreshBalance();
+                    updateUIForConnectedWallet(wallet);
                     
                     console.log('Wallet connection completed for:', wallet.address);
                     
@@ -155,11 +134,45 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Update UI for connected wallet
+    function updateUIForConnectedWallet(wallet) {
+        // Change connect button to disconnect
+        connectWalletBtn.textContent = 'Disconnect';
+        connectWalletBtn.classList.remove('btn-primary');
+        connectWalletBtn.classList.add('btn-danger');
+        connectWalletBtn.onclick = disconnectWallet;
+        
+        // Show user address
+        const shortAddress = `${wallet.address.substring(0, 6)}...${wallet.address.substring(wallet.address.length - 4)}`;
+        walletAddress.textContent = shortAddress;
+        walletAddress.classList.remove('d-none');
+        userAddressInput.value = wallet.address;
+        
+        // Update network status
+        networkBadge.textContent = seismicConfig.network.name;
+        networkBadge.classList.remove('bg-secondary');
+        networkBadge.classList.add('bg-success');
+        
+        // Update connection status
+        connectionStatus.textContent = 'Connected';
+        connectionStatus.classList.remove('bg-secondary');
+        connectionStatus.classList.add('bg-success');
+        
+        // Get and display balance
+        refreshBalance();
+    }
+    
     // Initialize the SDK
     async function initializeSdk() {
         try {
             await seismic.initialize();
             console.log('Seismic SDK initialized successfully');
+            
+            // If a wallet is already connected through the SDK (for example via cached Web3Modal provider)
+            if (seismic.wallet) {
+                updateUIForConnectedWallet(seismic.wallet);
+                return;
+            }
             
             // Проверяем подключение MetaMask и автоматически инициируем подключение, 
             // только если есть выбранные аккаунты
@@ -174,28 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     if (wallet) {
                         // Update UI to show connected state
-                        connectWalletBtn.textContent = 'Connected';
-                        connectWalletBtn.classList.remove('btn-primary');
-                        connectWalletBtn.classList.add('btn-success');
-                        
-                        // Show user address
-                        const shortAddress = `${wallet.address.substring(0, 6)}...${wallet.address.substring(wallet.address.length - 4)}`;
-                        walletAddress.textContent = shortAddress;
-                        walletAddress.classList.remove('d-none');
-                        userAddressInput.value = wallet.address;
-                        
-                        // Update network status
-                        networkBadge.textContent = seismicConfig.network.name;
-                        networkBadge.classList.remove('bg-secondary');
-                        networkBadge.classList.add('bg-success');
-                        
-                        // Update connection status
-                        connectionStatus.textContent = 'Connected';
-                        connectionStatus.classList.remove('bg-secondary');
-                        connectionStatus.classList.add('bg-success');
-                        
-                        // Get and display balance
-                        refreshBalance();
+                        updateUIForConnectedWallet(wallet);
                         
                         console.log('Wallet connected automatically:', wallet.address);
                     }
@@ -232,34 +224,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (wallet) {
                 // Update UI to show connected state
-                connectWalletBtn.textContent = 'Connected';
-                connectWalletBtn.classList.remove('btn-primary');
-                connectWalletBtn.classList.add('btn-success');
-                
-                // Show user address
-                const shortAddress = `${wallet.address.substring(0, 6)}...${wallet.address.substring(wallet.address.length - 4)}`;
-                walletAddress.textContent = shortAddress;
-                walletAddress.classList.remove('d-none');
-                userAddressInput.value = wallet.address;
-                
-                // If wallet has a label (from Onboard.js), show it
-                if (wallet.label) {
-                    connectionStatus.textContent = `Connected (${wallet.label})`;
-                } else {
-                    connectionStatus.textContent = 'Connected';
-                }
-                
-                // Update network status
-                networkBadge.textContent = seismicConfig.network.name;
-                networkBadge.classList.remove('bg-secondary');
-                networkBadge.classList.add('bg-success');
-                
-                // Update connection status
-                connectionStatus.classList.remove('bg-secondary');
-                connectionStatus.classList.add('bg-success');
-                
-                // Get and display balance
-                refreshBalance();
+                updateUIForConnectedWallet(wallet);
                 
                 console.log('Wallet connected successfully:', wallet.address);
                 
@@ -268,8 +233,49 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('Failed to connect wallet:', error);
-            showError('Failed to connect wallet. Please make sure you have a compatible wallet installed.');
+            showError('Failed to connect wallet. Please make sure you have a wallet installed and try again.');
             // Keep the flag set if there was an error, as the user might approve in MetaMask after the error
+        } finally {
+            connectWalletBtn.disabled = false;
+            loadingOverlay.classList.add('d-none');
+        }
+    }
+    
+    // Disconnect wallet
+    async function disconnectWallet() {
+        try {
+            connectWalletBtn.disabled = true;
+            loadingOverlay.classList.remove('d-none');
+            loadingText.textContent = 'Disconnecting wallet...';
+            
+            await seismic.disconnect();
+            
+            // Reset UI to show disconnected state
+            connectWalletBtn.textContent = 'Connect Wallet';
+            connectWalletBtn.classList.remove('btn-danger');
+            connectWalletBtn.classList.add('btn-primary');
+            connectWalletBtn.onclick = connectWallet;
+            
+            // Hide user address
+            walletAddress.textContent = 'Connect your wallet';
+            walletAddress.classList.add('d-none');
+            userAddressInput.value = '';
+            userBalanceInput.value = '--';
+            
+            // Update network status
+            networkBadge.textContent = 'Not Connected';
+            networkBadge.classList.remove('bg-success');
+            networkBadge.classList.add('bg-secondary');
+            
+            // Update connection status
+            connectionStatus.textContent = 'Not Connected';
+            connectionStatus.classList.remove('bg-success');
+            connectionStatus.classList.add('bg-secondary');
+            
+            showSuccess('Wallet disconnected successfully');
+        } catch (error) {
+            console.error('Failed to disconnect wallet:', error);
+            showError('Failed to disconnect wallet. Please try again.');
         } finally {
             connectWalletBtn.disabled = false;
             loadingOverlay.classList.add('d-none');
@@ -1054,8 +1060,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 5000);
     }
     
-    // Event listeners
-    connectWalletBtn.addEventListener('click', connectWallet);
+    // Event Listeners
+    // We don't use addEventListener for connectWalletBtn since we dynamically change its function
+    // between connect and disconnect
+    connectWalletBtn.onclick = connectWallet;
     addNetworkBtn.addEventListener('click', addNetwork);
     refreshBalanceBtn.addEventListener('click', refreshBalance);
     copyAddressBtn.addEventListener('click', copyAddress);

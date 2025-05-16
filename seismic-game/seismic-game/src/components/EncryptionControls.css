@@ -1,0 +1,252 @@
+.encryption-controls {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto 1rem;
+  background-color: rgba(30, 30, 30, 0.9);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  color: #fff;
+}
+
+.encryption-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background-color: rgba(74, 222, 128, 0.2);
+  cursor: pointer;
+  border-bottom: 1px solid rgba(74, 222, 128, 0.3);
+}
+
+.encryption-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: #4ade80;
+}
+
+.controls-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.network-pill,
+.encryption-pill {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 1rem;
+  font-size: 0.7rem;
+  font-weight: bold;
+}
+
+.network-pill[data-network="mainnet"] {
+  background-color: rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+}
+
+.network-pill[data-network="devnet"] {
+  background-color: rgba(129, 140, 248, 0.2);
+  color: #818cf8;
+}
+
+.encryption-pill[data-enabled="true"] {
+  background-color: rgba(74, 222, 128, 0.2);
+  color: #4ade80;
+}
+
+.encryption-pill[data-enabled="false"] {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.controls-content {
+  padding: 1rem;
+}
+
+.control-section {
+  margin-bottom: 1.5rem;
+}
+
+.control-section h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.9rem;
+  color: #4ade80;
+}
+
+.control-section h5 {
+  margin: 1rem 0 0.5rem 0;
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.toggle-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.toggle-wrapper span {
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.toggle-wrapper span.active {
+  color: #fff;
+  font-weight: bold;
+}
+
+.toggle-switch {
+  width: 2.5rem;
+  height: 1.25rem;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 0.625rem;
+  position: relative;
+  cursor: pointer;
+}
+
+.toggle-slider {
+  position: absolute;
+  width: 1rem;
+  height: 1rem;
+  background-color: #4ade80;
+  border-radius: 50%;
+  transition: left 0.2s ease;
+  top: 0.125rem;
+}
+
+.toggle-slider.left {
+  left: 0.125rem;
+}
+
+.toggle-slider.right {
+  left: calc(100% - 1rem - 0.125rem);
+}
+
+.mode-description {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin: 0.5rem 0 0 0;
+}
+
+.encryption-types {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.encryption-type {
+  background-color: rgba(0, 0, 0, 0.2);
+  padding: 0.75rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.encryption-type:hover {
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+.encryption-type.selected {
+  border-left-color: #4ade80;
+  background-color: rgba(74, 222, 128, 0.1);
+}
+
+.type-name {
+  font-weight: bold;
+  font-size: 0.85rem;
+  margin-bottom: 0.25rem;
+}
+
+.type-description {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.encryption-example {
+  background-color: rgba(0, 0, 0, 0.2);
+  padding: 1rem;
+  border-radius: 0.25rem;
+  margin-top: 1rem;
+}
+
+.encryption-example h4 {
+  margin-top: 0;
+  font-size: 0.9rem;
+  margin-bottom: 0.75rem;
+  color: #4ade80;
+}
+
+.example-section {
+  margin-bottom: 1rem;
+}
+
+.example-section h5 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.data-display {
+  background-color: rgba(0, 0, 0, 0.3);
+  padding: 0.75rem;
+  border-radius: 0.25rem;
+  font-family: monospace;
+  font-size: 0.7rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.data-display.encrypted {
+  color: #818cf8;
+}
+
+.data-display.computation {
+  color: #f59e0b;
+}
+
+.simulate-button {
+  background-color: #4ade80;
+  color: #121212;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  display: block;
+  margin: 1rem auto 0;
+}
+
+.simulate-button:hover {
+  background-color: #22c55e;
+}
+
+.simulate-button:disabled {
+  background-color: #6b7280;
+  cursor: not-allowed;
+}
+
+.user-info-section {
+  background-color: rgba(74, 222, 128, 0.1);
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  border-radius: 0.25rem;
+  border-left: 3px solid rgba(74, 222, 128, 0.5);
+}
+
+.user-info-section p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #eee;
+}
+
+.user-info-section strong {
+  color: #4ade80;
+  font-weight: bold;
+} 

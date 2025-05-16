@@ -1,0 +1,340 @@
+.devnet-setup {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto 1rem;
+  background-color: rgba(30, 30, 30, 0.9);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  color: #fff;
+}
+
+.devnet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background-color: rgba(74, 222, 128, 0.2);
+  cursor: pointer;
+  border-bottom: 1px solid rgba(74, 222, 128, 0.3);
+}
+
+.devnet-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: #4ade80;
+}
+
+.connection-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-dot.connected {
+  background-color: #4ade80;
+  box-shadow: 0 0 8px #4ade80;
+}
+
+.status-dot.disconnected {
+  background-color: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+}
+
+.devnet-content {
+  padding: 1rem;
+}
+
+.connection-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.connection-info > p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.5rem;
+  background-color: rgba(0, 0, 0, 0.2);
+  padding: 0.75rem;
+  border-radius: 4px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.info-label {
+  font-size: 0.7rem;
+  color: #9ca3af;
+}
+
+.info-value {
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+
+.contract-address {
+  font-family: monospace;
+  word-break: break-all;
+}
+
+.setup-section {
+  background-color: rgba(0, 0, 0, 0.2);
+  padding: 1rem;
+  border-radius: 4px;
+  margin-top: 1rem;
+}
+
+.setup-section h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  color: #4ade80;
+}
+
+.setup-section p {
+  margin: 0 0 1rem;
+  font-size: 0.8rem;
+  color: #d1d5db;
+}
+
+.setup-button {
+  background-color: #4ade80;
+  color: #121212;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.setup-button:hover {
+  background-color: #22c55e;
+}
+
+.setup-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.setup-step {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  opacity: 0.6;
+}
+
+.setup-step.active {
+  opacity: 1;
+}
+
+.step-number {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: #4b5563;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.active .step-number {
+  background-color: #4ade80;
+  color: #121212;
+}
+
+.step-details {
+  flex: 1;
+}
+
+.step-name {
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.loading-dots {
+  display: inline-block;
+  position: relative;
+}
+
+.loading-dots span {
+  animation: dots 1.4s linear infinite;
+  opacity: 0;
+}
+
+.loading-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.loading-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes dots {
+  0% { opacity: 0; }
+  50% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.setup-success {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: rgba(74, 222, 128, 0.1);
+  border-radius: 4px;
+  border-left: 4px solid #4ade80;
+}
+
+.success-icon {
+  background-color: #4ade80;
+  color: #121212;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.success-message h5 {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  color: #4ade80;
+}
+
+.success-message p {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.success-message .contract-address {
+  margin-top: 0.5rem;
+  font-size: 0.7rem;
+  color: #9ca3af;
+}
+
+.setup-instructions {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.setup-instructions h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: #4ade80;
+}
+
+.setup-instructions > p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.setup-steps {
+  padding-left: 1.5rem;
+  margin: 0;
+}
+
+.setup-steps li {
+  margin-bottom: 1.5rem;
+}
+
+.setup-steps h5 {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  color: #f3f4f6;
+}
+
+.code-block {
+  background-color: #1f2937;
+  padding: 0.75rem;
+  border-radius: 4px;
+  margin: 0.5rem 0;
+  overflow-x: auto;
+  font-family: monospace;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.code-block code {
+  color: #e5e7eb;
+}
+
+.connect-button {
+  background-color: #4ade80;
+  color: #121212;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  align-self: flex-start;
+  margin-top: 1rem;
+}
+
+.connect-button:hover {
+  background-color: #22c55e;
+}
+
+.note {
+  background-color: rgba(251, 191, 36, 0.1);
+  border-left: 4px solid #f59e0b;
+  padding: 0.75rem;
+  border-radius: 0 4px 4px 0;
+  font-size: 0.8rem;
+}
+
+.note strong {
+  color: #f59e0b;
+}
+
+.devnet-links {
+  margin-top: 1rem;
+}
+
+.devnet-links h5 {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+}
+
+.devnet-links ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.devnet-links a {
+  color: #4ade80;
+  text-decoration: none;
+  font-size: 0.8rem;
+}
+
+.devnet-links a:hover {
+  text-decoration: underline;
+} 

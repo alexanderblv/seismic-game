@@ -1,0 +1,247 @@
+.game-container {
+  position: relative;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  overflow: hidden;
+  background-color: rgba(0, 0, 0, 0.8);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.game-grid {
+  position: relative;
+  margin: 0 auto;
+  overflow: hidden;
+  background-color: #121212;
+}
+
+.game-tile {
+  position: absolute;
+  background-color: #1e1e1e;
+  border: 1px solid #2d2d2d;
+  box-sizing: border-box;
+}
+
+.game-tile.player {
+  background-color: #4ade80;
+  border-color: #22c55e;
+  z-index: 10;
+  box-shadow: 0 0 10px rgba(74, 222, 128, 0.7);
+}
+
+.game-tile.player-up:before,
+.game-tile.player-down:before,
+.game-tile.player-left:before,
+.game-tile.player-right:before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  transform: translate(-50%, -50%);
+  border: 5px solid transparent;
+}
+
+.game-tile.player-up:before {
+  border-bottom-color: #121212;
+  margin-top: -3px;
+}
+
+.game-tile.player-down:before {
+  border-top-color: #121212;
+  margin-top: 3px;
+}
+
+.game-tile.player-left:before {
+  border-right-color: #121212;
+  margin-left: -3px;
+}
+
+.game-tile.player-right:before {
+  border-left-color: #121212;
+  margin-left: 3px;
+}
+
+.game-tile.artifact {
+  background-color: #fbbf24;
+  border-color: #f59e0b;
+  z-index: 5;
+  box-shadow: 0 0 15px rgba(251, 191, 36, 0.7);
+  animation: pulse 2s infinite;
+}
+
+.game-tile.artifact-found {
+  background-color: #fbbf24;
+  border-color: #f59e0b;
+  opacity: 0.5;
+}
+
+.game-tile.visited {
+  background-color: #374151;
+  border-color: #4b5563;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 5px rgba(251, 191, 36, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(251, 191, 36, 0.9);
+  }
+  100% {
+    box-shadow: 0 0 5px rgba(251, 191, 36, 0.7);
+  }
+}
+
+.movement-path {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.artifact-found-message {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(0, 0, 0, 0.8);
+  padding: 2rem;
+  border-radius: 8px;
+  text-align: center;
+  color: #fbbf24;
+  font-size: 1.2rem;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  box-shadow: 0 0 30px rgba(251, 191, 36, 0.5);
+}
+
+.login-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 30;
+}
+
+.login-message {
+  background-color: rgba(0, 0, 0, 0.8);
+  padding: 1.5rem;
+  border-radius: 8px;
+  text-align: center;
+  color: #4ade80;
+  font-size: 1.1rem;
+  max-width: 80%;
+}
+
+.transaction-list {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: rgba(0, 0, 0, 0.8);
+  padding: 1rem;
+  border-radius: 8px;
+  width: 300px;
+  max-width: 90%;
+  z-index: 20;
+  font-family: monospace;
+  font-size: 0.8rem;
+}
+
+.transaction-list h3 {
+  color: #4ade80;
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.transaction-list ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.transaction-list li {
+  padding: 0.5rem;
+  margin-bottom: 0.25rem;
+  border-radius: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: space-between;
+  background-color: rgba(30, 30, 30, 0.8);
+}
+
+.transaction-list li.confirmed {
+  border-left: 3px solid #4ade80;
+}
+
+.transaction-list li.pending {
+  border-left: 3px solid #fbbf24;
+}
+
+.tx-type {
+  font-weight: bold;
+  color: #4ade80;
+}
+
+.tx-time {
+  color: #9ca3af;
+  font-size: 0.7rem;
+}
+
+.tx-block {
+  background-color: rgba(74, 222, 128, 0.2);
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  color: #4ade80;
+}
+
+.tx-status {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+}
+
+.tx-status:empty {
+  display: none;
+}
+
+li.confirmed .tx-status {
+  background-color: rgba(74, 222, 128, 0.2);
+  color: #4ade80;
+}
+
+li.pending .tx-status {
+  background-color: rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+}
+
+.blockchain-status {
+  padding: 0.5rem;
+  color: #9ca3af;
+  font-size: 0.8rem;
+  text-align: right;
+}
+
+.debug-mode {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+  font-family: monospace;
+  font-size: 0.7rem;
+  color: #fbbf24;
+} 

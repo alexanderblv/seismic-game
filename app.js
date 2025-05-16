@@ -3,8 +3,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize the SDK
     const seismic = new SeismicSDK();
     
-    // Track transaction history
-    const transactionHistory = [];
+    // Track transaction history - load from localStorage if available
+    let transactionHistory = [];
+    
+    try {
+        const savedHistory = localStorage.getItem('transactionHistory');
+        if (savedHistory) {
+            transactionHistory = JSON.parse(savedHistory);
+            console.log(`Loaded ${transactionHistory.length} transactions from history`);
+        }
+    } catch (error) {
+        console.error('Failed to load transaction history:', error);
+        // If there was an error parsing, reset the history
+        localStorage.removeItem('transactionHistory');
+    }
     
     // Flag to track if wallet connect was initiated
     let walletConnectInitiated = false;
@@ -32,6 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const transactionModal = new bootstrap.Modal(document.getElementById('transaction-modal'));
     const transactionResult = document.getElementById('transaction-result');
     const txExplorerLink = document.getElementById('tx-explorer-link');
+    const clearHistoryBtn = document.getElementById('clear-history');
     
     // Encrypted Types Form Elements
     const encryptedTypeSelect = document.getElementById('encrypted-type');
@@ -379,16 +392,27 @@ document.addEventListener('DOMContentLoaded', () => {
             
             loadingText.textContent = 'Transaction submitted. Waiting for confirmation...';
             
-            // Add to transaction history
+            // Add to transaction history with more details
             const txRecord = {
                 hash: tx.hash,
+                from: seismic.wallet.address,
                 to: recipientAddress,
                 value: amount,
+                valueWei: amountWei.toString(),
+                useEncryption: useEncryption,
+                encryptedData: useEncryption && encryptedData ? encryptedData : null,
                 status: 'pending',
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                network: seismicConfig.network.name,
+                chainId: seismicConfig.network.chainId
             };
             
             transactionHistory.unshift(txRecord);
+            
+            // Save to localStorage
+            saveTransactionHistory();
+            
+            // Update UI
             updateTransactionHistory();
             
             // Wait for confirmation
@@ -398,6 +422,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const txIndex = transactionHistory.findIndex(t => t.hash === tx.hash);
             if (txIndex !== -1) {
                 transactionHistory[txIndex].status = receipt.status === 1 ? 'confirmed' : 'failed';
+                transactionHistory[txIndex].blockNumber = receipt.blockNumber;
+                transactionHistory[txIndex].gasUsed = receipt.gasUsed.toString();
+                
+                // Save updated history
+                saveTransactionHistory();
+                
+                // Update UI
                 updateTransactionHistory();
             }
             
@@ -415,13 +446,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
+    // Save transaction history to localStorage
+    function saveTransactionHistory() {
+        try {
+            localStorage.setItem('transactionHistory', JSON.stringify(transactionHistory));
+        } catch (error) {
+            console.error('Failed to save transaction history:', error);
+        }
+    }
+    
     // Update the transaction history UI
     function updateTransactionHistory() {
         if (transactionHistory.length === 0) {
             noTransactionsAlert.classList.remove('d-none');
             transactionHistoryDiv.classList.add('d-none');
-                return;
-            }
+            return;
+        }
             
         noTransactionsAlert.classList.add('d-none');
         transactionHistoryDiv.classList.remove('d-none');
@@ -443,23 +483,267 @@ document.addEventListener('DOMContentLoaded', () => {
                 statusBadge = '<span class="badge bg-danger">Failed</span>';
             }
             
-            // Format address
-            const shortAddress = `${tx.to.substring(0, 6)}...${tx.to.substring(tx.to.length - 4)}`;
+            // Format addresses
+            const shortToAddress = `${tx.to.substring(0, 6)}...${tx.to.substring(tx.to.length - 4)}`;
             
-            // Create row
+            // Format date
+            const txDate = new Date(tx.timestamp);
+            const formattedDate = txDate.toLocaleString();
+            
+            // Add encryption indicator if applicable
+            const valueDisplay = tx.useEncryption ? 
+                `<span class="text-nowrap">${tx.value} ETH <i class="bi bi-shield-lock text-success" title="Encrypted Transaction"></i></span>` : 
+                `${tx.value} ETH`;
+            
+            // Create row with click handler for details
+            row.classList.add('transaction-row');
+            row.setAttribute('data-tx-hash', tx.hash);
             row.innerHTML = `
                 <td>
                     <a href="${seismicConfig.network.explorer}/tx/${tx.hash}" target="_blank" class="tx-hash">
                         ${tx.hash.substring(0, 10)}...
                     </a>
                 </td>
-                <td>${shortAddress}</td>
-                <td>${tx.value} ETH</td>
+                <td>${shortToAddress}</td>
+                <td>${valueDisplay}</td>
                 <td>${statusBadge}</td>
+                <td>${formattedDate}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-info view-details-btn" data-tx-hash="${tx.hash}">
+                        <i class="bi bi-info-circle"></i>
+                    </button>
+                </td>
             `;
             
             transactionList.appendChild(row);
         });
+        
+        // Add event listeners to the view details buttons
+        document.querySelectorAll('.view-details-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const txHash = btn.getAttribute('data-tx-hash');
+                showTransactionDetails(txHash);
+            });
+        });
+    }
+    
+    // Show transaction details in a modal
+    function showTransactionDetails(txHash) {
+        const tx = transactionHistory.find(t => t.hash === txHash);
+        if (!tx) return;
+        
+        // Create modal if it doesn't exist
+        let detailsModal = document.getElementById('tx-details-modal');
+        if (!detailsModal) {
+            const modalHtml = `
+                <div class="modal fade" id="tx-details-modal" tabindex="-1" aria-labelledby="tx-details-modal-label" aria-hidden="true">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="tx-details-modal-label">Transaction Details</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body" id="tx-details-content">
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            const modalElement = document.createElement('div');
+            modalElement.innerHTML = modalHtml;
+            document.body.appendChild(modalElement.firstChild);
+            
+            detailsModal = new bootstrap.Modal(document.getElementById('tx-details-modal'));
+        }
+        
+        // Format date
+        const txDate = new Date(tx.timestamp);
+        const formattedDate = txDate.toLocaleString();
+        
+        // Determine if this is an encrypted transaction and build encrypted data section
+        let encryptedSection = '';
+        if (tx.useEncryption) {
+            encryptedSection = `
+                <tr class="table-info">
+                    <th colspan="2" class="text-center">Encryption Details</th>
+                </tr>
+                <tr>
+                    <th>Encryption Used</th>
+                    <td><span class="badge bg-success">Yes</span></td>
+                </tr>
+            `;
+            
+            if (tx.encryptedType) {
+                encryptedSection += `
+                    <tr>
+                        <th>Encrypted Type</th>
+                        <td><code>${tx.encryptedType}</code></td>
+                    </tr>
+                `;
+            }
+            
+            if (tx.originalValue) {
+                encryptedSection += `
+                    <tr>
+                        <th>Original Value</th>
+                        <td><code>${tx.originalValue}</code></td>
+                    </tr>
+                `;
+            }
+            
+            if (tx.encryptedData) {
+                encryptedSection += `
+                    <tr>
+                        <th>Encrypted Data</th>
+                        <td>
+                            <div class="input-group">
+                                <input type="text" class="form-control font-monospace" value="${tx.encryptedData}" readonly>
+                                <button class="btn btn-outline-secondary copy-data-btn" type="button" data-clipboard-text="${tx.encryptedData}">
+                                    <i class="bi bi-clipboard"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+        
+        // Populate modal with transaction details
+        const detailsContent = document.getElementById('tx-details-content');
+        detailsContent.innerHTML = `
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <tbody>
+                        <tr>
+                            <th>Transaction Hash</th>
+                            <td>
+                                <div class="input-group">
+                                    <input type="text" class="form-control font-monospace" value="${tx.hash}" readonly>
+                                    <button class="btn btn-outline-secondary copy-data-btn" type="button" data-clipboard-text="${tx.hash}">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
+                                    <a href="${seismicConfig.network.explorer}/tx/${tx.hash}" target="_blank" class="btn btn-outline-primary">
+                                        <i class="bi bi-box-arrow-up-right"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Status</th>
+                            <td>${getStatusBadge(tx.status)}</td>
+                        </tr>
+                        <tr>
+                            <th>From</th>
+                            <td>
+                                <div class="input-group">
+                                    <input type="text" class="form-control font-monospace" value="${tx.from}" readonly>
+                                    <button class="btn btn-outline-secondary copy-data-btn" type="button" data-clipboard-text="${tx.from}">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
+                                    <a href="${seismicConfig.network.explorer}/address/${tx.from}" target="_blank" class="btn btn-outline-primary">
+                                        <i class="bi bi-box-arrow-up-right"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>To</th>
+                            <td>
+                                <div class="input-group">
+                                    <input type="text" class="form-control font-monospace" value="${tx.to}" readonly>
+                                    <button class="btn btn-outline-secondary copy-data-btn" type="button" data-clipboard-text="${tx.to}">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
+                                    <a href="${seismicConfig.network.explorer}/address/${tx.to}" target="_blank" class="btn btn-outline-primary">
+                                        <i class="bi bi-box-arrow-up-right"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Value</th>
+                            <td>${tx.value} ETH${tx.valueWei ? ` (${tx.valueWei} Wei)` : ''}</td>
+                        </tr>
+                        <tr>
+                            <th>Network</th>
+                            <td>${tx.network} (Chain ID: ${tx.chainId})</td>
+                        </tr>
+                        <tr>
+                            <th>Time</th>
+                            <td>${formattedDate}</td>
+                        </tr>
+                        ${tx.blockNumber ? `<tr>
+                            <th>Block Number</th>
+                            <td>
+                                <a href="${seismicConfig.network.explorer}/block/${tx.blockNumber}" target="_blank">
+                                    ${tx.blockNumber}
+                                </a>
+                            </td>
+                        </tr>` : ''}
+                        ${tx.gasUsed ? `<tr>
+                            <th>Gas Used</th>
+                            <td>${tx.gasUsed}</td>
+                        </tr>` : ''}
+                        ${encryptedSection}
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        // Add clipboard functionality to copy buttons
+        document.querySelectorAll('.copy-data-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const text = btn.getAttribute('data-clipboard-text');
+                navigator.clipboard.writeText(text)
+                    .then(() => {
+                        const originalHtml = btn.innerHTML;
+                        btn.innerHTML = '<i class="bi bi-check-lg"></i>';
+                        setTimeout(() => {
+                            btn.innerHTML = originalHtml;
+                        }, 1500);
+                    })
+                    .catch(err => {
+                        console.error('Failed to copy text:', err);
+                    });
+            });
+        });
+        
+        // Show the modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('tx-details-modal')) || 
+                      new bootstrap.Modal(document.getElementById('tx-details-modal'));
+        modal.show();
+    }
+    
+    // Helper function to get status badge HTML
+    function getStatusBadge(status) {
+        if (status === 'pending') {
+            return '<span class="badge bg-warning">Pending</span>';
+        } else if (status === 'confirmed') {
+            return '<span class="badge bg-success">Confirmed</span>';
+        } else {
+            return '<span class="badge bg-danger">Failed</span>';
+        }
+    }
+    
+    // Clear transaction history
+    function clearTransactionHistory() {
+        if (confirm('Are you sure you want to clear your transaction history? This cannot be undone.')) {
+            // Clear the array
+            transactionHistory = [];
+            
+            // Remove from localStorage
+            localStorage.removeItem('transactionHistory');
+            
+            // Update UI
+            updateTransactionHistory();
+            
+            showSuccess('Transaction history cleared successfully');
+        }
     }
     
     // Toggle input fields based on selected encrypted type
@@ -557,48 +841,81 @@ document.addEventListener('DOMContentLoaded', () => {
             showError('Please connect your wallet first');
             return;
         }
-        
+            
         if (!currentEncryptedData) {
             showError('Please encrypt data first');
             return;
         }
-        
+            
         try {
             loadingOverlay.classList.remove('d-none');
             loadingText.textContent = 'Preparing encrypted transaction...';
             
-            // For demo purposes, we're sending to a demo contract address
-            // In a real implementation, you would deploy a contract that accepts encrypted data
-            const demoContractAddress = seismic.wallet.address; // Using user's address for demo
+            // Get recipient address from UI
+            const recipientAddress = recipientAddressInput.value.trim();
             
-            // Prepare transaction data
-            const txData = {
-                to: demoContractAddress,
-                value: ethers.utils.parseEther("0.0001"), // Minimal amount for demo
+            // Validate inputs
+            if (!ethers.utils.isAddress(recipientAddress)) {
+                showError('Please enter a valid Ethereum address in the Send Transaction form');
+                loadingOverlay.classList.add('d-none');
+                return;
+            }
+                
+            // Prepare transaction data with encrypted field
+            let txData = {
+                to: recipientAddress, // Use the recipient address from the Send Transaction form
+                value: ethers.utils.parseEther('0'), // No ETH value for encrypted transactions for simplicity
                 encryptedData: currentEncryptedData
             };
-            
+                
             loadingText.textContent = 'Sending encrypted transaction...';
-            
+                
             // Send transaction
             const tx = await seismic.sendTransaction(txData);
+                
+            loadingText.textContent = 'Encrypted transaction submitted. Waiting for confirmation...';
             
-            loadingText.textContent = 'Transaction submitted. Waiting for confirmation...';
+            // Get the original value and type for record keeping
+            const type = encryptedTypeSelect.value;
+            let originalValue;
             
-            // Add to transaction history with a special tag for encrypted data
+            switch (type) {
+                case 'suint':
+                    originalValue = suintValue.value.trim();
+                    break;
+                case 'saddress':
+                    originalValue = saddressValue.value.trim();
+                    break;
+                case 'sbool':
+                    originalValue = sboolTrueRadio.checked ? 'true' : 'false';
+                    break;
+            }
+            
+            // Add to transaction history
             const txRecord = {
                 hash: tx.hash,
-                to: demoContractAddress,
-                value: "0.0001",
+                from: seismic.wallet.address,
+                to: recipientAddress,
+                value: '0',
+                valueWei: '0',
+                useEncryption: true,
+                encryptedType: type,
+                encryptedData: currentEncryptedData.encryptedValue,
+                originalValue: originalValue,
                 status: 'pending',
                 timestamp: Date.now(),
-                encrypted: true,
-                encryptedType: currentEncryptedData.type
+                network: seismicConfig.network.name,
+                chainId: seismicConfig.network.chainId
             };
             
             transactionHistory.unshift(txRecord);
-            updateTransactionHistory();
             
+            // Save to localStorage
+            saveTransactionHistory();
+            
+            // Update UI
+            updateTransactionHistory();
+                
             // Wait for confirmation
             const receipt = await tx.wait();
             
@@ -606,18 +923,25 @@ document.addEventListener('DOMContentLoaded', () => {
             const txIndex = transactionHistory.findIndex(t => t.hash === tx.hash);
             if (txIndex !== -1) {
                 transactionHistory[txIndex].status = receipt.status === 1 ? 'confirmed' : 'failed';
+                transactionHistory[txIndex].blockNumber = receipt.blockNumber;
+                transactionHistory[txIndex].gasUsed = receipt.gasUsed.toString();
+                
+                // Save updated history
+                saveTransactionHistory();
+                
+                // Update UI
                 updateTransactionHistory();
             }
-            
+                
             // Show success message
             showTransactionResult(tx, receipt);
-            
+                
+            // Reset the form
+            resetEncryptedForm();
+                
             // Refresh balance
             refreshBalance();
-            
-            // Reset form
-            resetEncryptedForm();
-            
+                
         } catch (error) {
             console.error('Failed to send encrypted transaction:', error);
             showError('Failed to send encrypted transaction. Please try again.');
@@ -732,11 +1056,10 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshBalanceBtn.addEventListener('click', refreshBalance);
     copyAddressBtn.addEventListener('click', copyAddress);
     transactionForm.addEventListener('submit', sendTransaction);
-    
-    // Encrypted types form event listeners
     encryptedTypeSelect.addEventListener('change', toggleEncryptedTypeInputs);
     encryptDataBtn.addEventListener('click', encryptData);
     sendEncryptedTxBtn.addEventListener('click', sendEncryptedTransaction);
+    clearHistoryBtn.addEventListener('click', clearTransactionHistory);
     
     // Check if MetaMask is installed
     if (!window.ethereum) {
@@ -747,4 +1070,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Initialize SDK on page load
     initializeSdk();
+    
+    // Initialize the encrypted type inputs
+    toggleEncryptedTypeInputs();
+    
+    // Update transaction history UI
+    updateTransactionHistory();
 }); 

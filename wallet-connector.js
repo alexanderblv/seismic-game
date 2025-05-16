@@ -37,24 +37,39 @@
         networkBadge = document.getElementById('network-badge');
         connectionStatus = document.getElementById('connection-status');
         
-        // Initialize Web3Modal with WalletConnect v1
+        // Define provider options with explicit wallet list
         const providerOptions = {
+            // WalletConnect configuration with explicit bridge
             walletconnect: {
                 package: WalletConnectProvider.default, 
                 options: {
+                    bridge: "https://bridge.walletconnect.org",
                     rpc: {
-                        5124: seismicNetwork.rpcUrls[0]
+                        5124: seismicNetwork.rpcUrls[0],
+                        1: "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
+                    },
+                    qrcodeModalOptions: {
+                        mobileLinks: [
+                            "metamask",
+                            "rainbow",
+                            "argent",
+                            "trust",
+                            "imtoken",
+                            "pillar"
+                        ]
                     }
                 }
             }
         };
         
-        // Create Web3Modal instance
+        // Create Web3Modal instance with customized configuration
         web3Modal = new Web3Modal.default({
             cacheProvider: true,
             providerOptions,
             disableInjectedProvider: false,
-            theme: "dark"
+            theme: "dark",
+            // Force display of all available wallet options
+            showQrModal: true
         });
         
         // Check if user is already connected
@@ -149,6 +164,9 @@
             
             // Update UI to show connecting state
             connectButton.innerText = 'Connecting...';
+            
+            // Clear cached provider to avoid automatic reconnection to wrong wallet
+            web3Modal.clearCachedProvider();
             
             // Open Web3Modal and select provider
             provider = await web3Modal.connect();

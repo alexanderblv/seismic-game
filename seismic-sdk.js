@@ -75,33 +75,28 @@
                     await this.initialize();
                 }
                 
-                // Если кошелек уже подключен, просто возвращаем его
-                if (this.wallet) {
-                    // Проверяем, что аккаунт не сменился
-                    if (window.ethereum && window.ethereum.selectedAddress && 
-                        window.ethereum.selectedAddress.toLowerCase() === this.wallet.address.toLowerCase()) {
-                        console.log("Используем существующее подключение кошелька:", this.wallet.address);
-                        this.connectionInProgress = false;
-                        return this.wallet;
-                    }
-                }
-                
                 if (window.ethereum) {
-                    // Запрашиваем доступ к кошельку пользователя (MetaMask и др.)
-                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                    
-                    // Проверяем, получили ли мы адреса
-                    if (!accounts || accounts.length === 0) {
-                        throw new Error("Не удалось получить адреса аккаунтов");
+                    try {
+                        // Запрашиваем доступ к кошельку пользователя
+                        // Это покажет выбор из всех установленных кошельков
+                        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                        
+                        // Проверяем, получили ли мы адреса
+                        if (!accounts || accounts.length === 0) {
+                            throw new Error("Не удалось получить адреса аккаунтов");
+                        }
+                        
+                        // Финализируем подключение
+                        const address = accounts[0];
+                        return await this.completeConnection(address);
+                    } catch (requestError) {
+                        console.error("Ошибка запроса кошельков:", requestError);
+                        this.connectionInProgress = false;
+                        throw new Error("Не удалось подключить кошелек. Попробуйте другой кошелек или повторите попытку позже.");
                     }
-                    
-                    // Финализируем подключение
-                    const address = accounts[0];
-                    return await this.completeConnection(address);
-                    
                 } else {
                     this.connectionInProgress = false;
-                    throw new Error("MetaMask или другой провайдер Ethereum не обнаружен");
+                    throw new Error("Провайдер Ethereum не обнаружен. Пожалуйста, установите кошелек.");
                 }
             } catch (error) {
                 this.connectionInProgress = false;
@@ -123,7 +118,7 @@
                     return this.wallet;
                 }
                 
-                // Подключаем провайдер к MetaMask
+                // Подключаем провайдер к выбранному кошельку
                 this.provider = new ethers.providers.Web3Provider(window.ethereum);
                 
                 // Проверяем, что пользователь подключен к нужной сети
@@ -241,7 +236,7 @@
                 console.log("Начало отправки транзакции с данными:", data);
                 
                 if (!window.ethereum) {
-                    throw new Error("MetaMask не обнаружен. Пожалуйста, установите MetaMask для взаимодействия с блокчейном.");
+                    throw new Error("Кошелек не обнаружен. Пожалуйста, установите кошелек для взаимодействия с блокчейном.");
                 }
                 
                 // Используем сохраненный wallet объект для согласованности

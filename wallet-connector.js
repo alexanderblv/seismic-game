@@ -1,10 +1,11 @@
-// Simple direct wallet connection implementation
+// Simple wallet connection implementation using Web3Modal
 (function() {
     // Global variables
     let provider = null;
     let web3 = null;
     let selectedAccount = null;
     let connecting = false;
+    let web3Modal = null;
     
     // UI elements - we'll get these only after DOM is loaded
     let connectButton;
@@ -14,7 +15,7 @@
     
     // Initialize wallet connector
     function init() {
-        console.log("Initializing direct wallet connector...");
+        console.log("Initializing Web3Modal wallet connector...");
         
         try {
             // Get UI elements
@@ -28,6 +29,9 @@
                 return;
             }
             
+            // Initialize Web3Modal
+            initWeb3Modal();
+            
             // Add click event listener to connect button
             connectButton.addEventListener('click', async () => {
                 if (selectedAccount) {
@@ -39,7 +43,7 @@
             
             // Check if we're already connected from localStorage
             const savedAccount = localStorage.getItem('connectedAccount');
-            if (savedAccount && window.ethereum) {
+            if (savedAccount) {
                 console.log("Found saved account, attempting to reconnect:", savedAccount);
                 connect();
             }
@@ -48,31 +52,105 @@
         }
     }
     
+    // Initialize Web3Modal
+    function initWeb3Modal() {
+        try {
+            // Check if Web3Modal is available
+            if (typeof Web3Modal === 'undefined') {
+                // Load Web3Modal dynamically if not available
+                loadScript('https://unpkg.com/web3modal@1.9.9/dist/index.js')
+                    .then(() => {
+                        // Load WalletConnect provider
+                        return loadScript('https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js');
+                    })
+                    .then(() => {
+                        setupWeb3Modal();
+                    })
+                    .catch(err => {
+                        console.error("Failed to load Web3Modal:", err);
+                        alert("Failed to load Web3Modal. Please refresh the page and try again.");
+                    });
+            } else {
+                setupWeb3Modal();
+            }
+        } catch (error) {
+            console.error("Error initializing Web3Modal:", error);
+        }
+    }
+    
+    // Setup Web3Modal instance
+    function setupWeb3Modal() {
+        const providerOptions = {
+            // Define providers here
+            walletconnect: {
+                package: window.WalletConnectProvider ? window.WalletConnectProvider.default : null,
+                options: {
+                    rpc: {
+                        5124: 'https://node-2.seismicdev.net/rpc'
+                    },
+                    chainId: 5124
+                }
+            }
+            // Add more providers as needed
+        };
+        
+        web3Modal = new Web3Modal.default({
+            cacheProvider: false, // We manage our own cache
+            providerOptions,
+            disableInjectedProvider: false, // Allow MetaMask
+            theme: "dark"
+        });
+        
+        console.log("Web3Modal initialized");
+    }
+    
+    // Load script dynamically
+    function loadScript(src) {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+    }
+    
     // Connect wallet
     async function connect() {
         if (connecting) return;
         connecting = true;
         
         try {
-            console.log("Connecting wallet...");
+            console.log("Connecting wallet with Web3Modal...");
             
-            // Check if MetaMask or other injected provider is available
-            if (!window.ethereum) {
-                alert("No Ethereum wallet detected! Please install MetaMask or another wallet.");
-                return false;
+            // Make sure Web3Modal is initialized
+            if (!web3Modal) {
+                await new Promise(resolve => {
+                    const checkInterval = setInterval(() => {
+                        if (web3Modal) {
+                            clearInterval(checkInterval);
+                            resolve();
+                        }
+                    }, 100);
+                });
             }
             
-            // Request accounts
-            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-            console.log("Connected accounts:", accounts);
+            // Open Web3Modal to let user choose a wallet
+            provider = await web3Modal.connect();
+            
+            if (!provider) {
+                throw new Error("Failed to connect - no provider selected");
+            }
+            
+            // Setup Web3
+            web3 = new Web3(provider);
+            
+            // Get selected account
+            const accounts = await web3.eth.getAccounts();
             
             if (!accounts || accounts.length === 0) {
                 throw new Error("No accounts found - wallet might be locked");
             }
-            
-            // Setup Web3
-            provider = window.ethereum;
-            web3 = new Web3(provider);
             
             // Set selected account
             selectedAccount = accounts[0];
@@ -100,7 +178,7 @@
             return { success: true, account: selectedAccount };
         } catch (error) {
             console.error("Failed to connect wallet:", error);
-            alert("Failed to connect wallet. Please make sure you have a wallet installed and try again.");
+            alert("Failed to connect wallet. Please try again.");
             return { success: false, error };
         } finally {
             connecting = false;
@@ -110,6 +188,15 @@
     // Disconnect wallet
     async function disconnect() {
         console.log("Disconnecting wallet...");
+        
+        // Close provider if it's disconnectable
+        if (provider && provider.close) {
+            try {
+                await provider.close();
+            } catch (e) {
+                console.error("Error closing provider:", e);
+            }
+        }
         
         // Clear localStorage
         localStorage.removeItem('connectedAccount');
@@ -175,8 +262,8 @@
         });
         
         // Handle disconnect
-        provider.on('disconnect', () => {
-            console.log("Provider disconnected");
+        provider.on('disconnect', (error) => {
+            console.log("Provider disconnected", error);
             disconnect();
         });
     }

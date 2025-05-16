@@ -76,32 +76,36 @@
                 }
                 
                 // Если кошелек уже подключен, просто возвращаем его
-                if (this.wallet) {
+                if (this.wallet && window.WalletConnector && window.WalletConnector.isConnected()) {
                     // Проверяем, что аккаунт не сменился
-                    if (window.ethereum && window.ethereum.selectedAddress && 
-                        window.ethereum.selectedAddress.toLowerCase() === this.wallet.address.toLowerCase()) {
+                    const currentAccount = window.WalletConnector.getSelectedAccount();
+                    if (currentAccount && currentAccount.toLowerCase() === this.wallet.address.toLowerCase()) {
                         console.log("Используем существующее подключение кошелька:", this.wallet.address);
                         this.connectionInProgress = false;
                         return this.wallet;
                     }
                 }
                 
-                if (window.ethereum) {
-                    // Запрашиваем доступ к кошельку пользователя (MetaMask и др.)
-                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                // Используем WalletConnector для подключения кошелька
+                if (window.WalletConnector) {
+                    const result = await window.WalletConnector.connect();
                     
-                    // Проверяем, получили ли мы адреса
-                    if (!accounts || accounts.length === 0) {
-                        throw new Error("Не удалось получить адреса аккаунтов");
+                    if (!result || !result.success) {
+                        throw new Error("Не удалось подключить кошелек через WalletConnector");
+                    }
+                    
+                    // Получаем адрес кошелька
+                    const address = window.WalletConnector.getSelectedAccount();
+                    
+                    if (!address) {
+                        throw new Error("Не удалось получить адрес аккаунта");
                     }
                     
                     // Финализируем подключение
-                    const address = accounts[0];
-                    return await this.completeConnection(address);
-                    
+                    return await this.completeConnection(address, window.WalletConnector.getProvider());
                 } else {
                     this.connectionInProgress = false;
-                    throw new Error("MetaMask или другой провайдер Ethereum не обнаружен");
+                    throw new Error("WalletConnector не найден. Убедитесь, что wallet-connector.js подключен перед seismic-sdk.js");
                 }
             } catch (error) {
                 this.connectionInProgress = false;
@@ -111,7 +115,7 @@
         }
         
         // Завершение подключения кошелька по известному адресу
-        async completeConnection(address) {
+        async completeConnection(address, externalProvider = null) {
             try {
                 if (!this.isInitialized) {
                     await this.initialize();
@@ -123,24 +127,33 @@
                     return this.wallet;
                 }
                 
-                // Подключаем провайдер к MetaMask
-                this.provider = new ethers.providers.Web3Provider(window.ethereum);
+                // Используем переданный провайдер или пытаемся получить его из WalletConnector
+                const walletProvider = externalProvider || 
+                                     (window.WalletConnector ? window.WalletConnector.getProvider() : null) ||
+                                     window.ethereum;
+                
+                if (!walletProvider) {
+                    throw new Error("Провайдер кошелька не найден");
+                }
+                
+                // Подключаем провайдер к кошельку
+                this.provider = new ethers.providers.Web3Provider(walletProvider);
                 
                 // Проверяем, что пользователь подключен к нужной сети
                 const network = await this.provider.getNetwork();
                 if (network.chainId !== this.config.network.chainId) {
                     try {
-                        await window.ethereum.request({
+                        await walletProvider.request({
                             method: 'wallet_switchEthereumChain',
                             params: [{ chainId: '0x' + this.config.network.chainId.toString(16) }]
                         });
                         
                         // Обновляем провайдер после переключения
-                        this.provider = new ethers.providers.Web3Provider(window.ethereum);
+                        this.provider = new ethers.providers.Web3Provider(walletProvider);
                     } catch (switchError) {
                         // Если сеть не добавлена, предлагаем добавить
                         if (switchError.code === 4902) {
-                            await window.ethereum.request({
+                            await walletProvider.request({
                                 method: 'wallet_addEthereumChain',
                                 params: [{
                                     chainId: '0x' + this.config.network.chainId.toString(16),
@@ -156,7 +169,7 @@
                             });
                             
                             // Обновляем провайдер после добавления сети
-                            this.provider = new ethers.providers.Web3Provider(window.ethereum);
+                            this.provider = new ethers.providers.Web3Provider(walletProvider);
                         } else {
                             throw switchError;
                         }

@@ -63,43 +63,40 @@ document.addEventListener('DOMContentLoaded', () => {
     // Current encryption result
     let currentEncryptedData = null;
 
-    // Set up MetaMask event handlers
-    function setupMetaMaskListeners() {
-        if (window.ethereum) {
-            // Handle accounts changed event
-            window.ethereum.on('accountsChanged', (accounts) => {
-                console.log('Accounts changed:', accounts);
+    // Set up wallet event handlers
+    function setupWalletListeners() {
+        if (window.WalletConnector) {
+            // Listen to wallet connected event
+            document.addEventListener('walletConnected', (event) => {
+                console.log('Wallet connected event:', event.detail);
                 
-                // If wallet connect was initiated but not completed, try to complete it now
-                if (walletConnectInitiated && accounts && accounts.length > 0) {
-                    completeWalletConnection(accounts[0]);
-                } else {
-                    // Otherwise just reload the page
+                if (event.detail && event.detail.account) {
+                    completeWalletConnection(event.detail.account);
+                }
+            });
+            
+            // Listen to account changed event
+            document.addEventListener('accountChanged', (event) => {
+                console.log('Account changed event:', event.detail);
+                
+                if (event.detail && event.detail.account) {
+                    // Reload the page or update UI as needed
                     window.location.reload();
                 }
             });
             
-            // Handle chain changed event
-            window.ethereum.on('chainChanged', (chainId) => {
-                console.log('Network changed:', chainId);
+            // Listen to network changed event
+            document.addEventListener('networkChanged', (event) => {
+                console.log('Network changed event:', event.detail);
                 // Reload the page when network changes
                 window.location.reload();
             });
             
-            // Handle connect event
-            window.ethereum.on('connect', (connectInfo) => {
-                console.log('Connected to MetaMask:', connectInfo);
-                
-                // If wallet connect was initiated but not completed, check for accounts
-                if (walletConnectInitiated) {
-                    window.ethereum.request({ method: 'eth_accounts' })
-                        .then(accounts => {
-                            if (accounts && accounts.length > 0) {
-                                completeWalletConnection(accounts[0]);
-                            }
-                        })
-                        .catch(err => console.error('Error checking accounts after connect event:', err));
-                }
+            // Listen to wallet disconnected event
+            document.addEventListener('walletDisconnected', (event) => {
+                console.log('Wallet disconnected event');
+                // Reload the page when wallet is disconnected
+                window.location.reload();
             });
         }
     }
@@ -111,8 +108,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadingOverlay.classList.remove('d-none');
                 loadingText.textContent = 'Завершение подключения...';
                 
+                // Получаем провайдер из WalletConnector
+                const provider = window.WalletConnector ? window.WalletConnector.getProvider() : null;
+                
                 // Complete wallet connection in SDK
-                const wallet = await seismic.completeConnection(address);
+                const wallet = await seismic.completeConnection(address, provider);
                 
                 if (wallet) {
                     // Update UI to show connected state
@@ -161,9 +161,9 @@ document.addEventListener('DOMContentLoaded', () => {
             await seismic.initialize();
             console.log('Seismic SDK initialized successfully');
             
-            // Проверяем подключение MetaMask и автоматически инициируем подключение, 
-            // только если есть выбранные аккаунты
-            if (window.ethereum && window.ethereum.selectedAddress) {
+            // Проверяем подключение кошелька и автоматически инициируем подключение 
+            // если WalletConnector уже подключен
+            if (window.WalletConnector && window.WalletConnector.isConnected()) {
                 // Устанавливаем состояние подключения
                 connectWalletBtn.disabled = true;
                 loadingOverlay.classList.remove('d-none');
@@ -209,8 +209,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             
-            // Set up MetaMask event listeners after initialization
-            setupMetaMaskListeners();
+            // Set up Wallet event listeners after initialization
+            setupWalletListeners();
         } catch (error) {
             console.error('Failed to initialize Seismic SDK:', error);
             showError('Failed to initialize the Seismic SDK. Please try again later.');
@@ -255,15 +255,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Get and display balance
                 refreshBalance();
                 
-                console.log('Wallet connected successfully:', wallet.address);
-                
-                // Reset the flag since connection completed successfully
+                // Reset initiated flag
                 walletConnectInitiated = false;
             }
         } catch (error) {
             console.error('Failed to connect wallet:', error);
-            showError('Failed to connect wallet. Please make sure you have MetaMask installed and try again.');
-            // Keep the flag set if there was an error, as the user might approve in MetaMask after the error
+            showError('Failed to connect wallet: ' + (error.message || 'Unknown error'));
+            walletConnectInitiated = false;
         } finally {
             connectWalletBtn.disabled = false;
             loadingOverlay.classList.add('d-none');

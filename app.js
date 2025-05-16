@@ -1090,7 +1090,27 @@ document.addEventListener('DOMContentLoaded', () => {
     // We don't use addEventListener for connectWalletBtn since we dynamically change its function
     // between connect and disconnect
     connectWalletBtn.onclick = connectWallet;
-    addNetworkBtn.addEventListener('click', addNetwork);
+    addNetworkBtn.addEventListener('click', async function() {
+        try {
+            if (!window.WalletConnector) {
+                alert("Wallet connector not initialized. Please refresh the page and try again.");
+                return;
+            }
+            
+            if (!window.WalletConnector.isConnected()) {
+                alert("Please connect your wallet first before adding the network.");
+                return;
+            }
+            
+            const result = await window.WalletConnector.addSeismicNetwork();
+            if (result) {
+                alert("Seismic Network successfully added to your wallet!");
+            }
+        } catch (error) {
+            console.error("Failed to add network:", error);
+            alert("Failed to add network. Please try again.");
+        }
+    });
     refreshBalanceBtn.addEventListener('click', refreshBalance);
     copyAddressBtn.addEventListener('click', copyAddress);
     transactionForm.addEventListener('submit', sendTransaction);

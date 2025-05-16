@@ -4,6 +4,9 @@
     const config = typeof seismicConfig !== 'undefined' ? seismicConfig : 
                   (typeof require !== 'undefined' ? require('./seismic-config') : {});
     
+    // Проверяем доступность ethers
+    const ethersAvailable = typeof ethers !== 'undefined';
+    
     // Класс для работы с Seismic
     class SeismicSDK {
         constructor() {
@@ -23,6 +26,12 @@
                     return true; // Если уже инициализирован, просто возвращаем true
                 }
                 
+                // Проверяем доступность ethers
+                if (!ethersAvailable) {
+                    console.error("Ethers.js не найден. Убедитесь, что библиотека подключена.");
+                    return false;
+                }
+                
                 // Проверяем инициализирован ли WalletConnector
                 if (typeof window.WalletConnector === 'undefined') {
                     console.error("WalletConnector не найден. Убедитесь, что wallet-connector.js подключен до seismic-sdk.js");
@@ -36,7 +45,8 @@
                     console.log("Найден подключенный кошелек через WalletConnector:", account);
                     
                     // Используем провайдер из WalletConnector
-                    this.provider = new ethers.providers.Web3Provider(web3Instance.currentProvider);
+                    const ethersProvider = new ethers.providers.Web3Provider(web3Instance.currentProvider);
+                    this.provider = ethersProvider;
                     this.signer = this.provider.getSigner();
                     
                     // Создаем объект wallet
@@ -51,7 +61,7 @@
                     console.log("SDK инициализирован с существующим подключением к кошельку");
                 } else {
                     // Создаем провайдер для подключения к Seismic Devnet
-                    this.provider = new ethers.providers.JsonRpcProvider(this.config.network.rpcUrl);
+                    this.provider = new ethers.providers.JsonRpcProvider(this.config.network?.rpcUrl || "https://node-2.seismicdev.net/rpc");
                     console.log("SDK инициализирован с RPC провайдером");
                 }
                 

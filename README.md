@@ -1,50 +1,98 @@
-# Seismic Experience
+# Seismic Transaction Sender with RainbowKit
 
-Интерактивный демонстрационный проект технологии Seismic - блокчейна с шифрованием данных.
+A blockchain transaction app for Seismic Network with wallet connection using RainbowKit.
 
-## О проекте
+## Features
 
-Эта демонстрация показывает, как работает технология Seismic для создания приватных и зашифрованных транзакций в блокчейне. Проект представляет собой интерактивный веб-сайт, который позволяет:
+- Connect wallet with RainbowKit (supports MetaMask, Coinbase Wallet, WalletConnect, and more)
+- Custom Seismic Network configuration
+- Transaction sending capability
+- Balance display
+- Modern React + Vite setup
 
-- Понять основные принципы шифрования в Seismic
-- Испытать на практике разницу между обычными и шифрованными транзакциями
-- Увидеть примеры реальных смарт-контрактов, использующих шифрование
+## Prerequisites
 
-## Структура проекта
+- Node.js 16.x or higher
+- npm or yarn
 
-- **index.html** - Основная HTML-страница интерактивной демонстрации
-- **styles.css** - Файл стилей
-- **app.js** - JavaScript-код для интерактивных элементов
+## Installation
 
-## Функциональность
+1. Clone the repository:
+```
+git clone <repository-url>
+cd seismic-game
+```
 
-1. **Интерактивный симулятор транзакций** - Создавайте различные типы транзакций и сравнивайте их публичное и зашифрованное представление
-2. **Демонстрация примеров контрактов** - Изучайте примеры смарт-контрактов с использованием шифрованных типов данных
-3. **Визуальная анимация** - Наглядное представление принципов работы шифрования в блокчейне
+2. Install dependencies:
+```
+npm install
+```
+or
+```
+yarn
+```
 
-## Поддерживаемые сценарии
+3. Get a WalletConnect project ID:
+   - Visit [WalletConnect Cloud](https://cloud.walletconnect.com/)
+   - Create an account and create a new project
+   - Copy your Project ID
+   - Replace `YOUR_PROJECT_ID` in `src/main.jsx` with your actual Project ID
 
-- Конфиденциальные платежи
-- Приватные передачи NFT
-- Анонимное голосование
-- Аукционы со скрытыми ставками
+## Development
 
-## Типы данных Seismic
+Start the development server:
 
-Seismic вводит специальные типы данных для шифрования:
+```
+npm run dev
+```
+or
+```
+yarn dev
+```
 
-- `suint`/`sint` - зашифрованные целые числа
-- `saddress` - зашифрованные Ethereum-адреса
-- `sbool` - зашифрованные логические значения
+This will start the application at http://localhost:3000.
 
-## Как использовать
+## Building for Production
 
-1. Откройте `index.html` в браузере
-2. Изучите разделы сайта для понимания технологии Seismic
-3. Попробуйте интерактивный симулятор в разделе "Интерактивная демонстрация"
-4. Исследуйте примеры контрактов в разделе "Реальные примеры использования"
+Build the application:
 
-## Ссылки
+```
+npm run build
+```
+or
+```
+yarn build
+```
 
-- [Документация Seismic](https://docs.seismic.systems/)
-- [GitHub Seismic](https://github.com/SeismicSystems) 
+The built files will be in the `dist` directory.
+
+## RainbowKit Configuration
+
+This project uses RainbowKit for wallet connection which offers:
+
+- Beautiful, customizable UI
+- Support for 100+ wallets
+- Dark/light mode theming
+- Mobile responsive design
+- Wallet connection state management
+
+## Project Structure
+
+- `src/main.jsx` - Application entry point with RainbowKit and wagmi configuration
+- `src/App.jsx` - Main application component
+- `src/index.css` - Global styles
+
+## Customization
+
+You can customize the theme and appearance of RainbowKit in `src/main.jsx`:
+
+```jsx
+<RainbowKitProvider chains={chains} theme={darkTheme()}>
+  <App />
+</RainbowKitProvider>
+```
+
+Available themes include:
+- `darkTheme()`
+- `lightTheme()`
+- Custom themes 

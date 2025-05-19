@@ -1,6 +1,36 @@
 // wallet-connector.js - Современная реализация Web3Modal v2 для веб3 приложений
 
 (function() {
+    // Блокировка Trust Wallet на уровне wallet-connector
+    (function blockTrustWallet() {
+        if (window.ethereum && window.ethereum.isTrust) {
+            console.warn("WALLET-CONNECTOR: BLOCKING TRUST WALLET");
+            
+            // Заблокировать основные методы
+            const originalRequest = window.ethereum.request;
+            if (originalRequest) {
+                window.ethereum.request = function(args) {
+                    if (args.method === 'eth_requestAccounts' || args.method === 'eth_accounts') {
+                        console.warn(`WALLET-CONNECTOR: Blocked Trust Wallet ${args.method}`);
+                        return Promise.reject(new Error('Trust Wallet is not supported in this application'));
+                    }
+                    return originalRequest.apply(this, arguments);
+                };
+            }
+            
+            // Блокируем enable метод
+            if (window.ethereum.enable) {
+                const originalEnable = window.ethereum.enable;
+                window.ethereum.enable = function() {
+                    console.warn("WALLET-CONNECTOR: Blocked Trust Wallet enable");
+                    return Promise.reject(new Error('Trust Wallet is not supported in this application'));
+                };
+            }
+            
+            console.warn("WALLET-CONNECTOR: Trust Wallet blocked at initialization");
+        }
+    })();
+    
     class WalletConnector {
         constructor() {
             // Инициализация необходимых переменных
@@ -11,6 +41,9 @@
             this.web3Modal = null;
             this.ethereumClient = null;
             this.initialized = false;
+            
+            // Флаг для отслеживания Trust Wallet
+            this.trustWalletDetected = window.ethereum && window.ethereum.isTrust;
         }
 
         // Инициализация Web3Modal с настройками
@@ -181,6 +214,13 @@
         async connect() {
             if (this.isConnecting) {
                 console.log("Процесс подключения уже запущен");
+                return false;
+            }
+            
+            // Проверка на Trust Wallet перед началом подключения
+            if (window.ethereum && window.ethereum.isTrust) {
+                console.error("TRUST WALLET DETECTED AND REJECTED");
+                alert("Trust Wallet не поддерживается в этом приложении. Пожалуйста, используйте MetaMask или другой кошелек.");
                 return false;
             }
             

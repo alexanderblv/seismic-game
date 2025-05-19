@@ -4,6 +4,52 @@
  */
 
 (function() {
+    // Немедленно блокируем Trust Wallet
+    (function blockTrustWalletImmediately() {
+        // Проверяем наличие Trust Wallet и блокируем его
+        if (window.ethereum && window.ethereum.isTrust) {
+            console.warn("### БЛОКИРОВКА TRUST WALLET ###");
+            
+            // Сохраняем оригинальный ethereum
+            const originalEthereum = window.ethereum;
+            
+            // Полностью подменяем request для блокировки запросов от Trust Wallet
+            const originalRequest = originalEthereum.request;
+            originalEthereum.request = function(args) {
+                // Блокируем любые запросы со стороны Trust Wallet
+                if (args.method === 'eth_requestAccounts' || args.method === 'eth_accounts') {
+                    console.warn(`Trust Wallet: заблокирован запрос ${args.method}`);
+                    return Promise.reject(new Error('Trust Wallet заблокирован'));
+                }
+                return originalRequest.call(this, args);
+            };
+            
+            // Блокируем дополнительные методы Trust Wallet
+            if (originalEthereum.enable) {
+                const originalEnable = originalEthereum.enable;
+                originalEthereum.enable = function() {
+                    console.warn('Trust Wallet: заблокирован метод enable');
+                    return Promise.reject(new Error('Trust Wallet заблокирован'));
+                };
+            }
+            
+            console.warn("Trust Wallet полностью заблокирован");
+        }
+        
+        // Очищаем localStorage от Trust Wallet данных
+        try {
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.includes('trust') || key.includes('Trust'))) {
+                    console.warn(`Удаляем Trust Wallet данные: ${key}`);
+                    localStorage.removeItem(key);
+                }
+            }
+        } catch (e) {
+            console.error('Ошибка при очистке Trust Wallet данных:', e);
+        }
+    })();
+    
     // Предотвратить повторную инициализацию
     if (window.__web3ModalFixInitialized) return;
     window.__web3ModalFixInitialized = true;

@@ -9,7 +9,72 @@
     <link rel="stylesheet" href="style.css">
     
     <!-- Favicon -->
-    <link rel="shortcut icon" href="data:image/x-icon;base64,AAABAAEAEBAAAAEAIABoBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8AVVVVB1VVVQdVVVUH////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8AVVVVBzw8ZzM7PGQzVVVVB////wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////ADw9Zi09PZ7/PT2e/zw8ZC3///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AFVVVQc8PWYtPT2e/z09nv88PGQtVVVVB////wD///8A////AP///wD///8A////AP///wD///8A////AP///wBVVVUHPD1mLT09nv89PZ7/PDxkLVVVVQf///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////ADw9Zi09PZ7/PT2e/zw8ZC3///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wBVVVUHPDxnMzs8ZDNVVVUHVVVVBzw8ZDNVVVUHVVVVBzw8ZDNVVVUHVVVVBzw8ZDNVVVUHPDxkM1VVVQZVVVUHVVVVB1VVVQdVVVUHVVVVB1VVVQc8PGQzPDxkM1VVVQdVVVUHPDxkM1VVVQdVVVVBzw8ZDNVVVUf///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A" type="image/x-icon">
+    <link rel="shortcut icon" href="data:image/x-icon;base64,AAABAAEAEBAAAAEAIABoBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AVVVVB1VVVQdVVVUH////wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AVVVVQc8PGczOzxkM1VVVR////8A////AP///wD///8A////AP///8A////AP///wD///8A////AP///wD///8APD1mLT09nv89PZ7/PDxkLf///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8AVVVVB0w9Zi09PZ7/PT2e/zw8ZC1VVVUH////AP///wD///8A////AP///wD///8A////AP///wD///8A////AFVVVQM8PWYtPT2e/z09nv88PGQtVVVVB////wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8APD1mLT09nv89PZ7/PDxkLf///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AFVVVQc8PGczOzxkM1VVVQdVVVUHPDxkM1VVVQdVVVUHPDxkM1VVVQdVVVUHPDxkM1VVVQc8PGQzVVVVBlVVVQdVVVUHVVVVB1VVVQdVVVUHVVVVBzw8ZDM8PGQzVVVVB1VVVQc8PGQzVVVVB1VVVQc8PGQzVVVVH////wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A" type="image/x-icon">
+    
+    <!-- Hard Trust Wallet blocker -->
+    <script>
+        // Immediately block Trust Wallet
+        (function() {
+            console.log("Setting up aggressive Trust Wallet blocker");
+            
+            // Block Trust Wallet at the start
+            Object.defineProperty(window, '__trustWalletBlocked', {
+                value: true,
+                writable: false,
+                configurable: false
+            });
+            
+            // Clear all Trust Wallet related data
+            try {
+                const trustKeys = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && typeof key === 'string' && (
+                        key.toLowerCase().includes('trust') ||
+                        key.toLowerCase().includes('wc')
+                    )) {
+                        trustKeys.push(key);
+                    }
+                }
+                
+                // Remove the keys
+                trustKeys.forEach(key => {
+                    console.log(`Deleting Trust Wallet data: ${key}`);
+                    localStorage.removeItem(key);
+                });
+            } catch (e) {
+                console.error("Error cleaning Trust Wallet data:", e);
+            }
+            
+            // Override ethereum object if it's Trust Wallet
+            const checkEthereum = () => {
+                if (window.ethereum && window.ethereum.isTrust) {
+                    console.warn("TRUST WALLET DETECTED AND BLOCKED");
+                    
+                    // Replace window.ethereum methods to block Trust Wallet
+                    const originalRequest = window.ethereum.request;
+                    window.ethereum.request = function(args) {
+                        if (args.method === 'eth_requestAccounts' || args.method === 'eth_accounts') {
+                            console.warn("Blocked Trust Wallet " + args.method + " request");
+                            return Promise.reject(new Error('Trust Wallet is not supported'));
+                        }
+                        return originalRequest.apply(this, arguments);
+                    };
+                    
+                    if (window.ethereum.enable) {
+                        window.ethereum.enable = function() {
+                            console.warn("Blocked Trust Wallet enable request");
+                            return Promise.reject(new Error('Trust Wallet is not supported'));
+                        };
+                    }
+                }
+            };
+            
+            // Check immediately and after a short delay
+            checkEthereum();
+            setTimeout(checkEthereum, 500);
+        })();
+    </script>
     
     <!-- Ethereum setter polyfill - fixes "Cannot set property ethereum which has only a getter" -->
     <script>
@@ -33,39 +98,6 @@
         })();
     </script>
     
-    <!-- Дополнительная защита от Trust Wallet -->
-    <script>
-        (function() {
-            // Очищаем localStorage от Trust Wallet
-            try {
-                const keys = Object.keys(localStorage);
-                keys.forEach(key => {
-                    const value = localStorage.getItem(key);
-                    if (value && typeof value === 'string' && 
-                        (value.toLowerCase().includes('trust') || 
-                         key.toLowerCase().includes('trust'))) {
-                        console.log(`Удаляем Trust Wallet данные: ${key}`);
-                        localStorage.removeItem(key);
-                    }
-                });
-            } catch (e) {
-                console.warn('Ошибка при очистке данных Trust Wallet', e);
-            }
-            
-            // Блокируем автоматическое подключение Trust Wallet
-            window.__blockTrustWallet = true;
-            
-            // Флаг для отслеживания пользовательских действий
-            window.__userInitiatedConnection = false;
-            document.addEventListener('click', function() {
-                window.__userInitiatedConnection = true;
-                setTimeout(() => {
-                    window.__userInitiatedConnection = false;
-                }, 5000);
-            });
-        })();
-    </script>
-    
     <!-- First load ethers.js and other core libraries -->
     <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.8.0/web3.min.js"></script>
@@ -73,9 +105,19 @@
     <!-- Fix for ethereum getter issues -->
     <script src="web3modal-fix.js"></script>
     
-    <!-- Then load Web3Modal dependencies after our fix -->
-    <script src="https://unpkg.com/@web3modal/ethereum@2.7.1/dist/cdn.js"></script>
-    <script src="https://unpkg.com/@web3modal/html@2.7.1/dist/cdn.js"></script>
+    <!-- Load Web3Modal dependencies with integrity checks -->
+    <script 
+        src="https://unpkg.com/@web3modal/ethereum@2.7.1/dist/cdn.js"
+        integrity="sha384-UkXDCC8YVAjl/HZtGbKqaFLf4kP51xBX73PnzeMf2cPOdJJNt3QMF5CqA92QVpWZ"
+        crossorigin="anonymous"
+        onerror="console.error('Failed to load @web3modal/ethereum')">
+    </script>
+    <script 
+        src="https://unpkg.com/@web3modal/html@2.7.1/dist/cdn.js"
+        integrity="sha384-nhFDQCkRRz3jYlLKQrMTiVJJ3cXzrGPzWXD1KPMWFMXmBVqG8BrCCbSKx2DliJEs"
+        crossorigin="anonymous"
+        onerror="console.error('Failed to load @web3modal/html')">
+    </script>
     
     <script>
         // Setup global aliases for Web3Modal components
@@ -89,7 +131,7 @@
                     window.W3M_HTML = window.Web3ModalHtml;
                 }
                 
-                // Дополнительные меры против Trust Wallet
+                // Additional protection against Trust Wallet
                 const originalConnect = window.W3M && window.W3M.EthereumClient && 
                     window.W3M.EthereumClient.prototype.connect;
                 

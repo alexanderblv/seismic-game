@@ -266,9 +266,87 @@
     }
     
     /**
+     * Удаляет любые сохраненные данные Trust Wallet и связанных провайдеров
+     */
+    function cleanupStoredWalletData() {
+        try {
+            // Ключи localStorage, которые могут содержать данные о выбранном кошельке
+            const walletStorageKeys = [
+                'wagmi.wallet',
+                'wagmi.connected',
+                'wagmi.store',
+                'wagmi.network',
+                'wagmi.account',
+                'walletconnect',
+                'WALLETCONNECT_DEEPLINK_CHOICE',
+                'WALLET_CONNECT_V2_INDEXED_DB',
+                'wc@2:client:0.3',
+                'wc@2:core:0.3',
+                'W3M_CONNECTED',
+                'W3M_CONNECTED_WALLET_ID'
+            ];
+            
+            // Проверяем и удаляем данные Trust Wallet
+            for (const key of walletStorageKeys) {
+                const data = localStorage.getItem(key);
+                if (data && (data.includes('trust') || data.includes('Trust'))) {
+                    console.log(`Удаляем данные кошелька из localStorage: ${key}`);
+                    localStorage.removeItem(key);
+                }
+            }
+            
+            console.log("Очистка данных кошелька выполнена");
+        } catch (error) {
+            console.warn("Ошибка при очистке данных кошелька:", error);
+        }
+    }
+    
+    /**
+     * Блокирует автоматическое подключение Trust Wallet
+     */
+    function blockTrustWalletAutoConnect() {
+        try {
+            // Патчим стандартный метод openWallet чтобы блокировать Trust Wallet
+            const originalOpen = window.open;
+            window.open = function(url, target, features) {
+                if (url && typeof url === 'string' && url.includes('trust')) {
+                    console.warn('Заблокирована попытка автоматического открытия Trust Wallet');
+                    return null;
+                }
+                return originalOpen.call(this, url, target, features);
+            };
+            
+            // Патчим window.ethereum, чтобы блокировать автоподключение Trust Wallet
+            if (window.ethereum) {
+                const originalRequest = window.ethereum.request;
+                if (originalRequest && window.ethereum.isTrust) {
+                    window.ethereum.request = function(args) {
+                        // Если это автоматическое подключение от Trust Wallet
+                        if (args.method === 'eth_requestAccounts' && !window.__userInitiatedConnection) {
+                            console.warn('Заблокирован автоматический eth_requestAccounts от Trust Wallet');
+                            return Promise.reject(new Error('Автоматическое подключение заблокировано'));
+                        }
+                        return originalRequest.call(this, args);
+                    };
+                }
+            }
+            
+            console.log("Защита от автоподключения Trust Wallet установлена");
+        } catch (error) {
+            console.warn("Ошибка при установке защиты от Trust Wallet:", error);
+        }
+    }
+    
+    /**
      * Основная функция инициализации
      */
     async function initialize() {
+        // Очищаем данные кошельков, которые могут привести к автоподключению
+        cleanupStoredWalletData();
+        
+        // Устанавливаем защиту от автоподключения Trust Wallet
+        blockTrustWalletAutoConnect();
+        
         // Создаем безопасный провайдер
         const safeProvider = createSafeProvider();
         if (safeProvider) {

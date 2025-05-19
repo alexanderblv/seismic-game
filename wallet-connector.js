@@ -110,28 +110,34 @@
                         "--w3m-font-family": "system-ui, sans-serif",
                         "--w3m-accent-color": "#3B82F6"
                     },
-                    // Включаем все доступные кошельки
+                    // Принудительно включаем выбор из всех доступных кошельков 
                     explorerRecommendedWalletIds: "ALL",
-                    // Перечисляем предпочтительные кошельки
+                    excludeWalletIds: ["trustwallet"], // Исключаем Trust Wallet из списка
+                    includeWalletIds: ["metaMask", "coinbaseWallet"], // Явно указываем приоритетные кошельки
+                    // Приоритетные кошельки для десктопа (Trust Wallet исключен)
                     desktopWallets: [
                         "metamask",
                         "coinbase",
-                        "trust",
                         "rabby",
                         "brave",
                         "zerion"
                     ],
+                    // Приоритетные кошельки для мобильных (Trust Wallet исключен)
                     mobileWallets: [
                         "metamask",
-                        "trust",
                         "rainbow",
+                        "argent", 
+                        "brave",
                         "ledger",
                         "imToken"
                     ],
-                    // Включаем все возможности
-                    enableAnalytics: true,
+                    // Дополнительные настройки для предотвращения автоподключения
+                    enableAnalytics: false,
                     enableNetworkView: true,
-                    enableAccountView: true
+                    enableAccountView: true,
+                    // Принудительно отключаем автоматический выбор
+                    enableExplorer: true,
+                    enableWalletFeatures: ["explorer"]
                 }, this.ethereumClient);
 
                 // Настройка обработчиков событий
@@ -185,19 +191,86 @@
                     await this.initialize();
                 }
 
+                // Сбрасываем состояние перед новым подключением
+                if (this.selectedAccount) {
+                    try {
+                        await this.disconnect();
+                    } catch (e) {
+                        console.warn("Ошибка при сбросе предыдущего подключения:", e);
+                    }
+                }
+
                 // Если web3Modal доступен, используем его
                 if (this.web3Modal) {
                     console.log("Открываем Web3Modal для выбора кошелька");
                     
+                    // Идентификатор для отслеживания момента автоподключения
+                    const startTime = Date.now();
+                    
+                    // Принудительно удаляем TrustWallet из localStorage, если он был там сохранен
+                    try {
+                        const walletConnectData = localStorage.getItem('wagmi.wallet');
+                        if (walletConnectData && walletConnectData.includes('trust')) {
+                            localStorage.removeItem('wagmi.wallet');
+                            localStorage.removeItem('wagmi.connected');
+                            console.log("Удален сохраненный выбор Trust Wallet");
+                        }
+                    } catch (e) {
+                        console.warn("Не удалось проверить localStorage:", e);
+                    }
+                    
                     // Открываем модальное окно и ждем подключения
-                    this.web3Modal.openModal();
+                    this.web3Modal.openModal({
+                        route: 'ConnectWallet',
+                        view: 'Wallets'
+                    });
                     
                     // Создаем Promise, который разрешится, когда пользователь выберет кошелек
                     return new Promise((resolve) => {
                         // Функция для проверки подключения
                         const checkConnection = () => {
+                            const elapsed = Date.now() - startTime;
+                            
+                            // Если подключение произошло слишком быстро (менее 1 секунды),
+                            // это вероятно автоматическое подключение к Trust Wallet
+                            if (this.selectedAccount && elapsed < 1000) {
+                                console.warn("Обнаружено автоматическое подключение, принудительно показываем выбор");
+                                
+                                try {
+                                    // Сбрасываем подключение и открываем меню заново
+                                    this.disconnect().then(() => {
+                                        setTimeout(() => {
+                                            this.web3Modal.openModal({
+                                                route: 'ConnectWallet',
+                                                view: 'Wallets'
+                                            });
+                                        }, 500);
+                                    });
+                                    
+                                    // Очищаем интервал и продолжаем проверку
+                                    clearInterval(interval);
+                                    setTimeout(() => {
+                                        const newInterval = setInterval(() => {
+                                            if (this.selectedAccount) {
+                                                clearInterval(newInterval);
+                                                this._emitEvent('walletConnected', { 
+                                                    account: this.selectedAccount 
+                                                });
+                                                this.isConnecting = false;
+                                                resolve(true);
+                                            }
+                                        }, 500);
+                                    }, 1000);
+                                    
+                                    return;
+                                } catch (e) {
+                                    console.error("Ошибка сброса автоподключения:", e);
+                                }
+                            }
+                            
                             if (this.selectedAccount) {
-                                // Кошелек подключен, отправляем событие
+                                // Кошелек подключен после выбора пользователем
+                                console.log("Подключен кошелек после явного выбора:", this.selectedAccount);
                                 this._emitEvent('walletConnected', { 
                                     account: this.selectedAccount 
                                 });
@@ -231,6 +304,13 @@
                 
                 // Если Web3Modal недоступен, пробуем использовать базовый метод через window.ethereum
                 if (window.ethereum) {
+                    // Проверяем, не Trust Wallet ли это
+                    if (window.ethereum.isTrust) {
+                        console.warn("Обнаружен Trust Wallet, принудительно запрашиваем выбор");
+                        // Показываем пользователю сообщение о необходимости использовать другой кошелек
+                        alert("Trust Wallet автоматически подключается, что может вызывать проблемы. Пожалуйста, используйте другой кошелек.");
+                    }
+                    
                     try {
                         console.log("Используем прямое подключение через window.ethereum");
                         const accounts = await window.ethereum.request({ 

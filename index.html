@@ -37,6 +37,39 @@
     <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.8.0/web3.min.js"></script>
     
+    <!-- Дополнительная защита от Trust Wallet -->
+    <script>
+        (function() {
+            // Очищаем localStorage от Trust Wallet
+            try {
+                const keys = Object.keys(localStorage);
+                keys.forEach(key => {
+                    const value = localStorage.getItem(key);
+                    if (value && typeof value === 'string' && 
+                        (value.toLowerCase().includes('trust') || 
+                         key.toLowerCase().includes('trust'))) {
+                        console.log(`Удаляем Trust Wallet данные: ${key}`);
+                        localStorage.removeItem(key);
+                    }
+                });
+            } catch (e) {
+                console.warn('Ошибка при очистке данных Trust Wallet', e);
+            }
+            
+            // Блокируем автоматическое подключение Trust Wallet
+            window.__blockTrustWallet = true;
+            
+            // Флаг для отслеживания пользовательских действий
+            window.__userInitiatedConnection = false;
+            document.addEventListener('click', function() {
+                window.__userInitiatedConnection = true;
+                setTimeout(() => {
+                    window.__userInitiatedConnection = false;
+                }, 5000);
+            });
+        })();
+    </script>
+    
     <!-- Fix for ethereum getter issues and Web3Modal compatibility -->
     <script src="web3modal-fix.js"></script>
     
@@ -54,6 +87,22 @@
                 if (window.Web3ModalHtml) {
                     window.W3M_HTML = window.Web3ModalHtml;
                 }
+                
+                // Дополнительные меры против Trust Wallet
+                const originalConnect = window.W3M && window.W3M.EthereumClient && 
+                    window.W3M.EthereumClient.prototype.connect;
+                
+                if (originalConnect) {
+                    window.W3M.EthereumClient.prototype.connect = async function(...args) {
+                        window.__userInitiatedConnection = true;
+                        try {
+                            return await originalConnect.apply(this, args);
+                        } finally {
+                            window.__userInitiatedConnection = false;
+                        }
+                    };
+                }
+                
                 console.log("Web3Modal global aliases set up successfully");
             } catch (error) {
                 console.error("Error setting up Web3Modal global aliases:", error);

@@ -27,51 +27,18 @@
                 console.log("- EthereumProvider:", typeof window.EthereumProvider, window.EthereumProvider);
                 console.log("- Web3ModalStandalone:", typeof window.Web3ModalStandalone, window.Web3ModalStandalone);
                 
-                // Check for fallback providers if window objects aren't available directly
-                // First try the safe global object
-                let ethereumProvider = window.__walletConnectProviders?.EthereumProvider;
-                let web3ModalStandalone = window.__walletConnectProviders?.Web3ModalStandalone;
+                // Check for WalletConnect modules from CDN
+                const wcEthereumProvider = window.EthereumProvider || 
+                                          window.W3m?.EthereumProvider || 
+                                          window.WalletConnectEthereumProvider;
                 
-                // If not found in safe object, try window properties
-                if (!ethereumProvider) {
-                    ethereumProvider = window.EthereumProvider;
-                }
-                
-                if (!web3ModalStandalone) {
-                    web3ModalStandalone = window.Web3ModalStandalone;
-                }
-                
-                // Try to use WalletConnectEthereumProvider as a fallback
-                if (!ethereumProvider && window.WalletConnectEthereumProvider) {
-                    console.log("Найден WalletConnectEthereumProvider, используем его.");
-                    ethereumProvider = window.WalletConnectEthereumProvider;
-                }
-                
-                // Try to use W3mStandalone as a fallback
-                if (!web3ModalStandalone && window.W3mStandalone) {
-                    console.log("Найден W3mStandalone, используем его.");
-                    web3ModalStandalone = window.W3mStandalone;
-                }
+                const w3mStandalone = window.Web3ModalStandalone || 
+                                     window.W3mStandalone;
                 
                 // Проверка на наличие требуемых провайдеров
-                if (!ethereumProvider || typeof ethereumProvider !== 'object') {
-                    console.error("EthereumProvider не найден или не является объектом:", ethereumProvider);
+                if (!wcEthereumProvider) {
+                    console.error("EthereumProvider не найден");
                     throw new Error("EthereumProvider не загружен. Убедитесь, что скрипты загружены правильно.");
-                }
-                
-                if (!ethereumProvider.init) {
-                    console.error("EthereumProvider не имеет метода init");
-                    throw new Error("EthereumProvider некорректный. Метод init не найден.");
-                }
-                
-                if (!web3ModalStandalone || typeof web3ModalStandalone !== 'object') {
-                    console.error("Web3ModalStandalone не найден или не является объектом:", web3ModalStandalone);
-                    throw new Error("Web3ModalStandalone не загружен. Убедитесь, что скрипты загружены правильно.");
-                }
-                
-                if (!web3ModalStandalone.Web3Modal) {
-                    console.error("Web3ModalStandalone не имеет класса Web3Modal");
-                    throw new Error("Web3ModalStandalone некорректный. Класс Web3Modal не найден.");
                 }
                 
                 // Получаем конфигурацию сети
@@ -88,12 +55,12 @@
                 // Обернуть в try/catch для более детальной отладки
                 try {
                     // Настройка ethereum provider через WalletConnect
-                    const ethereumProviderInstance = await ethereumProvider.init({
+                    const ethereumProviderInstance = await wcEthereumProvider.init({
                         projectId,
                         chains: [networkConfig.chainId],
                         showQrModal: true,
                         methods: ['eth_sendTransaction', 'personal_sign'],
-                        events: ['chainChanged', 'accountsChanged']
+                        events: ['chainChanged', 'accountsChanged', 'disconnect']
                     });
                     
                     // Сохраняем провайдер
@@ -108,16 +75,20 @@
                 
                 // Обернуть в try/catch для более детальной отладки
                 try {
-                    // Создаем модальное окно Web3Modal
-                    this.web3Modal = new web3ModalStandalone.Web3Modal({
-                        projectId,
-                        themeMode: 'dark',
-                        walletConnectVersion: 2
-                    });
-                    console.log("Web3Modal успешно инициализирован:", this.web3Modal);
+                    if (w3mStandalone && w3mStandalone.Web3Modal) {
+                        // Создаем модальное окно Web3Modal
+                        this.web3Modal = new w3mStandalone.Web3Modal({
+                            projectId,
+                            themeMode: 'dark',
+                            walletConnectVersion: 2
+                        });
+                        console.log("Web3Modal успешно инициализирован:", this.web3Modal);
+                    } else {
+                        console.warn("Web3Modal не найден, используем только EthereumProvider");
+                    }
                 } catch (modalError) {
                     console.error("Ошибка при инициализации Web3Modal:", modalError);
-                    throw modalError;
+                    console.warn("Продолжаем без Web3Modal, используя только EthereumProvider");
                 }
                 
                 // Подписываемся на события провайдера

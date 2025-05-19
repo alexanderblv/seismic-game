@@ -186,30 +186,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     }
                     
-                    // Save original ethereum property if it exists
-                    const descriptor = Object.getOwnPropertyDescriptor(window, 'ethereum');
-                    const hasGetter = descriptor && descriptor.get;
-                    
-                    // Load necessary libraries in sequence
-                    loadScript('libs/ethereum-provider.min.js')
-                        .then(() => loadScript('libs/web3modal.min.js'))
+                    // Load from CDN instead of local files
+                    loadScript('https://unpkg.com/@walletconnect/ethereum-provider@2.9.2/dist/index.umd.js')
+                        .then(() => loadScript('https://unpkg.com/@web3modal/standalone@2.4.3/dist/index.umd.js'))
                         .then(() => {
                             // Check if libraries loaded correctly
-                            if (window.WalletConnectEthereumProvider) {
-                                // Don't overwrite window.EthereumProvider if ethereum is a getter
-                                if (!hasGetter) {
-                                    window.EthereumProvider = window.WalletConnectEthereumProvider;
-                                    console.log('WalletConnectEthereumProvider loaded dynamically');
-                                } else {
-                                    console.log('EthereumProvider already exists as a getter, setting WalletConnectEthereumProvider as fallback');
-                                }
+                            if (window.EthereumProvider || window.W3m?.EthereumProvider) {
+                                console.log('WalletConnect EthereumProvider loaded dynamically');
                             } else {
                                 console.error('WalletConnectEthereumProvider not found after dynamic loading');
                             }
                             
-                            if (window.W3mStandalone) {
-                                window.Web3ModalStandalone = window.W3mStandalone;
-                                console.log('W3mStandalone loaded dynamically');
+                            if (window.W3mStandalone || window.Web3ModalStandalone) {
+                                console.log('Web3Modal loaded dynamically');
                             } else {
                                 console.error('W3mStandalone not found after dynamic loading');
                             }

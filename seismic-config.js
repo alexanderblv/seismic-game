@@ -8,7 +8,14 @@ const seismicConfig = {
         rpcUrl: "https://node-2.seismicdev.net/rpc",
         wsUrl: "wss://node-2.seismicdev.net/ws",
         explorer: "https://explorer-2.seismicdev.net/",
-        faucet: "https://faucet-2.seismicdev.net/"
+        faucet: "https://faucet-2.seismicdev.net/",
+        // Метаданные для отображения в кошельках
+        nativeCurrency: {
+            name: "Ether",
+            symbol: "ETH",
+            decimals: 18
+        },
+        network: "seismic"
     },
     
     // Конфигурация контракта для демонстрации
@@ -24,6 +31,15 @@ const seismicConfig = {
         enableEncryption: true,
         useTEE: true, // Trusted Execution Environment
         enableZKP: true // Zero-Knowledge Proofs
+    },
+    
+    // Настройки для Web3Modal и WalletConnect
+    walletConnect: {
+        projectId: "a85ac05209955cfd18fbe7c0fd018f23", // Заменить на актуальный projectId от cloud.walletconnect.com
+        name: "Seismic Transaction Sender",
+        description: "Приложение для отправки транзакций в сети Seismic",
+        url: "https://seismic.systems",
+        icons: ["https://avatars.githubusercontent.com/u/91174481"]
     }
 };
 

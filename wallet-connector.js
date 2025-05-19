@@ -1,477 +1,216 @@
-// Web3Modal Wallet Connector for Vercel Deployment
-(function() {
-    // Global variables
-    let provider = null;
-    let web3 = null;
-    let selectedAccount = null;
-    let connecting = false;
-    let web3Modal = null;
-    
-    // UI elements - we'll get these only after DOM is loaded
-    let connectButton;
-    let walletAddress;
-    let networkBadge;
-    let connectionStatus;
-    
-    // Seismic network configuration
-    const seismicNetwork = {
-        chainId: '0x1404', // 5124 in hex
-        chainName: 'Seismic Devnet',
-        nativeCurrency: {
-            name: 'Ether',
-            symbol: 'ETH',
-            decimals: 18
-        },
-        rpcUrls: ['https://rpc-2.seismicdev.net/'],
-        blockExplorerUrls: ['https://explorer-2.seismicdev.net/'],
-    };
+// wallet-connector.js - Современная реализация Web3Modal v2 для веб3 приложений
 
-    // Initialize Web3Modal on DOM load
-    document.addEventListener('DOMContentLoaded', init);
-    
-    // Initialize the wallet connector
-    function init() {
-        // Get UI elements
-        connectButton = document.getElementById('connect-wallet');
-        walletAddress = document.getElementById('wallet-address');
-        networkBadge = document.getElementById('network-badge');
-        connectionStatus = document.getElementById('connection-status');
-        
-        // Define provider options with explicit wallet list
-        const providerOptions = {
-            // WalletConnect configuration with explicit bridge
-            walletconnect: {
-                package: WalletConnectProvider.default, 
-                options: {
-                    bridge: "https://bridge.walletconnect.org",
-                    rpc: {
-                        5124: seismicNetwork.rpcUrls[0],
-                        1: "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
-                    },
-                    qrcodeModalOptions: {
-                        mobileLinks: [
-                            "metamask",
-                            "rainbow",
-                            "argent",
-                            "trust",
-                            "imtoken",
-                            "pillar"
-                        ]
+(function() {
+    class WalletConnector {
+        constructor() {
+            // Инициализация необходимых переменных
+            this.provider = null;
+            this.selectedAccount = null;
+            this.chainId = null;
+            this.isConnecting = false;
+            this.web3Modal = null;
+            this.initialized = false;
+        }
+
+        // Инициализация Web3Modal с настройками
+        async initialize(config = {}) {
+            if (this.initialized) return;
+
+            try {
+                const { EthereumClient, w3mConnectors, w3mProvider } = window.W3M || {};
+                const { Web3Modal } = window.W3M_HTML || {};
+
+                if (!Web3Modal || !EthereumClient) {
+                    throw new Error("Web3Modal не загружен");
+                }
+
+                // Получаем конфигурацию сети из seismicConfig или используем предоставленную конфигурацию
+                const networkConfig = window.seismicConfig && window.seismicConfig.network 
+                    ? window.seismicConfig.network
+                    : config.network;
+
+                // Настройка проекта Web3Modal
+                const projectId = config.projectId || "YOUR_PROJECT_ID"; // Требуется ID проекта от WalletConnect Cloud
+
+                // Определение цепей
+                const chains = [
+                    {
+                        id: networkConfig.chainId,
+                        name: networkConfig.name,
+                        network: networkConfig.network || "seismic",
+                        nativeCurrency: networkConfig.nativeCurrency || {
+                            name: "Ether",
+                            symbol: "ETH",
+                            decimals: 18
+                        },
+                        rpcUrls: {
+                            default: { http: [networkConfig.rpcUrl] },
+                            public: { http: [networkConfig.rpcUrl] }
+                        }
                     }
-                }
-            }
-        };
-        
-        // Create Web3Modal instance with customized configuration
-        web3Modal = new Web3Modal.default({
-            cacheProvider: true,
-            providerOptions,
-            disableInjectedProvider: false,
-            theme: "dark",
-            // Force display of all available wallet options
-            showQrModal: true
-        });
-        
-        // Check if user is already connected
-        if (web3Modal.cachedProvider) {
-            connect();
-        }
-        
-        // Setup event listeners
-        setupEventListeners();
-        
-        // Update UI in disconnected state
-        updateUIDisconnected();
-    }
-    
-    // Setup event listeners for UI buttons
-    function setupEventListeners() {
-        // Connect button
-        connectButton.addEventListener('click', async () => {
-            if (isConnected()) {
-                await disconnect();
-            } else {
-                await connect();
-            }
-        });
-        
-        // Add Seismic Network button
-        const addNetworkBtn = document.getElementById('add-network');
-        if (addNetworkBtn) {
-            addNetworkBtn.addEventListener('click', addSeismicNetwork);
-        }
-        
-        // Refresh balance button
-        const refreshBalanceBtn = document.getElementById('refresh-balance');
-        if (refreshBalanceBtn) {
-            refreshBalanceBtn.addEventListener('click', updateUI);
-        }
-        
-        // Copy address button
-        const copyAddressBtn = document.getElementById('copy-address');
-        if (copyAddressBtn) {
-            copyAddressBtn.addEventListener('click', () => {
-                const addressInput = document.getElementById('user-address');
-                if (addressInput && addressInput.value) {
-                    navigator.clipboard.writeText(addressInput.value);
-                    
-                    // Visual feedback
-                    const originalText = copyAddressBtn.innerHTML;
-                    copyAddressBtn.innerHTML = '<i class="bi bi-check"></i>';
-                    setTimeout(() => {
-                        copyAddressBtn.innerHTML = originalText;
-                    }, 1500);
-                }
-            });
-        }
-        
-        // Form submission handlers
-        const transactionForm = document.getElementById('transaction-form');
-        if (transactionForm) {
-            transactionForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                if (!isConnected()) {
-                    alert('Please connect your wallet first');
-                    return;
-                }
-                
-                // Handle transaction send (implementation will vary based on your game needs)
-                alert('Transaction sending is implemented in the game logic');
-            });
-        }
-        
-        // Setup encrypted type selector
-        const encryptedTypeSelect = document.getElementById('encrypted-type');
-        if (encryptedTypeSelect) {
-            encryptedTypeSelect.addEventListener('change', () => {
-                // Show/hide appropriate input fields based on selected type
-                const selectedType = encryptedTypeSelect.value;
-                
-                document.getElementById('suint-input-group').classList.add('d-none');
-                document.getElementById('saddress-input-group').classList.add('d-none');
-                document.getElementById('sbool-input-group').classList.add('d-none');
-                
-                document.getElementById(`${selectedType}-input-group`).classList.remove('d-none');
-            });
-        }
-    }
-    
-    // Connect to wallet
-    async function connect() {
-        try {
-            if (connecting) return;
-            connecting = true;
-            
-            // Update UI to show connecting state
-            connectButton.innerText = 'Connecting...';
-            
-            // Clear cached provider to avoid automatic reconnection to wrong wallet
-            web3Modal.clearCachedProvider();
-            
-            // Open Web3Modal and select provider
-            provider = await web3Modal.connect();
-            
-            // Create Web3 instance
-            web3 = new Web3(provider);
-            
-            // Get connected accounts
-            const accounts = await web3.eth.getAccounts();
-            selectedAccount = accounts[0];
-            
-            // Setup provider event listeners
-            provider.on('accountsChanged', (accounts) => {
-                if (accounts.length === 0) {
-                    // User disconnected their wallet
-                    disconnect();
-                } else {
-                    selectedAccount = accounts[0];
-                    updateUI();
-                    
-                    // Dispatch account changed event
-                    dispatchEvent('accountChanged', { account: selectedAccount });
-                }
-            });
-            
-            provider.on('chainChanged', (chainId) => {
-                updateNetworkInfo();
-                updateUI();
-                
-                // Dispatch network changed event
-                dispatchEvent('networkChanged', { chainId });
-            });
-            
-            provider.on('disconnect', () => {
-                disconnect();
-                
-                // Dispatch wallet disconnected event
-                dispatchEvent('walletDisconnected');
-            });
-            
-            // Update UI for connected state
-            updateUI();
-            updateNetworkInfo();
-            
-            // Check if correct network is selected
-            const chainId = await web3.eth.getChainId();
-            if (chainId !== 5124) {
-                // Prompt to switch to Seismic network
-                const switchResult = confirm('Would you like to switch to the Seismic Network?');
-                if (switchResult) {
-                    await addSeismicNetwork();
-                }
-            }
-            
-            // Dispatch wallet connected event
-            dispatchEvent('walletConnected', { account: selectedAccount });
-            
-            connecting = false;
-            return true;
-            
-        } catch (error) {
-            console.error('Connection error:', error);
-            alert('Failed to connect wallet: ' + (error.message || 'Unknown error'));
-            connecting = false;
-            updateUIDisconnected();
-            return false;
-        }
-    }
-    
-    // Dispatch custom events
-    function dispatchEvent(eventName, detail = {}) {
-        const event = new CustomEvent(eventName, { detail });
-        document.dispatchEvent(event);
-    }
-    
-    // Disconnect wallet
-    async function disconnect() {
-        if (provider && provider.close) {
-            try {
-                await provider.close();
-            } catch (e) {
-                console.warn("Error closing provider:", e);
-            }
-        }
-        
-        // Clear cached provider
-        web3Modal.clearCachedProvider();
-        
-        // Reset state
-        provider = null;
-        web3 = null;
-        selectedAccount = null;
-        
-        // Update UI
-        updateUIDisconnected();
-        
-        // Dispatch wallet disconnected event
-        dispatchEvent('walletDisconnected');
-    }
-    
-    // Update UI for connected state
-    async function updateUI() {
-        if (!isConnected()) {
-            updateUIDisconnected();
-            return;
-        }
-        
-        // Update connect button
-        connectButton.innerText = 'Disconnect';
-        connectButton.classList.remove('btn-primary');
-        connectButton.classList.add('btn-outline-danger');
-        
-        // Update address display
-        walletAddress.innerText = `${selectedAccount.substring(0, 6)}...${selectedAccount.substring(selectedAccount.length - 4)}`;
-        walletAddress.classList.remove('d-none');
-        
-        // Update address input
-        const addressInput = document.getElementById('user-address');
-        if (addressInput) {
-            addressInput.value = selectedAccount;
-        }
-        
-        // Update balance
-        try {
-            const balance = await web3.eth.getBalance(selectedAccount);
-            const formattedBalance = web3.utils.fromWei(balance, 'ether');
-            
-            const balanceInput = document.getElementById('user-balance');
-            if (balanceInput) {
-                balanceInput.value = parseFloat(formattedBalance).toFixed(4);
-            }
-        } catch (error) {
-            console.error('Error fetching balance:', error);
-        }
-    }
-    
-    // Update UI for disconnected state
-    function updateUIDisconnected() {
-        // Update connect button
-        connectButton.innerText = 'Connect Wallet';
-        connectButton.classList.remove('btn-outline-danger');
-        connectButton.classList.add('btn-primary');
-        
-        // Update address display
-        walletAddress.innerText = 'Connect your wallet';
-        
-        // Update network badge
-        networkBadge.innerText = 'Not Connected';
-        networkBadge.classList.remove('bg-success', 'bg-warning', 'bg-danger');
-        networkBadge.classList.add('bg-secondary');
-        
-        // Update connection status
-        connectionStatus.innerText = 'Not Connected';
-        connectionStatus.classList.remove('bg-success', 'bg-warning', 'bg-danger');
-        connectionStatus.classList.add('bg-secondary');
-        
-        // Clear input fields
-        const addressInput = document.getElementById('user-address');
-        const balanceInput = document.getElementById('user-balance');
-        
-        if (addressInput) {
-            addressInput.value = '';
-        }
-        
-        if (balanceInput) {
-            balanceInput.value = '';
-        }
-    }
-    
-    // Update network information
-    async function updateNetworkInfo() {
-        if (!isConnected()) return;
-        
-        try {
-            const chainId = await web3.eth.getChainId();
-            
-            // Update network badge
-            if (chainId === 5124) {
-                // Seismic Devnet
-                networkBadge.innerText = 'Seismic Devnet';
-                networkBadge.classList.remove('bg-secondary', 'bg-warning', 'bg-danger');
-                networkBadge.classList.add('bg-success');
-                
-                connectionStatus.innerText = 'Connected';
-                connectionStatus.classList.remove('bg-secondary', 'bg-warning', 'bg-danger');
-                connectionStatus.classList.add('bg-success');
-            } else {
-                // Other network
-                let networkName;
-                switch(chainId) {
-                    case 1:
-                        networkName = 'Ethereum Mainnet';
-                        break;
-                    case 5:
-                        networkName = 'Goerli Testnet';
-                        break;
-                    case 11155111:
-                        networkName = 'Sepolia Testnet';
-                        break;
-                    case 42161:
-                        networkName = 'Arbitrum One';
-                        break;
-                    case 10:
-                        networkName = 'Optimism';
-                        break;
-                    case 8453:
-                        networkName = 'Base';
-                        break;
-                    case 137:
-                        networkName = 'Polygon';
-                        break;
-                    default:
-                        networkName = 'Unknown Network';
-                }
-                
-                networkBadge.innerText = networkName;
-                networkBadge.classList.remove('bg-secondary', 'bg-success', 'bg-danger');
-                networkBadge.classList.add('bg-warning');
-                
-                connectionStatus.innerText = 'Wrong Network';
-                connectionStatus.classList.remove('bg-secondary', 'bg-success', 'bg-danger');
-                connectionStatus.classList.add('bg-warning');
-            }
-            
-        } catch (error) {
-            console.error('Error updating network info:', error);
-            
-            // Show error state
-            networkBadge.innerText = 'Error';
-            networkBadge.classList.remove('bg-secondary', 'bg-success', 'bg-warning');
-            networkBadge.classList.add('bg-danger');
-            
-            connectionStatus.innerText = 'Error';
-            connectionStatus.classList.remove('bg-secondary', 'bg-success', 'bg-warning');
-            connectionStatus.classList.add('bg-danger');
-        }
-    }
-    
-    // Add Seismic network to wallet
-    async function addSeismicNetwork() {
-        if (!isConnected()) {
-            alert('Please connect your wallet first');
-            return;
-        }
-        
-        try {
-            // Request network switch first
-            try {
-                await ethereum.request({
-                    method: 'wallet_switchEthereumChain',
-                    params: [{ chainId: seismicNetwork.chainId }],
+                ];
+
+                // Настройка Web3Modal
+                const connectors = w3mConnectors({ 
+                    projectId, 
+                    chains, 
+                    version: "2" 
                 });
-                return true;
-            } catch (switchError) {
-                // Network doesn't exist, add it
-                if (switchError.code === 4902) {
-                    try {
-                        await ethereum.request({
-                            method: 'wallet_addEthereumChain',
-                            params: [seismicNetwork],
-                        });
-                        return true;
-                    } catch (addError) {
-                        console.error('Error adding network:', addError);
-                        alert('Failed to add Seismic network: ' + (addError.message || 'Unknown error'));
-                        return false;
+
+                const wagmiConfig = {
+                    autoConnect: true,
+                    connectors,
+                    publicClient: w3mProvider({ projectId, chains })
+                };
+
+                const ethereumClient = new EthereumClient(wagmiConfig, chains);
+                this.web3Modal = new Web3Modal({
+                    projectId,
+                    themeMode: "light",
+                    themeVariables: {
+                        "--w3m-font-family": "system-ui, sans-serif",
+                        "--w3m-accent-color": "#3B82F6"
+                    },
+                    desktopWallets: ["browser", "coinbaseWallet", "metaMask", "rabby", "trust", "zerion"],
+                    mobileWallets: ["argent", "brave", "ledger", "imToken", "metamask", "rainbow", "trust"],
+                    explorerRecommendedWalletIds: [
+                        "c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96", // MetaMask
+                        "4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0", // Trust
+                        "fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa", // Coinbase
+                    ],
+                    enableAnalytics: true,
+                    enableNetworkView: true,
+                    enableAccountView: true
+                }, ethereumClient);
+
+                // Настройка обработчиков событий
+                ethereumClient.watchAccount(account => {
+                    if (account.address) {
+                        this.selectedAccount = account.address;
+                        this._emitEvent('accountChanged', { account: account.address });
+                    } else if (this.selectedAccount && !account.address) {
+                        this.selectedAccount = null;
+                        this._emitEvent('walletDisconnected');
                     }
-                } else {
-                    console.error('Error switching network:', switchError);
-                    alert('Failed to switch to Seismic network: ' + (switchError.message || 'Unknown error'));
-                    return false;
-                }
+                });
+
+                ethereumClient.watchNetwork(network => {
+                    if (network.chain) {
+                        this.chainId = network.chain.id;
+                        this._emitEvent('networkChanged', { chainId: network.chain.id });
+                    }
+                });
+
+                this.initialized = true;
+                console.log("Web3Modal инициализирован успешно");
+                return true;
+            } catch (error) {
+                console.error("Ошибка инициализации Web3Modal:", error);
+                throw error;
             }
-        } catch (error) {
-            console.error('Error adding network:', error);
-            alert('Failed to add Seismic network: ' + (error.message || 'Unknown error'));
-            return false;
+        }
+
+        // Подключение кошелька
+        async connect() {
+            if (this.isConnecting) return false;
+            this.isConnecting = true;
+            
+            try {
+                if (!this.initialized) {
+                    await this.initialize();
+                }
+                
+                // Открываем модальное окно выбора кошелька
+                if (this.web3Modal) {
+                    await this.web3Modal.openModal();
+                    
+                    // Ждем пока пользователь подключит кошелек
+                    const interval = setInterval(() => {
+                        if (this.selectedAccount) {
+                            clearInterval(interval);
+                            this.isConnecting = false;
+                            this._emitEvent('walletConnected', { account: this.selectedAccount });
+                            return true;
+                        }
+                    }, 500);
+
+                    // Устанавливаем таймаут чтобы избежать бесконечного ожидания
+                    setTimeout(() => {
+                        clearInterval(interval);
+                        if (!this.selectedAccount) {
+                            this.isConnecting = false;
+                        }
+                    }, 60000); // Таймаут 1 минута
+                    
+                    return true;
+                }
+                
+                return false;
+            } catch (error) {
+                console.error("Ошибка подключения кошелька:", error);
+                this.isConnecting = false;
+                return false;
+            }
+        }
+
+        // Отключение кошелька
+        async disconnect() {
+            try {
+                if (this.web3Modal && this.selectedAccount) {
+                    await this.web3Modal.wagmiConfig.disconnect();
+                    this.selectedAccount = null;
+                    this.provider = null;
+                    this._emitEvent('walletDisconnected');
+                    return true;
+                }
+                return false;
+            } catch (error) {
+                console.error("Ошибка отключения кошелька:", error);
+                return false;
+            }
+        }
+
+        // Проверка, подключен ли кошелек
+        isConnected() {
+            return !!this.selectedAccount;
+        }
+
+        // Получение текущего аккаунта
+        getSelectedAccount() {
+            return this.selectedAccount;
+        }
+
+        // Получение провайдера для использования с ethers.js
+        getProvider() {
+            if (this.web3Modal && this.selectedAccount) {
+                return this.web3Modal.wagmiConfig.getPublicClient();
+            }
+            return null;
+        }
+
+        // Запрос смены сети
+        async switchNetwork(chainId) {
+            try {
+                if (!this.web3Modal || !this.selectedAccount) {
+                    throw new Error("Кошелек не подключен");
+                }
+                
+                await this.web3Modal.wagmiConfig.switchNetwork(chainId);
+                return true;
+            } catch (error) {
+                console.error("Ошибка смены сети:", error);
+                return false;
+            }
+        }
+
+        // Вспомогательный метод для генерации событий
+        _emitEvent(eventName, detail = {}) {
+            const event = new CustomEvent(eventName, { detail });
+            document.dispatchEvent(event);
         }
     }
-    
-    // Helper functions
-    function isConnected() {
-        return !!selectedAccount;
-    }
-    
-    function getSelectedAccount() {
-        return selectedAccount;
-    }
-    
-    function getWeb3() {
-        return web3;
-    }
-    
-    function getProvider() {
-        return provider;
-    }
-    
-    // Export functions for external use
-    window.walletConnector = {
-        connect,
-        disconnect,
-        isConnected,
-        getSelectedAccount,
-        getWeb3,
-        getProvider,
-        addSeismicNetwork
-    };
+
+    // Создаем и экспортируем инстанс WalletConnector
+    const walletConnector = new WalletConnector();
+    window.WalletConnector = walletConnector;
 })(); 

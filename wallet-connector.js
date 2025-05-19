@@ -9,46 +9,29 @@
             this.chainId = null;
             this.isConnecting = false;
             this.web3Modal = null;
+            this.ethereumClient = null;
             this.initialized = false;
         }
 
         // Инициализация Web3Modal с настройками
         async initialize(config = {}) {
-            if (this.initialized) return;
+            if (this.initialized) return true;
 
             try {
-                // Проверяем доступность Web3Modal или используем SafeWallet
-                let useWeb3Modal = false;
+                console.log("Инициализация Web3Modal...");
                 
-                // Проверка на Web3Modal библиотеки
-                if ((window.W3M && window.W3M.EthereumClient) || 
-                    (window.Web3ModalEthereum && window.Web3ModalEthereum.EthereumClient)) {
-                    useWeb3Modal = true;
-                }
+                // Проверяем наличие необходимых компонентов для Web3Modal
+                const Web3Modal = window.W3M_HTML?.Web3Modal || window.Web3ModalHtml?.Web3Modal;
+                const EthereumClient = window.W3M?.EthereumClient || window.Web3ModalEthereum?.EthereumClient;
+                const w3mConnectors = window.W3M?.w3mConnectors || window.Web3ModalEthereum?.w3mConnectors;
+                const w3mProvider = window.W3M?.w3mProvider || window.Web3ModalEthereum?.w3mProvider;
                 
-                // Если Web3Modal недоступен, используем SafeWallet
-                if (!useWeb3Modal) {
-                    if (window.SafeWallet) {
-                        console.log("Используем SafeWallet для подключения");
-                        this.provider = window.SafeWallet.getProvider();
-                        
-                        // Проверяем, подключен ли уже кошелек
-                        const isConnected = await window.SafeWallet.isConnected();
-                        if (isConnected) {
-                            this.selectedAccount = await window.SafeWallet.getAddress();
-                            if (this.selectedAccount) {
-                                this._emitEvent('accountChanged', { account: this.selectedAccount });
-                            }
-                        }
-                        
-                        this.initialized = true;
-                        console.log("SafeWallet инициализирован успешно");
-                        return true;
-                    }
+                if (!Web3Modal || !EthereumClient || !w3mConnectors || !w3mProvider) {
+                    console.error("Web3Modal компоненты не обнаружены");
                     
-                    // Если нет ни Web3Modal, ни SafeWallet, пробуем напрямую через window.ethereum
+                    // Fallback на basic provider
                     if (window.ethereum) {
-                        console.log("Используем прямое подключение через window.ethereum");
+                        console.log("Fallback на базовый provider (window.ethereum)");
                         this.provider = window.ethereum;
                         
                         try {
@@ -65,34 +48,30 @@
                         return true;
                     }
                     
-                    console.warn("Web3Modal не загружен, используем базовое подключение");
-                    this.initialized = true;
-                    return true;
+                    throw new Error("Web3Modal компоненты не обнаружены и нет fallback");
                 }
                 
-                // Если доступны библиотеки Web3Modal, используем их
-                const EthereumClient = window.W3M?.EthereumClient || window.Web3ModalEthereum?.EthereumClient;
-                const w3mConnectors = window.W3M?.w3mConnectors || window.Web3ModalEthereum?.w3mConnectors;
-                const w3mProvider = window.W3M?.w3mProvider || window.Web3ModalEthereum?.w3mProvider;
-                const Web3Modal = window.W3M_HTML?.Web3Modal || window.Web3ModalHtml?.Web3Modal;
-
-                if (!Web3Modal || !EthereumClient) {
-                    throw new Error("Web3Modal не загружен");
-                }
-
-                // Получаем конфигурацию сети из seismicConfig или используем предоставленную конфигурацию
+                // Получаем конфигурацию сети
                 const networkConfig = window.seismicConfig && window.seismicConfig.network 
                     ? window.seismicConfig.network
                     : config.network;
 
-                // Настройка проекта Web3Modal
-                const projectId = config.projectId || window.seismicConfig?.walletConnect?.projectId || "a85ac05209955cfd18fbe7c0fd018f23";
+                if (!networkConfig) {
+                    throw new Error("Не указана конфигурация сети");
+                }
 
-                // Определение цепей
+                // ID проекта WalletConnect
+                const projectId = config.projectId || window.seismicConfig?.walletConnect?.projectId || "a85ac05209955cfd18fbe7c0fd018f23";
+                
+                if (!projectId) {
+                    throw new Error("Не указан projectId для WalletConnect");
+                }
+
+                // Определение цепи
                 const chains = [
                     {
                         id: networkConfig.chainId,
-                        name: networkConfig.name,
+                        name: networkConfig.name || "Seismic Network",
                         network: networkConfig.network || "seismic",
                         nativeCurrency: networkConfig.nativeCurrency || {
                             name: "Ether",
@@ -106,93 +85,83 @@
                     }
                 ];
 
-                // Настройка Web3Modal
-                try {
-                    const connectors = w3mConnectors({ 
-                        projectId, 
-                        chains, 
-                        version: "2" 
-                    });
+                // Создаем конфигурацию соединителей
+                const connectors = w3mConnectors({ 
+                    projectId, 
+                    chains, 
+                    version: "2" 
+                });
 
-                    const wagmiConfig = {
-                        autoConnect: false,
-                        connectors,
-                        publicClient: w3mProvider({ projectId, chains })
-                    };
+                // Создаем конфигурацию wagmi
+                const wagmiConfig = {
+                    autoConnect: false,
+                    connectors,
+                    publicClient: w3mProvider({ projectId, chains })
+                };
 
-                    const ethereumClient = new EthereumClient(wagmiConfig, chains);
-                    this.web3Modal = new Web3Modal({
-                        projectId,
-                        themeMode: "light",
-                        themeVariables: {
-                            "--w3m-font-family": "system-ui, sans-serif",
-                            "--w3m-accent-color": "#3B82F6"
-                        },
-                        desktopWallets: ["metaMask", "coinbaseWallet", "browser", "rabby", "trust", "zerion"],
-                        mobileWallets: ["metamask", "rainbow", "argent", "brave", "ledger", "imToken", "trust"],
-                        explorerRecommendedWalletIds: [],
-                        enableAnalytics: true,
-                        enableNetworkView: true,
-                        enableAccountView: true
-                    }, ethereumClient);
+                // Создаем клиент Ethereum
+                this.ethereumClient = new EthereumClient(wagmiConfig, chains);
+                
+                // Создаем экземпляр Web3Modal
+                this.web3Modal = new Web3Modal({
+                    projectId,
+                    themeMode: "light",
+                    themeVariables: {
+                        "--w3m-font-family": "system-ui, sans-serif",
+                        "--w3m-accent-color": "#3B82F6"
+                    },
+                    // Включаем все доступные кошельки
+                    explorerRecommendedWalletIds: "ALL",
+                    // Перечисляем предпочтительные кошельки
+                    desktopWallets: [
+                        "metamask",
+                        "coinbase",
+                        "trust",
+                        "rabby",
+                        "brave",
+                        "zerion"
+                    ],
+                    mobileWallets: [
+                        "metamask",
+                        "trust",
+                        "rainbow",
+                        "ledger",
+                        "imToken"
+                    ],
+                    // Включаем все возможности
+                    enableAnalytics: true,
+                    enableNetworkView: true,
+                    enableAccountView: true
+                }, this.ethereumClient);
 
-                    // Настройка обработчиков событий
-                    ethereumClient.watchAccount(account => {
-                        if (account.address) {
-                            this.selectedAccount = account.address;
-                            this._emitEvent('accountChanged', { account: account.address });
-                        } else if (this.selectedAccount && !account.address) {
-                            this.selectedAccount = null;
-                            this._emitEvent('walletDisconnected');
-                        }
-                    });
-
-                    ethereumClient.watchNetwork(network => {
-                        if (network.chain) {
-                            this.chainId = network.chain.id;
-                            this._emitEvent('networkChanged', { chainId: network.chain.id });
-                        }
-                    });
-                } catch (error) {
-                    console.error("Ошибка при настройке Web3Modal:", error);
-                    
-                    // Fallback на SafeWallet или прямое подключение
-                    if (window.SafeWallet) {
-                        console.log("Fallback на SafeWallet");
-                        this.provider = window.SafeWallet.getProvider();
-                        const isConnected = await window.SafeWallet.isConnected();
-                        if (isConnected) {
-                            this.selectedAccount = await window.SafeWallet.getAddress();
-                        }
-                    } else if (window.ethereum) {
-                        console.log("Fallback на window.ethereum");
-                        this.provider = window.ethereum;
-                        try {
-                            const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-                            if (accounts.length > 0) {
-                                this.selectedAccount = accounts[0];
-                            }
-                        } catch (e) {
-                            console.warn("Ошибка при получении аккаунтов:", e);
-                        }
+                // Настройка обработчиков событий
+                this.ethereumClient.watchAccount((account) => {
+                    if (account.address) {
+                        this.selectedAccount = account.address;
+                        this._emitEvent('accountChanged', { account: account.address });
+                    } else if (this.selectedAccount && !account.address) {
+                        this.selectedAccount = null;
+                        this._emitEvent('walletDisconnected');
                     }
-                }
+                });
+
+                this.ethereumClient.watchNetwork((network) => {
+                    if (network.chain) {
+                        this.chainId = network.chain.id;
+                        this._emitEvent('networkChanged', { chainId: network.chain.id });
+                    }
+                });
 
                 this.initialized = true;
-                console.log("Web3Modal инициализирован успешно");
+                console.log("Web3Modal успешно инициализирован");
                 return true;
             } catch (error) {
-                console.error("Ошибка инициализации Web3Modal:", error);
+                console.error("Ошибка при инициализации Web3Modal:", error);
                 
-                // Fallback на SafeWallet или window.ethereum
-                if (window.SafeWallet) {
-                    console.log("Fallback на SafeWallet после ошибки");
-                    this.provider = window.SafeWallet.getProvider();
-                    this.initialized = true;
-                    return true;
-                } else if (window.ethereum) {
-                    console.log("Fallback на ethereum после ошибки");
-                    this.provider = window.ethereum; 
+                // Fallback на базовый provider
+                if (window.ethereum) {
+                    console.log("Fallback на базовый provider после ошибки");
+                    this.provider = window.ethereum;
                     this.initialized = true;
                     return true;
                 }
@@ -203,111 +172,115 @@
 
         // Подключение кошелька
         async connect() {
-            if (this.isConnecting) return false;
+            if (this.isConnecting) {
+                console.log("Процесс подключения уже запущен");
+                return false;
+            }
+            
             this.isConnecting = true;
             
             try {
+                // Инициализируем компонент при необходимости
                 if (!this.initialized) {
                     await this.initialize();
                 }
-                
-                // Если есть SafeWallet, используем его
-                if (window.SafeWallet) {
-                    const address = await window.SafeWallet.connect();
-                    if (address) {
-                        this.selectedAccount = address;
-                        this._emitEvent('walletConnected', { account: address });
-                        this.isConnecting = false;
-                        return true;
-                    }
-                    // Если не удалось подключиться через SafeWallet, продолжаем с Web3Modal
+
+                // Если web3Modal доступен, используем его
+                if (this.web3Modal) {
+                    console.log("Открываем Web3Modal для выбора кошелька");
+                    
+                    // Открываем модальное окно и ждем подключения
+                    this.web3Modal.openModal();
+                    
+                    // Создаем Promise, который разрешится, когда пользователь выберет кошелек
+                    return new Promise((resolve) => {
+                        // Функция для проверки подключения
+                        const checkConnection = () => {
+                            if (this.selectedAccount) {
+                                // Кошелек подключен, отправляем событие
+                                this._emitEvent('walletConnected', { 
+                                    account: this.selectedAccount 
+                                });
+                                
+                                this.isConnecting = false;
+                                resolve(true);
+                                
+                                // Очищаем интервал
+                                clearInterval(interval);
+                            }
+                        };
+                        
+                        // Проверяем подключение каждые 500мс
+                        const interval = setInterval(checkConnection, 500);
+                        
+                        // Также слушаем событие закрытия модального окна
+                        const modalClose = () => {
+                            clearInterval(interval);
+                            this.isConnecting = false;
+                            
+                            // Если кошелек не был выбран, возвращаем false
+                            if (!this.selectedAccount) {
+                                resolve(false);
+                            }
+                        };
+                        
+                        // Добавляем слушатель на закрытие модального окна
+                        window.addEventListener('web3modal_close', modalClose, { once: true });
+                    });
                 }
                 
-                // Если провайдер напрямую доступен через window.ethereum
-                if (!this.web3Modal && window.ethereum) {
+                // Если Web3Modal недоступен, пробуем использовать базовый метод через window.ethereum
+                if (window.ethereum) {
                     try {
-                        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                        console.log("Используем прямое подключение через window.ethereum");
+                        const accounts = await window.ethereum.request({ 
+                            method: 'eth_requestAccounts' 
+                        });
+                        
                         if (accounts.length > 0) {
                             this.selectedAccount = accounts[0];
-                            this._emitEvent('walletConnected', { account: accounts[0] });
+                            this._emitEvent('walletConnected', { 
+                                account: accounts[0] 
+                            });
                             this.isConnecting = false;
                             return true;
                         }
                     } catch (error) {
-                        console.error("Ошибка прямого подключения кошелька:", error);
+                        console.error("Ошибка при прямом подключении кошелька:", error);
+                        throw error;
                     }
                 }
                 
-                // Открываем модальное окно выбора кошелька через Web3Modal
-                if (this.web3Modal) {
-                    await this.web3Modal.openModal();
-                    
-                    // Ждем пока пользователь подключит кошелек
-                    const interval = setInterval(() => {
-                        if (this.selectedAccount) {
-                            clearInterval(interval);
-                            this.isConnecting = false;
-                            this._emitEvent('walletConnected', { account: this.selectedAccount });
-                            return true;
-                        }
-                    }, 500);
-
-                    // Устанавливаем таймаут чтобы избежать бесконечного ожидания
-                    setTimeout(() => {
-                        clearInterval(interval);
-                        if (!this.selectedAccount) {
-                            this.isConnecting = false;
-                        }
-                    }, 60000); // Таймаут 1 минута
-                    
-                    return true;
-                }
-                
-                this.isConnecting = false;
-                return false;
+                throw new Error("Нет доступных методов для подключения кошелька");
             } catch (error) {
-                console.error("Ошибка подключения кошелька:", error);
+                console.error("Ошибка при подключении кошелька:", error);
                 this.isConnecting = false;
-                return false;
+                throw error;
             }
         }
 
         // Отключение кошелька
         async disconnect() {
             try {
-                // Если есть SafeWallet
-                if (window.SafeWallet && this.selectedAccount) {
+                if (this.ethereumClient) {
+                    await this.ethereumClient.disconnect();
                     this.selectedAccount = null;
-                    this.provider = null;
+                    this._emitEvent('walletDisconnected');
+                    return true;
+                } else if (window.ethereum && window.ethereum._handleDisconnect) {
+                    await window.ethereum._handleDisconnect();
+                    this.selectedAccount = null;
                     this._emitEvent('walletDisconnected');
                     return true;
                 }
                 
-                // Если есть Web3Modal
-                if (this.web3Modal && this.selectedAccount) {
-                    try {
-                        await this.web3Modal.wagmiConfig.disconnect();
-                    } catch (error) {
-                        console.warn("Ошибка при отключении через Web3Modal:", error);
-                    }
-                    this.selectedAccount = null;
-                    this.provider = null;
-                    this._emitEvent('walletDisconnected');
-                    return true;
-                }
-                
-                // Если использовался прямой провайдер
-                if (this.selectedAccount) {
-                    this.selectedAccount = null;
-                    this.provider = null;
-                    this._emitEvent('walletDisconnected');
-                    return true;
-                }
-                
-                return false;
+                // Просто сбрасываем состояние
+                this.selectedAccount = null;
+                this._emitEvent('walletDisconnected');
+                return true;
             } catch (error) {
-                console.error("Ошибка отключения кошелька:", error);
-                return false;
+                console.error("Ошибка при отключении кошелька:", error);
+                throw error;
             }
         }
 
@@ -316,70 +289,54 @@
             return !!this.selectedAccount;
         }
 
-        // Получение текущего аккаунта
+        // Получение текущего адреса
         getSelectedAccount() {
             return this.selectedAccount;
         }
 
-        // Получение провайдера для использования с ethers.js
+        // Получение провайдера
         getProvider() {
-            if (this.web3Modal && this.selectedAccount) {
-                try {
-                    return this.web3Modal.wagmiConfig.getPublicClient();
-                } catch (e) {
-                    console.warn("Ошибка получения publicClient:", e);
-                }
+            if (this.ethereumClient) {
+                return this.ethereumClient.getProvider();
             }
             
-            // Fallback на провайдеры
-            return this.provider || 
-                   window.safeEthereumProvider || 
-                   (window.SafeWallet ? window.SafeWallet.getProvider() : null) || 
-                   window.ethereum;
+            return this.provider || window.ethereum;
         }
 
-        // Запрос смены сети
+        // Переключение сети
         async switchNetwork(chainId) {
             try {
-                if (this.web3Modal && this.selectedAccount) {
-                    try {
-                        await this.web3Modal.wagmiConfig.switchNetwork(chainId);
-                        return true;
-                    } catch (e) {
-                        console.warn("Ошибка смены сети через Web3Modal:", e);
-                    }
-                }
-                
-                // Fallback на прямой запрос
-                if (this.provider && this.provider.request) {
-                    await this.provider.request({
-                        method: 'wallet_switchEthereumChain',
-                        params: [{ chainId: '0x' + chainId.toString(16) }]
-                    });
+                if (this.ethereumClient) {
+                    await this.ethereumClient.switchNetwork({ chainId });
                     return true;
                 } else if (window.ethereum) {
                     await window.ethereum.request({
                         method: 'wallet_switchEthereumChain',
-                        params: [{ chainId: '0x' + chainId.toString(16) }]
+                        params: [{ chainId: `0x${chainId.toString(16)}` }]
                     });
                     return true;
                 }
                 
-                throw new Error("Провайдер не поддерживает смену сети");
+                throw new Error("Нет доступных методов для переключения сети");
             } catch (error) {
-                console.error("Ошибка смены сети:", error);
-                return false;
+                console.error("Ошибка при переключении сети:", error);
+                throw error;
             }
         }
 
-        // Вспомогательный метод для генерации событий
+        // Генерация и отправка события
         _emitEvent(eventName, detail = {}) {
-            const event = new CustomEvent(eventName, { detail });
+            const event = new CustomEvent(eventName, { 
+                detail,
+                bubbles: true,
+                cancelable: true
+            });
+            
             document.dispatchEvent(event);
+            console.log(`Событие ${eventName} отправлено:`, detail);
         }
     }
 
-    // Создаем и экспортируем инстанс WalletConnector
-    const walletConnector = new WalletConnector();
-    window.WalletConnector = walletConnector;
+    // Создаем глобальный экземпляр WalletConnector
+    window.WalletConnector = new WalletConnector();
 })(); 

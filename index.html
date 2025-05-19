@@ -37,27 +37,26 @@
     <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.8.0/web3.min.js"></script>
     
-    <!-- Fix for ethereum getter issues -->
+    <!-- Fix for ethereum getter issues and Web3Modal compatibility -->
     <script src="web3modal-fix.js"></script>
     
-    <!-- Web3Modal dependencies - обновлены на более новые UMD версии -->
-    <script src="https://unpkg.com/@web3modal/wagmi@3.0.2/dist/index.umd.js"></script>
-    <script src="https://unpkg.com/@web3modal/ui@3.0.2/dist/index.umd.js"></script>
-    <script src="https://unpkg.com/@web3modal/core@3.0.2/dist/index.umd.js"></script>
+    <!-- Web3Modal dependencies v2.7.1 -->
+    <script src="https://unpkg.com/@web3modal/ethereum@2.7.1/dist/cdn.js"></script>
+    <script src="https://unpkg.com/@web3modal/html@2.7.1/dist/cdn.js"></script>
     <script>
-        // Делаем алиасы для Web3Modal глобально доступными
-        window.addEventListener('load', () => {
+        // Setup global aliases for Web3Modal components
+        window.addEventListener('DOMContentLoaded', () => {
             try {
-                // Новые алиасы для UMD версий
-                if (window.Web3ModalWagmi) {
-                    window.W3M = window.Web3ModalWagmi;
+                // Make Web3Modal libraries globally available with consistent naming
+                if (window.Web3ModalEthereum) {
+                    window.W3M = window.Web3ModalEthereum;
                 }
-                if (window.Web3ModalUI) {
-                    window.W3M_HTML = window.Web3ModalUI;
+                if (window.Web3ModalHtml) {
+                    window.W3M_HTML = window.Web3ModalHtml;
                 }
-                console.log("Web3Modal библиотеки загружены успешно");
+                console.log("Web3Modal global aliases set up successfully");
             } catch (error) {
-                console.error("Ошибка инициализации Web3Modal библиотек:", error);
+                console.error("Error setting up Web3Modal global aliases:", error);
             }
         });
     </script>

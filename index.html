@@ -79,8 +79,11 @@
             // Track potential provider injection conflicts
             console.log("Protecting ethereum provider from conflicts");
             
-            // If ethereum isn't defined yet, set up protection
-            if (typeof window.ethereum === 'undefined') {
+            // Check if ethereum is already defined with a getter
+            const descriptor = Object.getOwnPropertyDescriptor(window, 'ethereum');
+            
+            // Only define the property if it doesn't exist or isn't already a getter
+            if (!descriptor || !descriptor.get) {
                 Object.defineProperty(window, 'ethereum', {
                     configurable: true,
                     get: function() {
@@ -173,13 +176,26 @@
                 }
             }
             
-            // Set the global objects for our app
-            window.EthereumProvider = ethereumProvider;
-            window.Web3ModalStandalone = web3ModalStandalone;
+            // Check if ethereum property is a getter before trying to set global objects
+            const descriptor = Object.getOwnPropertyDescriptor(window, 'ethereum');
+            const hasGetter = descriptor && descriptor.get;
+            
+            // Don't directly set window properties if ethereum is a getter
+            if (!hasGetter) {
+                // Set the global objects for our app
+                window.EthereumProvider = ethereumProvider;
+                window.Web3ModalStandalone = web3ModalStandalone;
+            }
+            
+            // Store in a safe global object that won't conflict
+            window.__walletConnectProviders = {
+                EthereumProvider: ethereumProvider,
+                Web3ModalStandalone: web3ModalStandalone
+            };
             
             console.log('WalletConnect global objects set up:', {
-                EthereumProvider: !!window.EthereumProvider,
-                Web3ModalStandalone: !!window.Web3ModalStandalone
+                EthereumProvider: !!ethereumProvider,
+                Web3ModalStandalone: !!web3ModalStandalone
             });
         } catch (error) {
             console.error('Error setting up WalletConnect global objects:', error);

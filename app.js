@@ -186,14 +186,23 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     }
                     
+                    // Save original ethereum property if it exists
+                    const descriptor = Object.getOwnPropertyDescriptor(window, 'ethereum');
+                    const hasGetter = descriptor && descriptor.get;
+                    
                     // Load necessary libraries in sequence
                     loadScript('https://unpkg.com/@walletconnect/ethereum-provider@2.10.0/dist/umd/index.min.js')
                         .then(() => loadScript('https://unpkg.com/@web3modal/standalone@2.4.3/dist/index.umd.js'))
                         .then(() => {
                             // Check if libraries loaded correctly
                             if (window.WalletConnectEthereumProvider) {
-                                window.EthereumProvider = window.WalletConnectEthereumProvider;
-                                console.log('WalletConnectEthereumProvider loaded dynamically');
+                                // Don't overwrite window.EthereumProvider if ethereum is a getter
+                                if (!hasGetter) {
+                                    window.EthereumProvider = window.WalletConnectEthereumProvider;
+                                    console.log('WalletConnectEthereumProvider loaded dynamically');
+                                } else {
+                                    console.log('EthereumProvider already exists as a getter, setting WalletConnectEthereumProvider as fallback');
+                                }
                             } else {
                                 console.error('WalletConnectEthereumProvider not found after dynamic loading');
                             }

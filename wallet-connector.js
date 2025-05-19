@@ -27,39 +27,49 @@
                 console.log("- EthereumProvider:", typeof window.EthereumProvider, window.EthereumProvider);
                 console.log("- Web3ModalStandalone:", typeof window.Web3ModalStandalone, window.Web3ModalStandalone);
                 
-                // Проверка на наличие требуемых провайдеров
-                if (!window.EthereumProvider || typeof window.EthereumProvider !== 'object') {
-                    console.error("EthereumProvider не найден или не является объектом:", window.EthereumProvider);
-                    
-                    // Альтернативные провайдеры
-                    if (window.WalletConnectEthereumProvider) {
-                        console.log("Найден WalletConnectEthereumProvider, используем его.");
-                        window.EthereumProvider = window.WalletConnectEthereumProvider;
-                    } else {
-                        // Вернуть ошибку, если не удалось найти подходящий провайдер
-                        throw new Error("EthereumProvider не загружен. Убедитесь, что скрипты загружены правильно.");
-                    }
+                // Check for fallback providers if window objects aren't available directly
+                // First try the safe global object
+                let ethereumProvider = window.__walletConnectProviders?.EthereumProvider;
+                let web3ModalStandalone = window.__walletConnectProviders?.Web3ModalStandalone;
+                
+                // If not found in safe object, try window properties
+                if (!ethereumProvider) {
+                    ethereumProvider = window.EthereumProvider;
                 }
                 
-                if (!window.EthereumProvider.init) {
+                if (!web3ModalStandalone) {
+                    web3ModalStandalone = window.Web3ModalStandalone;
+                }
+                
+                // Try to use WalletConnectEthereumProvider as a fallback
+                if (!ethereumProvider && window.WalletConnectEthereumProvider) {
+                    console.log("Найден WalletConnectEthereumProvider, используем его.");
+                    ethereumProvider = window.WalletConnectEthereumProvider;
+                }
+                
+                // Try to use W3mStandalone as a fallback
+                if (!web3ModalStandalone && window.W3mStandalone) {
+                    console.log("Найден W3mStandalone, используем его.");
+                    web3ModalStandalone = window.W3mStandalone;
+                }
+                
+                // Проверка на наличие требуемых провайдеров
+                if (!ethereumProvider || typeof ethereumProvider !== 'object') {
+                    console.error("EthereumProvider не найден или не является объектом:", ethereumProvider);
+                    throw new Error("EthereumProvider не загружен. Убедитесь, что скрипты загружены правильно.");
+                }
+                
+                if (!ethereumProvider.init) {
                     console.error("EthereumProvider не имеет метода init");
                     throw new Error("EthereumProvider некорректный. Метод init не найден.");
                 }
                 
-                if (!window.Web3ModalStandalone || typeof window.Web3ModalStandalone !== 'object') {
-                    console.error("Web3ModalStandalone не найден или не является объектом:", window.Web3ModalStandalone);
-                    
-                    // Альтернативные провайдеры
-                    if (window.W3mStandalone) {
-                        console.log("Найден W3mStandalone, используем его.");
-                        window.Web3ModalStandalone = window.W3mStandalone;
-                    } else {
-                        // Вернуть ошибку, если не удалось найти подходящий провайдер
-                        throw new Error("Web3ModalStandalone не загружен. Убедитесь, что скрипты загружены правильно.");
-                    }
+                if (!web3ModalStandalone || typeof web3ModalStandalone !== 'object') {
+                    console.error("Web3ModalStandalone не найден или не является объектом:", web3ModalStandalone);
+                    throw new Error("Web3ModalStandalone не загружен. Убедитесь, что скрипты загружены правильно.");
                 }
                 
-                if (!window.Web3ModalStandalone.Web3Modal) {
+                if (!web3ModalStandalone.Web3Modal) {
                     console.error("Web3ModalStandalone не имеет класса Web3Modal");
                     throw new Error("Web3ModalStandalone некорректный. Класс Web3Modal не найден.");
                 }
@@ -78,7 +88,7 @@
                 // Обернуть в try/catch для более детальной отладки
                 try {
                     // Настройка ethereum provider через WalletConnect
-                    const ethereumProvider = await window.EthereumProvider.init({
+                    const ethereumProviderInstance = await ethereumProvider.init({
                         projectId,
                         chains: [networkConfig.chainId],
                         showQrModal: true,
@@ -87,7 +97,7 @@
                     });
                     
                     // Сохраняем провайдер
-                    this.ethereum = ethereumProvider;
+                    this.ethereum = ethereumProviderInstance;
                     console.log("EthereumProvider успешно инициализирован:", this.ethereum);
                 } catch (providerError) {
                     console.error("Ошибка при инициализации EthereumProvider:", providerError);
@@ -99,7 +109,7 @@
                 // Обернуть в try/catch для более детальной отладки
                 try {
                     // Создаем модальное окно Web3Modal
-                    this.web3Modal = new window.Web3ModalStandalone.Web3Modal({
+                    this.web3Modal = new web3ModalStandalone.Web3Modal({
                         projectId,
                         themeMode: 'dark',
                         walletConnectVersion: 2

@@ -80,50 +80,58 @@
             if (isEthereumGetter) {
                 console.log("Обнаружен ethereum как getter, создаем прокси");
                 
-                const safeProvider = {
-                    isMetaMask: originalEthereum.isMetaMask,
-                    isTrust: originalEthereum.isTrust,
-                    isTokenPocket: originalEthereum.isTokenPocket,
-                    isCoinbaseWallet: originalEthereum.isCoinbaseWallet,
-                    isWalletConnect: originalEthereum.isWalletConnect,
-                    
-                    // Проксируем базовые методы
-                    request: function(args) {
-                        return originalEthereum.request(args);
-                    },
-                    
-                    enable: function() {
-                        return originalEthereum.enable ? originalEthereum.enable() : 
-                               originalEthereum.request({ method: 'eth_requestAccounts' });
-                    },
-                    
-                    // События
-                    on: function(eventName, listener) {
-                        if (typeof originalEthereum.on === 'function') {
-                            return originalEthereum.on(eventName, listener);
-                        }
-                    },
-                    
-                    removeListener: function(eventName, listener) {
-                        if (typeof originalEthereum.removeListener === 'function') {
-                            return originalEthereum.removeListener(eventName, listener);
-                        }
-                    },
-                    
-                    // Вспомогательные свойства
-                    chainId: originalEthereum.chainId,
-                    networkVersion: originalEthereum.networkVersion,
-                    selectedAddress: originalEthereum.selectedAddress,
-                    
-                    // Метод isConnected
-                    isConnected: function() {
-                        return typeof originalEthereum.isConnected === 'function' 
-                               ? originalEthereum.isConnected() 
-                               : !!originalEthereum.selectedAddress;
-                    }
-                };
+                // Вместо перезаписи window.ethereum, создаем safe proxy и сохраняем его
+                // для использования в других частях приложения
+                const safeProvider = {};
                 
-                // Сохраняем провайдер для использования в будущем
+                // Проксируем все методы и свойства без перезаписи window.ethereum
+                for (const key in originalEthereum) {
+                    if (typeof originalEthereum[key] === 'function') {
+                        safeProvider[key] = function(...args) {
+                            return originalEthereum[key](...args);
+                        };
+                    } else {
+                        // Используем getter для получения актуального значения свойства
+                        Object.defineProperty(safeProvider, key, {
+                            get: function() {
+                                return originalEthereum[key];
+                            },
+                            enumerable: true
+                        });
+                    }
+                }
+                
+                // Добавляем основные методы, если их еще нет
+                if (!safeProvider.request && typeof originalEthereum.request === 'function') {
+                    safeProvider.request = function(args) {
+                        return originalEthereum.request(args);
+                    };
+                }
+                
+                if (!safeProvider.enable && typeof originalEthereum.enable === 'function') {
+                    safeProvider.enable = function() {
+                        return originalEthereum.enable();
+                    };
+                } else if (!safeProvider.enable && typeof originalEthereum.request === 'function') {
+                    safeProvider.enable = function() {
+                        return originalEthereum.request({ method: 'eth_requestAccounts' });
+                    };
+                }
+                
+                // События
+                if (!safeProvider.on && typeof originalEthereum.on === 'function') {
+                    safeProvider.on = function(eventName, listener) {
+                        return originalEthereum.on(eventName, listener);
+                    };
+                }
+                
+                if (!safeProvider.removeListener && typeof originalEthereum.removeListener === 'function') {
+                    safeProvider.removeListener = function(eventName, listener) {
+                        return originalEthereum.removeListener(eventName, listener);
+                    };
+                }
+                
+                // Сохраняем провайдер для использования в будущем (без перезаписи window.ethereum)
                 window.__safeEthereumProvider = safeProvider;
                 return safeProvider;
             }
@@ -172,7 +180,7 @@
      * Создает глобальный объект для удобной работы с Ethereum
      */
     function createEthereumHelper() {
-        // Получаем провайдера
+        // Получаем провайдера - используем safe provider вместо window.ethereum напрямую
         const provider = window.__safeEthereumProvider || window.ethereum;
         
         // Если провайдера нет, то нечего делать
@@ -316,18 +324,20 @@
                 return originalOpen.call(this, url, target, features);
             };
             
-            // Патчим window.ethereum, чтобы блокировать автоподключение Trust Wallet
-            if (window.ethereum) {
-                const originalRequest = window.ethereum.request;
-                if (originalRequest && window.ethereum.isTrust) {
-                    window.ethereum.request = function(args) {
-                        // Если это автоматическое подключение от Trust Wallet
-                        if (args.method === 'eth_requestAccounts' && !window.__userInitiatedConnection) {
-                            console.warn('Заблокирован автоматический eth_requestAccounts от Trust Wallet');
-                            return Promise.reject(new Error('Автоматическое подключение заблокировано'));
-                        }
-                        return originalRequest.call(this, args);
-                    };
+            // Патчим window.ethereum через безопасный прокси, чтобы избежать ошибок геттеров
+            if (window.ethereum && window.__safeEthereumProvider) {
+                if (window.ethereum.isTrust) {
+                    const originalRequest = window.__safeEthereumProvider.request;
+                    if (originalRequest) {
+                        window.__safeEthereumProvider.request = function(args) {
+                            // Если это автоматическое подключение от Trust Wallet
+                            if (args.method === 'eth_requestAccounts' && !window.__userInitiatedConnection) {
+                                console.warn('Заблокирован автоматический eth_requestAccounts от Trust Wallet');
+                                return Promise.reject(new Error('Автоматическое подключение заблокировано'));
+                            }
+                            return originalRequest.call(this, args);
+                        };
+                    }
                 }
             }
             
@@ -344,14 +354,14 @@
         // Очищаем данные кошельков, которые могут привести к автоподключению
         cleanupStoredWalletData();
         
-        // Устанавливаем защиту от автоподключения Trust Wallet
-        blockTrustWalletAutoConnect();
-        
-        // Создаем безопасный провайдер
+        // Создаем безопасный провайдер - делаем это перед blockTrustWalletAutoConnect
         const safeProvider = createSafeProvider();
         if (safeProvider) {
             window.__safeEthereumProvider = safeProvider;
         }
+        
+        // Устанавливаем защиту от автоподключения Trust Wallet
+        blockTrustWalletAutoConnect();
         
         // Патчим ethereum.request при необходимости
         patchEthereumRequest();

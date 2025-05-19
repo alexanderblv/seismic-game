@@ -255,32 +255,31 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Если всё еще не подключены, проверяем прямое подключение через window.ethereum
                     if (!autoConnected && window.ethereum) {
                         try {
-                            const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                            // Установка флага пользовательского подключения
+                            window.__userInitiatedConnection = true;
+                            
+                            // Используем безопасный провайдер
+                            const provider = window.__safeEthereumProvider || window.ethereum;
+                            const accounts = await provider.request({ method: 'eth_requestAccounts' });
+                            
+                            window.__userInitiatedConnection = false;
+                            
                             if (accounts.length > 0) {
-                                const address = accounts[0];
+                                const wallet = await seismic.completeConnection(accounts[0], provider);
                                 
-                                connectWalletBtn.disabled = true;
-                                loadingOverlay.classList.remove('d-none');
-                                loadingText.textContent = 'Connecting with detected wallet...';
-                                
-                                try {
-                                    // Завершаем подключение
-                                    const wallet = await seismic.completeConnection(address, window.ethereum);
-                                    
-                                    if (wallet) {
-                                        updateUIForConnectedWallet(wallet);
-                                        console.log('Wallet connected through direct provider:', wallet.address);
-                                    }
-                                } catch (error) {
-                                    console.error('Failed to connect through direct provider:', error);
-                                } finally {
-                                    loadingOverlay.classList.add('d-none');
-                                    connectWalletBtn.disabled = false;
+                                if (wallet) {
+                                    updateUIForConnectedWallet(wallet);
+                                    console.log('Wallet connected through direct connection:', wallet.address);
+                                    return;
                                 }
                             }
                         } catch (error) {
-                            console.warn('Failed to check ethereum accounts:', error);
+                            window.__userInitiatedConnection = false;
+                            console.error('Failed to connect wallet directly:', error);
+                            showError('Failed to connect wallet. Please try again or use a different wallet.');
                         }
+                    } else {
+                        showError('No wallet detected. Please install a web3 wallet like MetaMask.');
                     }
                 } catch (error) {
                     console.error('Failed to initialize WalletConnector:', error);
@@ -436,10 +435,17 @@ document.addEventListener('DOMContentLoaded', () => {
             // Прямое подключение, если предыдущие методы не сработали
             if (window.ethereum) {
                 try {
-                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    // Установка флага пользовательского подключения
+                    window.__userInitiatedConnection = true;
+                    
+                    // Используем безопасный провайдер
+                    const provider = window.__safeEthereumProvider || window.ethereum;
+                    const accounts = await provider.request({ method: 'eth_requestAccounts' });
+                    
+                    window.__userInitiatedConnection = false;
                     
                     if (accounts.length > 0) {
-                        const wallet = await seismic.completeConnection(accounts[0], window.ethereum);
+                        const wallet = await seismic.completeConnection(accounts[0], provider);
                         
                         if (wallet) {
                             updateUIForConnectedWallet(wallet);
@@ -448,6 +454,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     }
                 } catch (error) {
+                    window.__userInitiatedConnection = false;
                     console.error('Failed to connect wallet directly:', error);
                     showError('Failed to connect wallet. Please try again or use a different wallet.');
                 }
@@ -471,11 +478,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add Seismic network to wallet
     async function addNetwork() {
         try {
-            if (!window.ethereum) {
-                throw new Error('MetaMask is not installed');
+            // Используем безопасный провайдер
+            const provider = window.__safeEthereumProvider || window.ethereum;
+            if (!provider) {
+                throw new Error('No wallet detected');
             }
             
-            await window.ethereum.request({
+            // Устанавливаем флаг пользовательского подключения
+            window.__userInitiatedConnection = true;
+            
+            await provider.request({
                 method: 'wallet_addEthereumChain',
                 params: [{
                     chainId: '0x' + seismicConfig.network.chainId.toString(16),
@@ -490,8 +502,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }]
             });
             
+            window.__userInitiatedConnection = false;
             showSuccess('Seismic network added to your wallet successfully!');
         } catch (error) {
+            window.__userInitiatedConnection = false;
             console.error('Failed to add network:', error);
             showError('Failed to add Seismic network to your wallet. Please try again.');
         }

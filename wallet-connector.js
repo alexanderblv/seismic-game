@@ -29,13 +29,14 @@
                 if (!Web3Modal || !EthereumClient || !w3mConnectors || !w3mProvider) {
                     console.error("Web3Modal компоненты не обнаружены");
                     
-                    // Fallback на basic provider
-                    if (window.ethereum) {
-                        console.log("Fallback на базовый provider (window.ethereum)");
-                        this.provider = window.ethereum;
+                    // Fallback на safe provider или basic provider
+                    if (window.__safeEthereumProvider || window.ethereum) {
+                        console.log("Fallback на базовый provider");
+                        // Используем safe provider если доступен
+                        this.provider = window.__safeEthereumProvider || window.ethereum;
                         
                         try {
-                            const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                            const accounts = await this.provider.request({ method: 'eth_accounts' });
                             if (accounts.length > 0) {
                                 this.selectedAccount = accounts[0];
                                 this._emitEvent('accountChanged', { account: this.selectedAccount });
@@ -165,9 +166,9 @@
                 console.error("Ошибка при инициализации Web3Modal:", error);
                 
                 // Fallback на базовый provider
-                if (window.ethereum) {
+                if (window.__safeEthereumProvider || window.ethereum) {
                     console.log("Fallback на базовый provider после ошибки");
-                    this.provider = window.ethereum;
+                    this.provider = window.__safeEthereumProvider || window.ethereum;
                     this.initialized = true;
                     return true;
                 }
@@ -302,20 +303,27 @@
                     });
                 }
                 
-                // Если Web3Modal недоступен, пробуем использовать базовый метод через window.ethereum
-                if (window.ethereum) {
+                // Если Web3Modal недоступен, пробуем использовать безопасный провайдер
+                const provider = window.__safeEthereumProvider || window.ethereum;
+                if (provider) {
+                    // Устанавливаем флаг пользовательской инициации
+                    window.__userInitiatedConnection = true;
+                    
                     // Проверяем, не Trust Wallet ли это
-                    if (window.ethereum.isTrust) {
+                    if (provider.isTrust) {
                         console.warn("Обнаружен Trust Wallet, принудительно запрашиваем выбор");
                         // Показываем пользователю сообщение о необходимости использовать другой кошелек
                         alert("Trust Wallet автоматически подключается, что может вызывать проблемы. Пожалуйста, используйте другой кошелек.");
                     }
                     
                     try {
-                        console.log("Используем прямое подключение через window.ethereum");
-                        const accounts = await window.ethereum.request({ 
+                        console.log("Используем прямое подключение через безопасный провайдер");
+                        const accounts = await provider.request({ 
                             method: 'eth_requestAccounts' 
                         });
+                        
+                        // Сбрасываем флаг пользовательской инициации
+                        window.__userInitiatedConnection = false;
                         
                         if (accounts.length > 0) {
                             this.selectedAccount = accounts[0];
@@ -327,6 +335,7 @@
                         }
                     } catch (error) {
                         console.error("Ошибка при прямом подключении кошелька:", error);
+                        window.__userInitiatedConnection = false;
                         throw error;
                     }
                 }
@@ -380,7 +389,7 @@
                 return this.ethereumClient.getProvider();
             }
             
-            return this.provider || window.ethereum;
+            return this.provider || window.__safeEthereumProvider || window.ethereum;
         }
 
         // Переключение сети
@@ -389,8 +398,9 @@
                 if (this.ethereumClient) {
                     await this.ethereumClient.switchNetwork({ chainId });
                     return true;
-                } else if (window.ethereum) {
-                    await window.ethereum.request({
+                } else if (window.__safeEthereumProvider || window.ethereum) {
+                    const provider = window.__safeEthereumProvider || window.ethereum;
+                    await provider.request({
                         method: 'wallet_switchEthereumChain',
                         params: [{ chainId: `0x${chainId.toString(16)}` }]
                     });

@@ -33,10 +33,6 @@
         })();
     </script>
     
-    <!-- Main libraries for Ethereum and web3 -->
-    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.8.0/web3.min.js"></script>
-    
     <!-- Дополнительная защита от Trust Wallet -->
     <script>
         (function() {
@@ -70,12 +66,17 @@
         })();
     </script>
     
-    <!-- Fix for ethereum getter issues and Web3Modal compatibility -->
+    <!-- First load ethers.js and other core libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.8.0/web3.min.js"></script>
+    
+    <!-- Fix for ethereum getter issues -->
     <script src="web3modal-fix.js"></script>
     
-    <!-- Web3Modal dependencies v2.7.1 -->
+    <!-- Then load Web3Modal dependencies after our fix -->
     <script src="https://unpkg.com/@web3modal/ethereum@2.7.1/dist/cdn.js"></script>
     <script src="https://unpkg.com/@web3modal/html@2.7.1/dist/cdn.js"></script>
+    
     <script>
         // Setup global aliases for Web3Modal components
         window.addEventListener('DOMContentLoaded', () => {
@@ -110,7 +111,7 @@
         });
     </script>
     
-    <!-- Seismic SDK and configuration -->
+    <!-- Finally load Seismic SDK and application code -->
     <script src="seismic-config.js"></script>
     <script src="seismic-sdk.js"></script>
     <script src="wallet-connector.js"></script>

@@ -11,24 +11,61 @@
     <!-- Favicon -->
     <link rel="shortcut icon" href="data:image/x-icon;base64,AAABAAEAEBAAAAEAIABoBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8AVVVVB1VVVQdVVVUH////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8AVVVVBzw8ZzM7PGQzVVVVB////wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////ADw9Zi09PZ7/PT2e/zw8ZC3///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AFVVVQc8PWYtPT2e/z09nv88PGQtVVVVB////wD///8A////AP///wD///8A////AP///wD///8A////AP///wBVVVUHPD1mLT09nv89PZ7/PDxkLVVVVQf///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////ADw9Zi09PZ7/PT2e/zw8ZC3///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wBVVVUHPDxnMzs8ZDNVVVUHVVVVBzw8ZDNVVVUHVVVVBzw8ZDNVVVUHVVVVBzw8ZDNVVVUHPDxkM1VVVQZVVVUHVVVVB1VVVQdVVVUHVVVVB1VVVQc8PGQzPDxkM1VVVQdVVVUHPDxkM1VVVQdVVVVBzw8ZDNVVVUf///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A" type="image/x-icon">
     
+    <!-- Ethereum setter polyfill - fixes "Cannot set property ethereum which has only a getter" -->
+    <script>
+        (function() {
+            // Save the original defineProperty method
+            const originalDefineProperty = Object.defineProperty;
+            window.__originalDefineProperty = originalDefineProperty;
+            
+            // Patch Object.defineProperty to intercept ethereum setter attempts
+            Object.defineProperty = function(obj, prop, descriptor) {
+                // If trying to set window.ethereum, just return the object without setting
+                if (obj === window && prop === 'ethereum') {
+                    console.log("[Polyfill] Prevented attempt to set window.ethereum");
+                    return obj;
+                }
+                // Otherwise use the original method
+                return originalDefineProperty.call(this, obj, prop, descriptor);
+            };
+            
+            console.log("[Polyfill] Ethereum setter protection enabled");
+        })();
+    </script>
+    
     <!-- Main libraries for Ethereum and web3 -->
     <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.8.0/web3.min.js"></script>
     
-    <!-- Web3Modal v2 dependencies -->
-    <script src="https://unpkg.com/@web3modal/ethereum@2.7.1/dist/esm.js" type="module"></script>
-    <script src="https://unpkg.com/@web3modal/html@2.7.1/dist/esm.js" type="module"></script>
+    <!-- Fix for ethereum getter issues -->
+    <script src="web3modal-fix.js"></script>
+    
+    <!-- Web3Modal dependencies - обновлены на более новые UMD версии -->
+    <script src="https://unpkg.com/@web3modal/wagmi@3.0.2/dist/index.umd.js"></script>
+    <script src="https://unpkg.com/@web3modal/ui@3.0.2/dist/index.umd.js"></script>
+    <script src="https://unpkg.com/@web3modal/core@3.0.2/dist/index.umd.js"></script>
     <script>
-        // Алиасы для модульных Web3Modal скриптов
+        // Делаем алиасы для Web3Modal глобально доступными
         window.addEventListener('load', () => {
-            import("https://unpkg.com/@web3modal/ethereum@2.7.1/dist/esm.js").then(module => {
-                window.W3M = module;
-            });
-            import("https://unpkg.com/@web3modal/html@2.7.1/dist/esm.js").then(module => {
-                window.W3M_HTML = module;
-            });
+            try {
+                // Новые алиасы для UMD версий
+                if (window.Web3ModalWagmi) {
+                    window.W3M = window.Web3ModalWagmi;
+                }
+                if (window.Web3ModalUI) {
+                    window.W3M_HTML = window.Web3ModalUI;
+                }
+                console.log("Web3Modal библиотеки загружены успешно");
+            } catch (error) {
+                console.error("Ошибка инициализации Web3Modal библиотек:", error);
+            }
         });
     </script>
+    
+    <!-- Seismic SDK and configuration -->
+    <script src="seismic-config.js"></script>
+    <script src="seismic-sdk.js"></script>
+    <script src="wallet-connector.js"></script>
 </head>
 <body>
     <header class="bg-dark text-white p-3">
@@ -344,9 +381,6 @@
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="seismic-config.js"></script>
-    <script src="wallet-connector.js"></script>
-    <script src="seismic-sdk.js"></script>
     <script src="app.js"></script>
 </body>
 </html> 

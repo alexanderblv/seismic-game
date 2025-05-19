@@ -186,33 +186,67 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     }
                     
-                    // Load from CDN instead of local files - using older versions for compatibility
+                    // Load the first provider, then try alternatives if that fails
                     loadScript('https://unpkg.com/@walletconnect/ethereum-provider@1.8.0/dist/umd/index.min.js')
-                        .then(() => loadScript('https://unpkg.com/@walletconnect/web3modal@1.9.0/dist/index.min.js'))
+                        .then(() => loadScript('https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js'))
+                        .then(() => loadScript('https://cdn.jsdelivr.net/npm/web3modal@1.9.9/dist/index.min.js'))
                         .then(() => {
-                            // Check if libraries loaded correctly
-                            if (window.WalletConnectProvider || window.WalletConnect) {
-                                console.log('WalletConnect Provider loaded dynamically');
+                            console.log('All WalletConnect libraries loaded successfully');
+                            
+                            // WalletConnectProvider (the original or our backup)
+                            const provider = window.WalletConnectProvider || window.WalletConnect;
+                            if (provider) {
+                                console.log('Using WalletConnectProvider:', provider);
+                                // Make it available as expected
+                                window.WalletConnectProvider = provider;
                             } else {
-                                console.error('WalletConnect Provider not found after dynamic loading');
+                                console.warn('No WalletConnectProvider available');
                             }
                             
+                            // Web3Modal
                             if (window.Web3Modal) {
-                                console.log('Web3Modal loaded dynamically');
+                                console.log('Web3Modal loaded successfully');
+                                
+                                // Make it available through the expected interfaces
+                                window.EthereumProvider = window.WalletConnectProvider;
+                                window.Web3ModalStandalone = {
+                                    Web3Modal: window.Web3Modal
+                                };
                             } else {
-                                console.error('Web3Modal not found after dynamic loading');
+                                console.warn('Web3Modal not found after loading');
                             }
                             
-                            // Assign to expected variables
-                            window.EthereumProvider = window.WalletConnectProvider;
-                            window.Web3ModalStandalone = { 
-                                Web3Modal: window.Web3Modal
-                            };
-                            
-                            // Resolve regardless of whether we found the components
                             resolve();
                         })
-                        .catch(reject);
+                        .catch(error => {
+                            console.error('Error loading WalletConnect libraries:', error);
+                            
+                            // Try one more alternative CDN as last resort
+                            console.log('Trying alternative CDN sources...');
+                            
+                            Promise.all([
+                                loadScript('https://cdn.jsdelivr.net/gh/WalletConnect/walletconnect-monorepo@1.8.0/packages/providers/web3-provider/dist/umd/index.min.js'),
+                                loadScript('https://cdn.jsdelivr.net/gh/Web3Modal/web3modal@1.9.8/dist/index.js')
+                            ]).then(() => {
+                                console.log('Loaded alternative WalletConnect libraries');
+                                
+                                // Set up globals from alternative sources
+                                if (window.WalletConnectProvider) {
+                                    window.EthereumProvider = window.WalletConnectProvider;
+                                }
+                                
+                                if (window.Web3Modal) {
+                                    window.Web3ModalStandalone = {
+                                        Web3Modal: window.Web3Modal
+                                    };
+                                }
+                                
+                                resolve();
+                            }).catch(finalError => {
+                                console.error('Failed to load all alternative sources:', finalError);
+                                reject(finalError);
+                            });
+                        });
                 });
             }
             

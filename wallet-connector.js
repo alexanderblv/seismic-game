@@ -115,7 +115,7 @@
                     });
 
                     const wagmiConfig = {
-                        autoConnect: true,
+                        autoConnect: false,
                         connectors,
                         publicClient: w3mProvider({ projectId, chains })
                     };
@@ -128,13 +128,9 @@
                             "--w3m-font-family": "system-ui, sans-serif",
                             "--w3m-accent-color": "#3B82F6"
                         },
-                        desktopWallets: ["browser", "coinbaseWallet", "metaMask", "rabby", "trust", "zerion"],
-                        mobileWallets: ["argent", "brave", "ledger", "imToken", "metamask", "rainbow", "trust"],
-                        explorerRecommendedWalletIds: [
-                            "c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96", // MetaMask
-                            "4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0", // Trust
-                            "fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa", // Coinbase
-                        ],
+                        desktopWallets: ["metaMask", "coinbaseWallet", "browser", "rabby", "trust", "zerion"],
+                        mobileWallets: ["metamask", "rainbow", "argent", "brave", "ledger", "imToken", "trust"],
+                        explorerRecommendedWalletIds: [],
                         enableAnalytics: true,
                         enableNetworkView: true,
                         enableAccountView: true

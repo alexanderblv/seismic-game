@@ -83,6 +83,29 @@
             const originalDefineProperty = Object.defineProperty;
             window.__originalDefineProperty = originalDefineProperty;
             
+            // Create a proxy for window.ethereum that can be used safely
+            try {
+                const ethereumDescriptor = Object.getOwnPropertyDescriptor(window, 'ethereum');
+                if (ethereumDescriptor && ethereumDescriptor.get && !ethereumDescriptor.set) {
+                    // Save original ethereum getter
+                    const originalGetEthereum = ethereumDescriptor.get;
+                    
+                    // Create a safe proxy for ethereum
+                    window.__safeEthereumProvider = new Proxy({}, {
+                        get: function(target, prop) {
+                            const ethereum = originalGetEthereum.call(window);
+                            if (ethereum && typeof ethereum === 'object') {
+                                return ethereum[prop];
+                            }
+                            return undefined;
+                        },
+                        set: function() { return true; } // Silently ignore sets
+                    });
+                }
+            } catch (e) {
+                console.warn("Failed to create ethereum proxy:", e);
+            }
+            
             // Patch Object.defineProperty to intercept ethereum setter attempts
             Object.defineProperty = function(obj, prop, descriptor) {
                 // If trying to set window.ethereum, just return the object without setting
@@ -93,6 +116,19 @@
                 // Otherwise use the original method
                 return originalDefineProperty.call(this, obj, prop, descriptor);
             };
+            
+            // Also patch the direct assignment
+            try {
+                const windowDescriptor = Object.getOwnPropertyDescriptor(window, 'ethereum');
+                if (windowDescriptor) {
+                    Object.defineProperty(window, 'ethereum', {
+                        get: windowDescriptor.get,
+                        configurable: true
+                    });
+                }
+            } catch (e) {
+                console.warn("[Polyfill] Could not patch window.ethereum descriptor:", e);
+            }
             
             console.log("[Polyfill] Ethereum setter protection enabled");
         })();
@@ -107,15 +143,11 @@
     
     <!-- Load Web3Modal dependencies with integrity checks -->
     <script 
-        src="https://unpkg.com/@web3modal/ethereum@2.7.1/dist/cdn.js"
-        integrity="sha384-UkXDCC8YVAjl/HZtGbKqaFLf4kP51xBX73PnzeMf2cPOdJJNt3QMF5CqA92QVpWZ"
-        crossorigin="anonymous"
+        src="https://unpkg.com/@web3modal/ethereum@2.4.7/dist/cdn.js"
         onerror="console.error('Failed to load @web3modal/ethereum')">
     </script>
     <script 
-        src="https://unpkg.com/@web3modal/html@2.7.1/dist/cdn.js"
-        integrity="sha384-nhFDQCkRRz3jYlLKQrMTiVJJ3cXzrGPzWXD1KPMWFMXmBVqG8BrCCbSKx2DliJEs"
-        crossorigin="anonymous"
+        src="https://unpkg.com/@web3modal/html@2.4.7/dist/cdn.js"
         onerror="console.error('Failed to load @web3modal/html')">
     </script>
     

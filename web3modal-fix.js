@@ -74,11 +74,11 @@
             
             // Загружаем библиотеки если их нет
             const ethereumScript = document.createElement('script');
-            ethereumScript.src = 'https://unpkg.com/@web3modal/ethereum@2.7.1/dist/cdn.js';
+            ethereumScript.src = 'https://unpkg.com/@web3modal/ethereum@2.4.7/dist/cdn.js';
             ethereumScript.async = true;
             
             const htmlScript = document.createElement('script');
-            htmlScript.src = 'https://unpkg.com/@web3modal/html@2.7.1/dist/cdn.js';
+            htmlScript.src = 'https://unpkg.com/@web3modal/html@2.4.7/dist/cdn.js';
             htmlScript.async = true;
             
             // Ждем загрузки обеих библиотек
@@ -105,6 +105,9 @@
             return false;
         }
     }
+    
+    // Expose the function globally
+    window.loadWeb3ModalDependencies = loadWeb3ModalDependencies;
     
     /**
      * Функция для создания безопасного провайдера Ethereum

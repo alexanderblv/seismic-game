@@ -60,29 +60,63 @@
                 const w3mProvider = window.W3M?.w3mProvider || window.Web3ModalEthereum?.w3mProvider;
                 
                 if (!Web3Modal || !EthereumClient || !w3mConnectors || !w3mProvider) {
-                    console.error("Web3Modal компоненты не обнаружены");
+                    console.warn("Web3Modal компоненты не обнаружены: пробуем загрузить их вручную");
                     
-                    // Fallback на safe provider или basic provider
-                    if (window.__safeEthereumProvider || window.ethereum) {
-                        console.log("Fallback на базовый provider");
-                        // Используем safe provider если доступен
-                        this.provider = window.__safeEthereumProvider || window.ethereum;
-                        
+                    // Attempt to load dependencies one more time
+                    if (typeof window.loadWeb3ModalDependencies === 'function') {
                         try {
-                            const accounts = await this.provider.request({ method: 'eth_accounts' });
-                            if (accounts.length > 0) {
-                                this.selectedAccount = accounts[0];
-                                this._emitEvent('accountChanged', { account: this.selectedAccount });
+                            await window.loadWeb3ModalDependencies();
+                            
+                            // Check again after loading
+                            const Web3Modal = window.W3M_HTML?.Web3Modal || window.Web3ModalHtml?.Web3Modal;
+                            const EthereumClient = window.W3M?.EthereumClient || window.Web3ModalEthereum?.EthereumClient;
+                            const w3mConnectors = window.W3M?.w3mConnectors || window.Web3ModalEthereum?.w3mConnectors;
+                            const w3mProvider = window.W3M?.w3mProvider || window.Web3ModalEthereum?.w3mProvider;
+                            
+                            if (!Web3Modal || !EthereumClient || !w3mConnectors || !w3mProvider) {
+                                throw new Error("Web3Modal components still not available after loading");
                             }
-                        } catch (error) {
-                            console.warn("Ошибка при проверке аккаунтов:", error);
+                            
+                            // Continue with initialization
+                            console.log("Web3Modal dependencies loaded manually successfully");
+                        } catch (loadError) {
+                            console.error("Failed to manually load Web3Modal dependencies:", loadError);
+                            
+                            // Fallback to basic provider
+                            if (window.__safeEthereumProvider || window.ethereum) {
+                                console.log("Fallback на базовый provider после ошибки загрузки");
+                                this.provider = window.__safeEthereumProvider || window.ethereum;
+                                this.initialized = true;
+                                return true;
+                            }
+                            
+                            throw loadError;
+                        }
+                    } else {
+                        console.error("Web3Modal компоненты не обнаружены и функция загрузки недоступна");
+                        
+                        // Fallback на safe provider или basic provider
+                        if (window.__safeEthereumProvider || window.ethereum) {
+                            console.log("Fallback на базовый provider");
+                            // Используем safe provider если доступен
+                            this.provider = window.__safeEthereumProvider || window.ethereum;
+                            
+                            try {
+                                const accounts = await this.provider.request({ method: 'eth_accounts' });
+                                if (accounts.length > 0) {
+                                    this.selectedAccount = accounts[0];
+                                    this._emitEvent('accountChanged', { account: this.selectedAccount });
+                                }
+                            } catch (error) {
+                                console.warn("Ошибка при проверке аккаунтов:", error);
+                            }
+                            
+                            this.initialized = true;
+                            return true;
                         }
                         
-                        this.initialized = true;
-                        return true;
+                        throw new Error("Web3Modal компоненты не обнаружены и нет fallback");
                     }
-                    
-                    throw new Error("Web3Modal компоненты не обнаружены и нет fallback");
                 }
                 
                 // Получаем конфигурацию сети

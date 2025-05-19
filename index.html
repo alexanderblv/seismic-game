@@ -52,8 +52,14 @@
     <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.8.0/web3.min.js"></script>
     
-    <!-- WalletConnect SDK v3 -->
-    <script src="https://unpkg.com/@walletconnect/web3modal"></script>
+    <!-- WalletConnect SDK v2 -->
+    <script>
+        // Define namespaces for Web3Modal components
+        window.EthereumProvider = window.EthereumProvider || {};
+        window.Web3ModalStandalone = window.Web3ModalStandalone || {};
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.10.0/dist/umd/ethereum-provider.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@web3modal/standalone@2.4.3/dist/index.umd.js"></script>
     
     <!-- Seismic SDK and application code -->
     <script src="seismic-config.js"></script>

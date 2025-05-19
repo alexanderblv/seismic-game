@@ -169,6 +169,14 @@ document.addEventListener('DOMContentLoaded', () => {
             
             console.log('SDK initialized');
             
+            // Проверяем наличие необходимых компонентов WalletConnect
+            if (!window.EthereumProvider || !window.Web3ModalStandalone) {
+                console.error('WalletConnect components not loaded properly. Make sure EthereumProvider and Web3ModalStandalone are available.');
+                showError('Failed to initialize wallet connector. Please check your internet connection and try again.');
+                loadingOverlay.classList.add('d-none');
+                return;
+            }
+            
             // Инициализация WalletConnector с настройками из seismicConfig
             if (window.WalletConnector) {
                 try {

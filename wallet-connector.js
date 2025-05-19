@@ -22,6 +22,15 @@
             try {
                 console.log("Инициализация WalletConnect...");
                 
+                // Проверяем доступность необходимых компонентов
+                if (!window.EthereumProvider || !window.EthereumProvider.init) {
+                    throw new Error("EthereumProvider не загружен. Убедитесь, что скрипты загружены правильно.");
+                }
+                
+                if (!window.Web3ModalStandalone || !window.Web3ModalStandalone.Web3Modal) {
+                    throw new Error("Web3ModalStandalone не загружен. Убедитесь, что скрипты загружены правильно.");
+                }
+                
                 // Получаем конфигурацию сети
                 const networkConfig = window.seismicConfig?.network || config.network;
                 if (!networkConfig) {
@@ -31,56 +40,45 @@
                 // ID проекта WalletConnect
                 const projectId = config.projectId || window.seismicConfig?.walletConnect?.projectId || "a85ac05209955cfd18fbe7c0fd018f23";
                 
-                // Создаем клиент WalletConnect
-                this.web3Modal = window.Web3Modal.createWeb3Modal({
+                // Настройка ethereum provider через WalletConnect
+                const ethereumProvider = await window.EthereumProvider.init({
                     projectId,
-                    themeMode: "dark",
-                    themeVariables: {
-                        "--w3m-font-family": "system-ui, sans-serif",
-                        "--w3m-accent-color": "#3B82F6",
-                        "--w3m-background-color": "#000000",
-                        "--w3m-container-border-radius": "8px",
-                        "--w3m-wallet-icon-border-radius": "8px"
-                    },
-                    explorerRecommendedWalletIds: "NONE",
-                    // Определяем порядок кошельков как на скриншоте
-                    featuredWalletIds: [
-                        "ecc4036f814562b41a5268adc86270fba1365471402006302e70169465b7ac18", // WalletConnect
-                        "dceb063851b1833cbb209e3717a0a0b06bf3fb500fe9db8cd3a553e4b1d02137", // Rabby
-                        "ef333840daf915aafdc4a004525502d6d49d77bd9c65e0642dbaefb3c2893bef", // Trust Wallet
-                        "c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96", // MetaMask
-                        "4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0", // Coinbase
-                    ],
-                    // Включаем кнопку "Все кошельки"
-                    includeWalletIds: "ALL",
-                    // Включаем QR код для WalletConnect
-                    enableWalletConnect: true,
-                    // Определяем цепи для подключения
-                    chains: [{
-                        id: networkConfig.chainId,
-                        name: networkConfig.name || "Seismic Network",
-                        rpcUrl: networkConfig.rpcUrl
-                    }],
-                    // Используем Web3Modal версии 3
-                    version: "3"
+                    chains: [networkConfig.chainId],
+                    showQrModal: true,
+                    methods: ['eth_sendTransaction', 'personal_sign'],
+                    events: ['chainChanged', 'accountsChanged']
                 });
                 
-                // Подписываемся на события WalletConnect
-                window.Web3Modal.subscribeEvents((event) => {
-                    if (event.name === "ACCOUNT_CONNECTED") {
-                        this.selectedAccount = event.data.address;
-                        this.chainId = event.data.chainId;
+                // Сохраняем провайдер
+                this.ethereum = ethereumProvider;
+                
+                // Создаем модальное окно Web3Modal
+                this.web3Modal = new window.Web3ModalStandalone.Web3Modal({
+                    projectId,
+                    themeMode: 'dark',
+                    walletConnectVersion: 2
+                });
+                
+                // Подписываемся на события провайдера
+                this.ethereum.on('accountsChanged', (accounts) => {
+                    if (accounts && accounts.length > 0) {
+                        this.selectedAccount = accounts[0];
                         this._emitEvent('walletConnected', { account: this.selectedAccount });
-                    } 
-                    else if (event.name === "ACCOUNT_DISCONNECTED") {
+                    } else {
                         this.selectedAccount = null;
-                        this.chainId = null;
                         this._emitEvent('walletDisconnected');
                     }
-                    else if (event.name === "CHAIN_CHANGED") {
-                        this.chainId = event.data.chainId;
-                        this._emitEvent('networkChanged', { chainId: this.chainId });
-                    }
+                });
+                
+                this.ethereum.on('chainChanged', (chainId) => {
+                    this.chainId = chainId;
+                    this._emitEvent('networkChanged', { chainId: this.chainId });
+                });
+                
+                this.ethereum.on('disconnect', () => {
+                    this.selectedAccount = null;
+                    this.chainId = null;
+                    this._emitEvent('walletDisconnected');
                 });
 
                 this.initialized = true;
@@ -109,42 +107,26 @@
                     await this.initialize();
                 }
 
-                // Открываем модальное окно WalletConnect
-                if (this.web3Modal) {
-                    this.web3Modal.open();
-                    
-                    // Мы просто открываем модальное окно и ждем события подключения
-                    return new Promise((resolve) => {
-                        // Функция для проверки подключения каждые 500мс
-                        const interval = setInterval(() => {
-                            if (this.selectedAccount) {
-                                clearInterval(interval);
-                                this.isConnecting = false;
-                                resolve(true);
-                            }
-                        }, 500);
+                // Используем WalletConnect провайдер
+                if (this.ethereum) {
+                    try {
+                        await this.ethereum.enable();
+                        const accounts = await this.ethereum.request({ method: 'eth_accounts' });
                         
-                        // Если модальное окно закрылось
-                        const modalCloseListener = () => {
-                            clearInterval(interval);
+                        if (accounts && accounts.length > 0) {
+                            this.selectedAccount = accounts[0];
+                            this.chainId = await this.ethereum.request({ method: 'eth_chainId' });
+                            this._emitEvent('walletConnected', { account: this.selectedAccount });
                             this.isConnecting = false;
-                            resolve(!!this.selectedAccount);
-                        };
-                        
-                        // Удаляем слушатель через 15 секунд (если не произошло подключение)
-                        setTimeout(() => {
-                            document.removeEventListener('w3m-modal-close', modalCloseListener);
-                            clearInterval(interval);
-                            this.isConnecting = false;
-                            resolve(!!this.selectedAccount);
-                        }, 15000);
-                        
-                        // Добавляем слушатель на закрытие модального окна
-                        document.addEventListener('w3m-modal-close', modalCloseListener, { once: true });
-                    });
+                            return true;
+                        }
+                    } catch (error) {
+                        console.error("Ошибка при подключении через WalletConnect:", error);
+                        throw error;
+                    }
                 }
                 
-                // Если Web3Modal не инициализирован, пробуем использовать window.ethereum
+                // Если WalletConnect не сработал, проверяем window.ethereum
                 if (window.ethereum) {
                     try {
                         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
@@ -173,9 +155,9 @@
          */
         async disconnect() {
             try {
-                if (this.web3Modal) {
-                    // Отключаем кошелек через WalletConnect
-                    await window.Web3Modal.disconnect();
+                if (this.ethereum) {
+                    // Отключаем WalletConnect провайдер
+                    await this.ethereum.disconnect();
                     this.selectedAccount = null;
                     this._emitEvent('walletDisconnected');
                     return true;
@@ -211,7 +193,7 @@
          * Получение провайдера
          */
         getProvider() {
-            return window.ethereum || null;
+            return this.ethereum || window.ethereum || null;
         }
 
         /**

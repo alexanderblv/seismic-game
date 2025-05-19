@@ -191,8 +191,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     const hasGetter = descriptor && descriptor.get;
                     
                     // Load necessary libraries in sequence
-                    loadScript('https://unpkg.com/@walletconnect/ethereum-provider@2.10.0/dist/umd/index.min.js')
-                        .then(() => loadScript('https://unpkg.com/@web3modal/standalone@2.4.3/dist/index.umd.js'))
+                    loadScript('libs/ethereum-provider.min.js')
+                        .then(() => loadScript('libs/web3modal.min.js'))
                         .then(() => {
                             // Check if libraries loaded correctly
                             if (window.WalletConnectEthereumProvider) {

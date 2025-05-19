@@ -456,22 +456,36 @@
                     "--w3m-font-family": "system-ui, sans-serif",
                     "--w3m-accent-color": "#3B82F6",
                     "--w3m-background-color": "#000000",
-                    "--w3m-container-border-radius": "8px"
+                    "--w3m-container-border-radius": "8px",
+                    "--w3m-wallet-icon-border-radius": "8px",
+                    "--w3m-text-medium-regular-size": "16px",
+                    "--w3m-button-border-radius": "8px"
                 },
-                // Отображаем все доступные кошельки
-                explorerRecommendedWalletIds: "ALL",
-                // Не исключаем Trust Wallet, так как он показан на скриншоте
-                includeWalletIds: [
+                // Явно указываем порядок кошельков как на скриншоте
+                explorerRecommendedWalletIds: "NONE",
+                // Определяем список кошельков в том порядке, который нужен
+                featuredWalletIds: [
+                    "ecc4036f814562b41a5268adc86270fba1365471402006302e70169465b7ac18", // WalletConnect
+                    "dceb063851b1833cbb209e3717a0a0b06bf3fb500fe9db8cd3a553e4b1d02137", // Rabby
+                    "ef333840daf915aafdc4a004525502d6d49d77bd9c65e0642dbaefb3c2893bef", // Trust Wallet
                     "c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96", // MetaMask
                     "4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0", // Coinbase
-                    "ef333840daf915aafdc4a004525502d6d49d77bd9c65e0642dbaefb3c2893bef", // Trust Wallet
-                    "dceb063851b1833cbb209e3717a0a0b06bf3fb500fe9db8cd3a553e4b1d02137", // Rabby
-                    "ecc4036f814562b41a5268adc86270fba1365471402006302e70169465b7ac18", // WalletConnect
                 ],
-                // Позволяем отображать QR-код для подключения
+                // Включаем кнопку "Все кошельки"
+                includeWalletIds: "ALL",
+                // Включаем QR код для WalletConnect
                 enableWalletConnect: true,
-                // Отображаем все кошельки в списке
-                showAllWallets: true
+                // Настройки QR кода
+                qrModalOptions: {
+                    themeMode: "dark",
+                    displayQRCode: true
+                },
+                // Настройки списка кошельков
+                modalOptions: {
+                    enableExplorer: true,
+                    explorerRecommendedWalletIds: "ALL",
+                    enableWalletConnect: true
+                }
             });
 
             // Настройка обработчиков событий

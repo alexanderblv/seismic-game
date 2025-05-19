@@ -116,9 +116,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (wallet) {
                     // Update UI to show connected state
-                    connectWalletBtn.textContent = 'Connected';
-                    connectWalletBtn.classList.remove('btn-primary');
-                    connectWalletBtn.classList.add('btn-success');
+                    connectWalletBtn.classList.add('d-none');
+                    document.getElementById('disconnect-wallet').classList.remove('d-none');
                     
                     // Show user address
                     const shortAddress = `${wallet.address.substring(0, 6)}...${wallet.address.substring(wallet.address.length - 4)}`;
@@ -315,9 +314,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Вспомогательная функция для обновления UI после подключения кошелька
     function updateUIForConnectedWallet(wallet) {
         // Update UI to show connected state
-        connectWalletBtn.textContent = 'Connected';
-        connectWalletBtn.classList.remove('btn-primary');
-        connectWalletBtn.classList.add('btn-success');
+        connectWalletBtn.classList.add('d-none');
+        document.getElementById('disconnect-wallet').classList.remove('d-none');
         
         // Show user address
         const shortAddress = `${wallet.address.substring(0, 6)}...${wallet.address.substring(wallet.address.length - 4)}`;
@@ -1193,8 +1191,52 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 5000);
     }
     
+    // Функция для отключения кошелька
+    async function disconnectWallet() {
+        try {
+            loadingOverlay.classList.remove('d-none');
+            loadingText.textContent = 'Disconnecting wallet...';
+            
+            // Отключаем кошелек через SDK
+            if (seismic.wallet) {
+                await seismic.disconnect();
+            }
+            
+            // Также отключаем через WalletConnector если доступен
+            if (window.WalletConnector) {
+                await window.WalletConnector.disconnect();
+            }
+            
+            // Обновляем UI
+            connectWalletBtn.classList.remove('d-none');
+            document.getElementById('disconnect-wallet').classList.add('d-none');
+            walletAddress.textContent = 'Connect your wallet';
+            walletAddress.classList.add('d-none');
+            userAddressInput.value = '';
+            userBalanceInput.value = '';
+            
+            // Обновляем статус сети
+            networkBadge.textContent = 'Not Connected';
+            networkBadge.classList.remove('bg-success');
+            networkBadge.classList.add('bg-secondary');
+            
+            // Обновляем статус подключения
+            connectionStatus.textContent = 'Not Connected';
+            connectionStatus.classList.remove('bg-success');
+            connectionStatus.classList.add('bg-secondary');
+            
+            console.log('Wallet disconnected successfully');
+        } catch (error) {
+            console.error('Failed to disconnect wallet:', error);
+            showError('Failed to disconnect wallet. Please try again.');
+        } finally {
+            loadingOverlay.classList.add('d-none');
+        }
+    }
+
     // Event listeners
     connectWalletBtn.addEventListener('click', connectWallet);
+    document.getElementById('disconnect-wallet').addEventListener('click', disconnectWallet);
     addNetworkBtn.addEventListener('click', addNetwork);
     refreshBalanceBtn.addEventListener('click', refreshBalance);
     copyAddressBtn.addEventListener('click', copyAddress);

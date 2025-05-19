@@ -90,33 +90,29 @@
                             const w3mProvider = window.W3M?.w3mProvider || window.Web3ModalEthereum?.w3mProvider;
                             
                             if (!Web3Modal || !EthereumClient || !w3mConnectors || !w3mProvider) {
-                                throw new Error("Web3Modal components still not available after loading");
-                            }
-                            
-                            // Continue with initialization
+                                console.log("Web3Modal components still not available after loading, falling back to direct provider");
+                                // Instead of throwing, we'll use the fallback method below
+                            } else {
+                                // Continue with initialization if components are available
                             console.log("Web3Modal dependencies loaded manually successfully");
-                        } catch (loadError) {
-                            console.error("Failed to manually load Web3Modal dependencies:", loadError);
-                            
-                            // Fallback to safe provider
-                            if (window.__safeEthereumProvider || window.ethereum) {
-                                console.log("Fallback на базовый provider после ошибки загрузки");
-                                this.provider = window.__safeEthereumProvider || window.ethereum;
-                                this.initialized = true;
-                                return true;
+                                // Continue initialization...
+                                
+                                // Code would continue here for Web3Modal setup
+                                return this._initializeWithWeb3Modal(config, {
+                                    Web3Modal, EthereumClient, w3mConnectors, w3mProvider
+                                });
                             }
-                            
-                            throw loadError;
+                        } catch (error) {
+                            console.error("Failed to manually load Web3Modal dependencies:", error);
+                            // Instead of throwing, we'll use the fallback method below
                         }
-                    } else {
-                        console.error("Web3Modal компоненты не обнаружены и функция загрузки недоступна");
+                    }
                         
                         // Fallback на safe provider или basic provider
-                        if (window.__safeEthereumProvider || window.ethereum) {
-                            console.log("Fallback на базовый provider");
-                            // Всегда предпочитаем safe provider если доступен
+                    console.log("Fallback на базовый provider после ошибки");
                             this.provider = window.__safeEthereumProvider || window.ethereum;
                             
+                    if (this.provider) {
                             try {
                                 const accounts = await this.provider.request({ method: 'eth_accounts' });
                                 if (accounts.length > 0) {
@@ -132,119 +128,12 @@
                         }
                         
                         throw new Error("Web3Modal компоненты не обнаружены и нет fallback");
+                } else {
+                    // Web3Modal components are available, continue with standard initialization
+                    return this._initializeWithWeb3Modal(config, {
+                        Web3Modal, EthereumClient, w3mConnectors, w3mProvider
+                    });
                     }
-                }
-                
-                // Получаем конфигурацию сети
-                const networkConfig = window.seismicConfig && window.seismicConfig.network 
-                    ? window.seismicConfig.network
-                    : config.network;
-
-                if (!networkConfig) {
-                    throw new Error("Не указана конфигурация сети");
-                }
-
-                // ID проекта WalletConnect
-                const projectId = config.projectId || window.seismicConfig?.walletConnect?.projectId || "a85ac05209955cfd18fbe7c0fd018f23";
-                
-                if (!projectId) {
-                    throw new Error("Не указан projectId для WalletConnect");
-                }
-
-                // Определение цепи
-                const chains = [
-                    {
-                        id: networkConfig.chainId,
-                        name: networkConfig.name || "Seismic Network",
-                        network: networkConfig.network || "seismic",
-                        nativeCurrency: networkConfig.nativeCurrency || {
-                            name: "Ether",
-                            symbol: "ETH",
-                            decimals: 18
-                        },
-                        rpcUrls: {
-                            default: { http: [networkConfig.rpcUrl] },
-                            public: { http: [networkConfig.rpcUrl] }
-                        }
-                    }
-                ];
-
-                // Создаем конфигурацию соединителей
-                const connectors = w3mConnectors({ 
-                    projectId, 
-                    chains, 
-                    version: "2" 
-                });
-
-                // Создаем конфигурацию wagmi
-                const wagmiConfig = {
-                    autoConnect: false,
-                    connectors,
-                    publicClient: w3mProvider({ projectId, chains })
-                };
-
-                // Создаем клиент Ethereum
-                this.ethereumClient = new EthereumClient(wagmiConfig, chains);
-                
-                // Создаем экземпляр Web3Modal
-                this.web3Modal = new Web3Modal({
-                    projectId,
-                    themeMode: "light",
-                    themeVariables: {
-                        "--w3m-font-family": "system-ui, sans-serif",
-                        "--w3m-accent-color": "#3B82F6"
-                    },
-                    // Принудительно включаем выбор из всех доступных кошельков 
-                    explorerRecommendedWalletIds: "ALL",
-                    excludeWalletIds: ["trustwallet"], // Исключаем Trust Wallet из списка
-                    includeWalletIds: ["metaMask", "coinbaseWallet"], // Явно указываем приоритетные кошельки
-                    // Приоритетные кошельки для десктопа (Trust Wallet исключен)
-                    desktopWallets: [
-                        "metamask",
-                        "coinbase",
-                        "rabby",
-                        "brave",
-                        "zerion"
-                    ],
-                    // Приоритетные кошельки для мобильных (Trust Wallet исключен)
-                    mobileWallets: [
-                        "metamask",
-                        "rainbow",
-                        "argent", 
-                        "brave",
-                        "ledger",
-                        "imToken"
-                    ],
-                    // Дополнительные настройки для предотвращения автоподключения
-                    enableAnalytics: false,
-                    enableNetworkView: true,
-                    enableAccountView: true,
-                    // Принудительно отключаем автоматический выбор
-                    enableExplorer: true,
-                    enableWalletFeatures: ["explorer"]
-                }, this.ethereumClient);
-
-                // Настройка обработчиков событий
-                this.ethereumClient.watchAccount((account) => {
-                    if (account.address) {
-                        this.selectedAccount = account.address;
-                        this._emitEvent('accountChanged', { account: account.address });
-                    } else if (this.selectedAccount && !account.address) {
-                        this.selectedAccount = null;
-                        this._emitEvent('walletDisconnected');
-                    }
-                });
-
-                this.ethereumClient.watchNetwork((network) => {
-                    if (network.chain) {
-                        this.chainId = network.chain.id;
-                        this._emitEvent('networkChanged', { chainId: network.chain.id });
-                    }
-                });
-
-                this.initialized = true;
-                console.log("Web3Modal успешно инициализирован");
-                return true;
             } catch (error) {
                 console.error("Ошибка при инициализации Web3Modal:", error);
                 
@@ -504,7 +393,123 @@
             }
         }
 
-        // Генерация и отправка события
+        // Private method to initialize with Web3Modal components
+        async _initializeWithWeb3Modal(config, components) {
+            const { Web3Modal, EthereumClient, w3mConnectors, w3mProvider } = components;
+            
+            // Получаем конфигурацию сети
+            const networkConfig = window.seismicConfig && window.seismicConfig.network 
+                ? window.seismicConfig.network
+                : config.network;
+
+            if (!networkConfig) {
+                throw new Error("Не указана конфигурация сети");
+            }
+
+            // ID проекта WalletConnect
+            const projectId = config.projectId || window.seismicConfig?.walletConnect?.projectId || "a85ac05209955cfd18fbe7c0fd018f23";
+            
+            if (!projectId) {
+                throw new Error("Не указан projectId для WalletConnect");
+            }
+
+            // Определение цепи
+            const chains = [
+                {
+                    id: networkConfig.chainId,
+                    name: networkConfig.name || "Seismic Network",
+                    network: networkConfig.network || "seismic",
+                    nativeCurrency: networkConfig.nativeCurrency || {
+                        name: "Ether",
+                        symbol: "ETH",
+                        decimals: 18
+                    },
+                    rpcUrls: {
+                        default: { http: [networkConfig.rpcUrl] },
+                        public: { http: [networkConfig.rpcUrl] }
+                    }
+                }
+            ];
+
+            // Создаем конфигурацию соединителей
+            const connectors = w3mConnectors({ 
+                projectId, 
+                chains, 
+                version: "2" 
+            });
+
+            // Создаем конфигурацию wagmi
+            const wagmiConfig = {
+                autoConnect: false,
+                connectors,
+                publicClient: w3mProvider({ projectId, chains })
+            };
+
+            // Создаем клиент Ethereum
+            this.ethereumClient = new EthereumClient(wagmiConfig, chains);
+            
+            // Создаем экземпляр Web3Modal
+            this.web3Modal = new Web3Modal({
+                projectId,
+                themeMode: "light",
+                themeVariables: {
+                    "--w3m-font-family": "system-ui, sans-serif",
+                    "--w3m-accent-color": "#3B82F6"
+                },
+                // Принудительно включаем выбор из всех доступных кошельков 
+                explorerRecommendedWalletIds: "ALL",
+                excludeWalletIds: ["trustwallet"], // Исключаем Trust Wallet из списка
+                includeWalletIds: ["metaMask", "coinbaseWallet"], // Явно указываем приоритетные кошельки
+                // Приоритетные кошельки для десктопа (Trust Wallet исключен)
+                desktopWallets: [
+                    "metamask",
+                    "coinbase",
+                    "rabby",
+                    "brave",
+                    "zerion"
+                ],
+                // Приоритетные кошельки для мобильных (Trust Wallet исключен)
+                mobileWallets: [
+                    "metamask",
+                    "rainbow",
+                    "argent", 
+                    "brave",
+                    "ledger",
+                    "imToken"
+                ],
+                // Дополнительные настройки для предотвращения автоподключения
+                enableAnalytics: false,
+                enableNetworkView: true,
+                enableAccountView: true,
+                // Принудительно отключаем автоматический выбор
+                enableExplorer: true,
+                enableWalletFeatures: ["explorer"]
+            }, this.ethereumClient);
+
+            // Настройка обработчиков событий
+            this.ethereumClient.watchAccount((account) => {
+                if (account.address) {
+                    this.selectedAccount = account.address;
+                    this._emitEvent('accountChanged', { account: account.address });
+                } else if (this.selectedAccount && !account.address) {
+                    this.selectedAccount = null;
+                    this._emitEvent('walletDisconnected');
+                }
+            });
+
+            this.ethereumClient.watchNetwork((network) => {
+                if (network.chain) {
+                    this.chainId = network.chain.id;
+                    this._emitEvent('networkChanged', { chainId: network.chain.id });
+                }
+            });
+
+            this.initialized = true;
+            console.log("Web3Modal успешно инициализирован");
+            return true;
+        }
+
+        // Helper method to emit events
         _emitEvent(eventName, detail = {}) {
             const event = new CustomEvent(eventName, { 
                 detail,

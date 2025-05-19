@@ -339,106 +339,68 @@ document.addEventListener('DOMContentLoaded', () => {
         refreshBalance();
     }
 
-    // Connect wallet button handler
+    // Connect wallet button click handler
     async function connectWallet() {
         if (walletConnectInitiated) {
-            console.log('Wallet connection already in progress');
+            console.log('Wallet connection already in progress, please wait');
             return;
         }
         
         if (seismic.wallet) {
-            // Already connected - disconnect
-            console.log('Disconnecting wallet');
-            
-            try {
-                await seismic.disconnect();
-                
-                // Reset UI
-                connectWalletBtn.textContent = 'Connect Wallet';
-                connectWalletBtn.classList.remove('btn-success');
-                connectWalletBtn.classList.add('btn-primary');
-                
-                walletAddress.textContent = 'Connect your wallet';
-                walletAddress.classList.add('d-none');
-                
-                userAddressInput.value = '';
-                userBalanceInput.value = '';
-                
-                // Reset network status
-                networkBadge.textContent = 'Not Connected';
-                networkBadge.classList.remove('bg-success');
-                networkBadge.classList.add('bg-secondary');
-                
-                connectionStatus.textContent = 'Not Connected';
-                connectionStatus.classList.remove('bg-success');
-                connectionStatus.classList.add('bg-secondary');
-            } catch (error) {
-                console.error('Failed to disconnect wallet:', error);
-            }
-            
+            // Already connected, show wallet info
+            const wallet = seismic.wallet;
+            updateUIForConnectedWallet(wallet);
             return;
         }
         
-        console.log('Initiating wallet connection');
-        
-        walletConnectInitiated = true;
-        connectWalletBtn.disabled = true;
-        loadingOverlay.classList.remove('d-none');
-        loadingText.textContent = 'Connecting Wallet...';
-        
         try {
-            // Используем Web3Modal для выбора кошелька через WalletConnector
-            if (window.WalletConnector) {
-                try {
-                    // Вызываем метод подключения, который откроет модальное окно Web3Modal
-                    const connected = await window.WalletConnector.connect();
-                    
-                    // Если пользователь подключил кошелек через Web3Modal
-                    if (connected && window.WalletConnector.selectedAccount) {
-                        const wallet = await seismic.completeConnection(
-                            window.WalletConnector.selectedAccount,
-                            window.WalletConnector.getProvider()
-                        );
+            walletConnectInitiated = true;
+            connectWalletBtn.disabled = true;
+            
+            loadingOverlay.classList.remove('d-none');
+            loadingText.textContent = 'Connecting wallet...';
+            
+            // Try connecting through SDK which uses WalletConnector
+            let wallet;
+            try {
+                wallet = await seismic.connect();
+            } catch (connectionError) {
+                console.error('Failed to connect wallet directly:', connectionError);
+                
+                // Fallback to direct connection if Web3Modal failed
+                if (window.ethereum) {
+                    try {
+                        // Use direct window.ethereum connection
+                        loadingText.textContent = 'Trying direct connection...';
                         
-                        if (wallet) {
-                            updateUIForConnectedWallet(wallet);
-                            console.log('Wallet connected through Web3Modal:', wallet.address);
-                            return;
+                        // Request accounts directly
+                        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                        if (accounts && accounts.length > 0) {
+                            // Complete connection with the first account
+                            wallet = await seismic.completeConnection(accounts[0], window.ethereum);
+                        } else {
+                            throw new Error('No accounts returned from wallet');
                         }
-                    } else {
-                        console.log('User closed Web3Modal or connection was cancelled');
+                    } catch (directError) {
+                        console.error('Direct connection also failed:', directError);
+                        // Both methods failed, show error
+                        throw new Error('Both connection methods failed. Please reload the page and try again.');
                     }
-                } catch (error) {
-                    console.warn('Failed to connect using Web3Modal, trying fallbacks:', error);
+                } else {
+                    // No ethereum provider available at all
+                    throw new Error('No wallet detected. Please install MetaMask or another wallet extension.');
                 }
             }
             
-            // Fallback на EthereumHelper если есть
-            if (window.EthereumHelper) {
-                try {
-                    const address = await window.EthereumHelper.connect();
-                    
-                    if (address) {
-                        const provider = window.EthereumHelper.getProvider();
-                        const wallet = await seismic.completeConnection(address, provider);
-                        
-                        if (wallet) {
-                            updateUIForConnectedWallet(wallet);
-                            console.log('Wallet connected through EthereumHelper:', wallet.address);
-                            return;
-                        }
-                    }
-                } catch (error) {
-                    console.warn('Failed to connect using EthereumHelper, trying direct connection:', error);
-                }
+            if (wallet) {
+                updateUIForConnectedWallet(wallet);
+                console.log('Wallet connected successfully:', wallet.address);
+            } else {
+                throw new Error('Wallet connection failed - no wallet returned');
             }
-            
-            // Если пользователь отменил соединение или соединение не удалось
-            showError('Wallet connection cancelled or failed. Please try again.');
         } catch (error) {
             console.error('Error connecting wallet:', error);
-            showError('Failed to complete wallet connection. Please try again.');
-            walletConnectInitiated = false;
+            showError('Failed to connect wallet: ' + (error.message || 'Unknown error'));
         } finally {
             loadingOverlay.classList.add('d-none');
             connectWalletBtn.disabled = false;

@@ -420,38 +420,42 @@
      * Основная функция инициализации
      */
     async function initialize() {
-        // Очищаем данные кошельков, которые могут привести к автоподключению
-        cleanupStoredWalletData();
-        
-        // Создаем безопасный провайдер - делаем это перед blockTrustWalletAutoConnect
-        const safeProvider = createSafeProvider();
-        if (safeProvider) {
-            window.__safeEthereumProvider = safeProvider;
-        }
-        
-        // Устанавливаем защиту от автоподключения Trust Wallet
-        blockTrustWalletAutoConnect();
-        
-        // Патчим ethereum.request при необходимости
-        patchEthereumRequest();
-        
-        // Создаем хелпер
-        createEthereumHelper();
-        
-        // Загружаем зависимости Web3Modal
         try {
-            await loadWeb3ModalDependencies();
+            // Создаем безопасный провайдер Ethereum
+            const safeProvider = createSafeProvider();
+            if (safeProvider) {
+                window.__safeEthereumProvider = safeProvider;
+                console.log("Ethereum Helper инициализирован");
+            }
+            
+            // Патчим метод request, если он отсутствует
+            patchEthereumRequest();
+            
+            // Создаем глобальный объект для удобной работы с Ethereum
+            if (!window.EthereumHelper) {
+                window.EthereumHelper = createEthereumHelper();
+            }
+            
+            // Очищаем данные кошелька если есть
+            cleanupStoredWalletData();
+            
+            // Блокируем автоподключение Trust Wallet
+            blockTrustWalletAutoConnect();
+            
+            console.log("Web3Modal Fix: инициализация завершена");
+            return true;
         } catch (error) {
-            console.error("Не удалось загрузить Web3Modal:", error);
+            console.error("Ошибка инициализации Web3Modal Fix:", error);
+            return false;
         }
-        
-        console.log("Web3Modal Fix: инициализация завершена");
     }
     
-    // Инициализируем при загрузке страницы
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initialize);
-    } else {
-        initialize();
-    }
+    // Expose initialize globally
+    window.initialize = initialize;
+    
+    // Also expose cleanupStoredWalletData globally
+    window.cleanupStoredWalletData = cleanupStoredWalletData;
+    
+    // Автоматически запускаем инициализацию
+    initialize();
 })(); 

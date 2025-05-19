@@ -91,13 +91,99 @@
         })();
     </script>
     
-    <!-- WalletConnect SDK v2 - Direct UMD imports -->
-    <script src="https://unpkg.com/@walletconnect/ethereum-provider@2.10.0/dist/index.umd.js"></script>
-    <script src="https://unpkg.com/@web3modal/standalone@2.4.3/dist/index.umd.js"></script>
+    <!-- Debug script to check loaded modules -->
     <script>
-        // Make provider objects available globally
-        window.EthereumProvider = window.WalletConnectEthereumProvider;
-        window.Web3ModalStandalone = window.W3mStandalone;
+        function checkLoadedModules() {
+            console.log('Checking loaded WalletConnect modules:');
+            console.log('- window.EthereumProvider:', typeof window.EthereumProvider);
+            console.log('- window.WalletConnectEthereumProvider:', typeof window.WalletConnectEthereumProvider);
+            console.log('- window.Web3ModalStandalone:', typeof window.Web3ModalStandalone);
+            console.log('- window.W3mStandalone:', typeof window.W3mStandalone);
+        }
+        
+        // Check before loading
+        console.log('Before loading WalletConnect libraries:');
+        checkLoadedModules();
+    </script>
+    
+    <!-- WalletConnect SDK - Direct imports with fixed paths -->
+    <script>
+        console.log('Loading WalletConnect libraries...');
+    </script>
+    <script src="https://unpkg.com/@walletconnect/ethereum-provider@2.10.0/dist/umd/index.min.js" 
+            onload="console.log('EthereumProvider script loaded')"
+            onerror="console.error('Failed to load EthereumProvider script')"></script>
+            
+    <script src="https://unpkg.com/@web3modal/standalone@2.4.3/dist/index.umd.js"
+            onload="console.log('Web3Modal script loaded')" 
+            onerror="console.error('Failed to load Web3Modal script')"></script>
+    
+    <!-- Initialize WalletConnect modules -->
+    <script>
+        // Check after loading
+        console.log('After loading WalletConnect libraries:');
+        checkLoadedModules();
+        
+        // Set up global objects for WalletConnect
+        try {
+            console.log('Setting up WalletConnect global objects...');
+            
+            // Find the correct objects based on what was loaded
+            let ethereumProvider = null;
+            let web3ModalStandalone = null;
+            
+            // Check for various possible names for the EthereumProvider
+            if (window.WalletConnectEthereumProvider) {
+                ethereumProvider = window.WalletConnectEthereumProvider;
+                console.log('Found WalletConnectEthereumProvider');
+            } else if (window.w3mEthereumProvider) {
+                ethereumProvider = window.w3mEthereumProvider;
+                console.log('Found w3mEthereumProvider');
+            } else if (window.EthereumProvider) {
+                ethereumProvider = window.EthereumProvider;
+                console.log('Found EthereumProvider');
+            } else {
+                // Try to find by looking at all properties
+                for (const key in window) {
+                    if (window[key] && typeof window[key] === 'object' && 
+                        window[key].init && typeof window[key].init === 'function') {
+                        console.log('Found potential EthereumProvider:', key);
+                        ethereumProvider = window[key];
+                        break;
+                    }
+                }
+            }
+            
+            // Check for various possible names for Web3Modal
+            if (window.W3mStandalone) {
+                web3ModalStandalone = window.W3mStandalone;
+                console.log('Found W3mStandalone');
+            } else if (window.Web3ModalStandalone) {
+                web3ModalStandalone = window.Web3ModalStandalone;
+                console.log('Found Web3ModalStandalone');
+            } else {
+                // Try to find by looking at all properties
+                for (const key in window) {
+                    if (window[key] && typeof window[key] === 'object' && 
+                        window[key].Web3Modal && typeof window[key].Web3Modal === 'function') {
+                        console.log('Found potential Web3ModalStandalone:', key);
+                        web3ModalStandalone = window[key];
+                        break;
+                    }
+                }
+            }
+            
+            // Set the global objects for our app
+            window.EthereumProvider = ethereumProvider;
+            window.Web3ModalStandalone = web3ModalStandalone;
+            
+            console.log('WalletConnect global objects set up:', {
+                EthereumProvider: !!window.EthereumProvider,
+                Web3ModalStandalone: !!window.Web3ModalStandalone
+            });
+        } catch (error) {
+            console.error('Error setting up WalletConnect global objects:', error);
+        }
     </script>
     
     <!-- Seismic SDK and application code -->

@@ -169,12 +169,71 @@ document.addEventListener('DOMContentLoaded', () => {
             
             console.log('SDK initialized');
             
+            // Dynamic loader for WalletConnect libraries
+            async function loadWalletConnectLibraries() {
+                return new Promise((resolve, reject) => {
+                    console.log('Attempting to dynamically load WalletConnect libraries...');
+                    
+                    // Helper to load scripts dynamically
+                    function loadScript(src) {
+                        return new Promise((scriptResolve, scriptReject) => {
+                            const script = document.createElement('script');
+                            script.src = src;
+                            script.async = true;
+                            script.onload = () => scriptResolve();
+                            script.onerror = (err) => scriptReject(new Error(`Failed to load script: ${src}`));
+                            document.head.appendChild(script);
+                        });
+                    }
+                    
+                    // Load necessary libraries in sequence
+                    loadScript('https://unpkg.com/@walletconnect/ethereum-provider@2.10.0/dist/umd/index.min.js')
+                        .then(() => loadScript('https://unpkg.com/@web3modal/standalone@2.4.3/dist/index.umd.js'))
+                        .then(() => {
+                            // Check if libraries loaded correctly
+                            if (window.WalletConnectEthereumProvider) {
+                                window.EthereumProvider = window.WalletConnectEthereumProvider;
+                                console.log('WalletConnectEthereumProvider loaded dynamically');
+                            } else {
+                                console.error('WalletConnectEthereumProvider not found after dynamic loading');
+                            }
+                            
+                            if (window.W3mStandalone) {
+                                window.Web3ModalStandalone = window.W3mStandalone;
+                                console.log('W3mStandalone loaded dynamically');
+                            } else {
+                                console.error('W3mStandalone not found after dynamic loading');
+                            }
+                            
+                            // Resolve regardless of whether we found the components
+                            // to let the initialization logic handle the failure
+                            resolve();
+                        })
+                        .catch(reject);
+                });
+            }
+            
             // Проверяем наличие необходимых компонентов WalletConnect
             if (!window.EthereumProvider || !window.Web3ModalStandalone) {
-                console.error('WalletConnect components not loaded properly. Make sure EthereumProvider and Web3ModalStandalone are available.');
-                showError('Failed to initialize wallet connector. Please check your internet connection and try again.');
-                loadingOverlay.classList.add('d-none');
-                return;
+                console.warn('WalletConnect components not found. Attempting to load them dynamically...');
+                
+                try {
+                    // Try to load the libraries dynamically
+                    await loadWalletConnectLibraries();
+                    
+                    // Check again after dynamic loading
+                    if (!window.EthereumProvider || !window.Web3ModalStandalone) {
+                        console.error('WalletConnect components not loaded properly. Make sure EthereumProvider and Web3ModalStandalone are available.');
+                        showError('Failed to initialize wallet connector. Please check your internet connection and try again.');
+                        loadingOverlay.classList.add('d-none');
+                        return;
+                    }
+                } catch (loadError) {
+                    console.error('Failed to dynamically load WalletConnect components:', loadError);
+                    showError('Failed to load WalletConnect components. Please check your internet connection and try again.');
+                    loadingOverlay.classList.add('d-none');
+                    return;
+                }
             }
             
             // Инициализация WalletConnector с настройками из seismicConfig

@@ -451,40 +451,28 @@
             // Создаем экземпляр Web3Modal
             this.web3Modal = new Web3Modal({
                 projectId,
-                themeMode: "light",
+                themeMode: "dark",
                 themeVariables: {
                     "--w3m-font-family": "system-ui, sans-serif",
-                    "--w3m-accent-color": "#3B82F6"
+                    "--w3m-accent-color": "#3B82F6",
+                    "--w3m-background-color": "#000000",
+                    "--w3m-container-border-radius": "8px"
                 },
-                // Принудительно включаем выбор из всех доступных кошельков 
+                // Отображаем все доступные кошельки
                 explorerRecommendedWalletIds: "ALL",
-                excludeWalletIds: ["trustwallet"], // Исключаем Trust Wallet из списка
-                includeWalletIds: ["metaMask", "coinbaseWallet"], // Явно указываем приоритетные кошельки
-                // Приоритетные кошельки для десктопа (Trust Wallet исключен)
-                desktopWallets: [
-                    "metamask",
-                    "coinbase",
-                    "rabby",
-                    "brave",
-                    "zerion"
+                // Не исключаем Trust Wallet, так как он показан на скриншоте
+                includeWalletIds: [
+                    "c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96", // MetaMask
+                    "4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0", // Coinbase
+                    "ef333840daf915aafdc4a004525502d6d49d77bd9c65e0642dbaefb3c2893bef", // Trust Wallet
+                    "dceb063851b1833cbb209e3717a0a0b06bf3fb500fe9db8cd3a553e4b1d02137", // Rabby
+                    "ecc4036f814562b41a5268adc86270fba1365471402006302e70169465b7ac18", // WalletConnect
                 ],
-                // Приоритетные кошельки для мобильных (Trust Wallet исключен)
-                mobileWallets: [
-                    "metamask",
-                    "rainbow",
-                    "argent", 
-                    "brave",
-                    "ledger",
-                    "imToken"
-                ],
-                // Дополнительные настройки для предотвращения автоподключения
-                enableAnalytics: false,
-                enableNetworkView: true,
-                enableAccountView: true,
-                // Принудительно отключаем автоматический выбор
-                enableExplorer: true,
-                enableWalletFeatures: ["explorer"]
-            }, this.ethereumClient);
+                // Позволяем отображать QR-код для подключения
+                enableWalletConnect: true,
+                // Отображаем все кошельки в списке
+                showAllWallets: true
+            });
 
             // Настройка обработчиков событий
             this.ethereumClient.watchAccount((account) => {

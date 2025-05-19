@@ -74,12 +74,12 @@
             
             // Загружаем библиотеки если их нет
             const ethereumScript = document.createElement('script');
-            ethereumScript.src = 'https://unpkg.com/@web3modal/ethereum@2.4.7/dist/cdn.js';
-            ethereumScript.async = true;
+            ethereumScript.src = 'https://unpkg.com/@web3modal/ethereum@2.7.1/dist/cdn.js';
+            ethereumScript.type = 'text/javascript';
             
             const htmlScript = document.createElement('script');
-            htmlScript.src = 'https://unpkg.com/@web3modal/html@2.4.7/dist/cdn.js';
-            htmlScript.async = true;
+            htmlScript.src = 'https://unpkg.com/@web3modal/html@2.7.1/dist/cdn.js';
+            htmlScript.type = 'text/javascript';
             
             // Ждем загрузки обеих библиотек
             const loadEthereum = new Promise((resolve, reject) => {

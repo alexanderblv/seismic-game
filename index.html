@@ -45,92 +45,6 @@
             } catch (e) {
                 console.error("Error cleaning Trust Wallet data:", e);
             }
-            
-            // Override ethereum object if it's Trust Wallet
-            const checkEthereum = () => {
-                if (window.ethereum && window.ethereum.isTrust) {
-                    console.warn("TRUST WALLET DETECTED AND BLOCKED");
-                    
-                    // Replace window.ethereum methods to block Trust Wallet
-                    const originalRequest = window.ethereum.request;
-                    window.ethereum.request = function(args) {
-                        if (args.method === 'eth_requestAccounts' || args.method === 'eth_accounts') {
-                            console.warn("Blocked Trust Wallet " + args.method + " request");
-                            return Promise.reject(new Error('Trust Wallet is not supported'));
-                        }
-                        return originalRequest.apply(this, arguments);
-                    };
-                    
-                    if (window.ethereum.enable) {
-                        window.ethereum.enable = function() {
-                            console.warn("Blocked Trust Wallet enable request");
-                            return Promise.reject(new Error('Trust Wallet is not supported'));
-                        };
-                    }
-                }
-            };
-            
-            // Check immediately and after a short delay
-            checkEthereum();
-            setTimeout(checkEthereum, 500);
-        })();
-    </script>
-    
-    <!-- Ethereum setter polyfill - fixes "Cannot set property ethereum which has only a getter" -->
-    <script>
-        (function() {
-            // Save the original defineProperty method
-            const originalDefineProperty = Object.defineProperty;
-            window.__originalDefineProperty = originalDefineProperty;
-            
-            // Create a proxy for window.ethereum that can be used safely
-            try {
-                const ethereumDescriptor = Object.getOwnPropertyDescriptor(window, 'ethereum');
-                if (ethereumDescriptor && ethereumDescriptor.get && !ethereumDescriptor.set) {
-                    // Save original ethereum getter
-                    const originalGetEthereum = ethereumDescriptor.get;
-                    
-                    // Create a safe proxy for ethereum
-                    window.__safeEthereumProvider = new Proxy({}, {
-                        get: function(target, prop) {
-                            const ethereum = originalGetEthereum.call(window);
-                            if (ethereum && typeof ethereum === 'object') {
-                                return ethereum[prop];
-                            }
-                            return undefined;
-                        },
-                        set: function() { return true; } // Silently ignore sets
-                    });
-                }
-            } catch (e) {
-                console.warn("Failed to create ethereum proxy:", e);
-            }
-            
-            // Patch Object.defineProperty to intercept ethereum setter attempts
-            Object.defineProperty = function(obj, prop, descriptor) {
-                // If trying to set window.ethereum, just return the object without setting
-                if (obj === window && prop === 'ethereum') {
-                    console.log("[Polyfill] Prevented attempt to set window.ethereum");
-                    return obj;
-                }
-                // Otherwise use the original method
-                return originalDefineProperty.call(this, obj, prop, descriptor);
-            };
-            
-            // Also patch the direct assignment
-            try {
-                const windowDescriptor = Object.getOwnPropertyDescriptor(window, 'ethereum');
-                if (windowDescriptor) {
-                    Object.defineProperty(window, 'ethereum', {
-                        get: windowDescriptor.get,
-                        configurable: true
-                    });
-                }
-            } catch (e) {
-                console.warn("[Polyfill] Could not patch window.ethereum descriptor:", e);
-            }
-            
-            console.log("[Polyfill] Ethereum setter protection enabled");
         })();
     </script>
     
@@ -138,54 +52,10 @@
     <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.8.0/web3.min.js"></script>
     
-    <!-- Fix for ethereum getter issues -->
-    <script src="web3modal-fix.js"></script>
+    <!-- WalletConnect SDK v3 -->
+    <script src="https://unpkg.com/@walletconnect/web3modal"></script>
     
-    <!-- Load Web3Modal dependencies with integrity checks -->
-    <script 
-        src="https://unpkg.com/@web3modal/ethereum@2.7.1/dist/cdn.js"
-        onerror="console.error('Failed to load @web3modal/ethereum')">
-    </script>
-    <script 
-        src="https://unpkg.com/@web3modal/html@2.7.1/dist/cdn.js"
-        onerror="console.error('Failed to load @web3modal/html')">
-    </script>
-    
-    <script>
-        // Setup global aliases for Web3Modal components
-        window.addEventListener('DOMContentLoaded', () => {
-            try {
-                // Make Web3Modal libraries globally available with consistent naming
-                if (window.Web3ModalEthereum) {
-                    window.W3M = window.Web3ModalEthereum;
-                }
-                if (window.Web3ModalHtml) {
-                    window.W3M_HTML = window.Web3ModalHtml;
-                }
-                
-                // Additional protection against Trust Wallet
-                const originalConnect = window.W3M && window.W3M.EthereumClient && 
-                    window.W3M.EthereumClient.prototype.connect;
-                
-                if (originalConnect) {
-                    window.W3M.EthereumClient.prototype.connect = async function(...args) {
-                        window.__userInitiatedConnection = true;
-                        try {
-                            return await originalConnect.apply(this, args);
-                        } finally {
-                            window.__userInitiatedConnection = false;
-                        }
-                    };
-                }
-                
-                console.log("Web3Modal global aliases set up successfully");
-            } catch (error) {
-                console.error("Error setting up Web3Modal global aliases:", error);
-            }
-        });
-    </script>
-    
-    <!-- Finally load Seismic SDK and application code -->
+    <!-- Seismic SDK and application code -->
     <script src="seismic-config.js"></script>
     <script src="seismic-sdk.js"></script>
     <script src="wallet-connector.js"></script>

@@ -26,19 +26,22 @@
                 console.log("Проверка WalletConnect провайдеров...");
                 console.log("- EthereumProvider:", typeof window.EthereumProvider, window.EthereumProvider);
                 console.log("- Web3ModalStandalone:", typeof window.Web3ModalStandalone, window.Web3ModalStandalone);
+                console.log("- WalletConnectProvider:", typeof window.WalletConnectProvider, window.WalletConnectProvider);
+                console.log("- Web3Modal:", typeof window.Web3Modal, window.Web3Modal);
                 
-                // Check for WalletConnect modules from CDN
-                const wcEthereumProvider = window.EthereumProvider || 
-                                          window.W3m?.EthereumProvider || 
-                                          window.WalletConnectEthereumProvider;
+                // Check for WalletConnect providers (v1 format)
+                const WalletConnectProvider = window.WalletConnectProvider || window.EthereumProvider;
+                const Web3Modal = window.Web3Modal || (window.Web3ModalStandalone ? window.Web3ModalStandalone.Web3Modal : null);
                 
-                const w3mStandalone = window.Web3ModalStandalone || 
-                                     window.W3mStandalone;
+                // Ensure we have the providers
+                if (!WalletConnectProvider) {
+                    console.error("WalletConnectProvider не найден");
+                    throw new Error("WalletConnectProvider не загружен. Убедитесь, что скрипты загружены правильно.");
+                }
                 
-                // Проверка на наличие требуемых провайдеров
-                if (!wcEthereumProvider) {
-                    console.error("EthereumProvider не найден");
-                    throw new Error("EthereumProvider не загружен. Убедитесь, что скрипты загружены правильно.");
+                if (!Web3Modal) {
+                    console.error("Web3Modal не найден");
+                    throw new Error("Web3Modal не загружен. Убедитесь, что скрипты загружены правильно.");
                 }
                 
                 // Получаем конфигурацию сети
@@ -49,69 +52,50 @@
 
                 // ID проекта WalletConnect
                 const projectId = config.projectId || window.seismicConfig?.walletConnect?.projectId || "a85ac05209955cfd18fbe7c0fd018f23";
-                
-                console.log("Инициализация EthereumProvider...");
-                
-                // Обернуть в try/catch для более детальной отладки
-                try {
-                    // Настройка ethereum provider через WalletConnect
-                    const ethereumProviderInstance = await wcEthereumProvider.init({
-                        projectId,
-                        chains: [networkConfig.chainId],
-                        showQrModal: true,
-                        methods: ['eth_sendTransaction', 'personal_sign'],
-                        events: ['chainChanged', 'accountsChanged', 'disconnect']
-                    });
-                    
-                    // Сохраняем провайдер
-                    this.ethereum = ethereumProviderInstance;
-                    console.log("EthereumProvider успешно инициализирован:", this.ethereum);
-                } catch (providerError) {
-                    console.error("Ошибка при инициализации EthereumProvider:", providerError);
-                    throw providerError;
-                }
+                const infuraId = config.infuraId || window.seismicConfig?.walletConnect?.infuraId || "your-infura-id";
                 
                 console.log("Инициализация Web3Modal...");
                 
-                // Обернуть в try/catch для более детальной отладки
                 try {
-                    if (w3mStandalone && w3mStandalone.Web3Modal) {
-                        // Создаем модальное окно Web3Modal
-                        this.web3Modal = new w3mStandalone.Web3Modal({
-                            projectId,
-                            themeMode: 'dark',
-                            walletConnectVersion: 2
-                        });
-                        console.log("Web3Modal успешно инициализирован:", this.web3Modal);
-                    } else {
-                        console.warn("Web3Modal не найден, используем только EthereumProvider");
+                    // Create WalletConnect Provider options
+                    const providerOptions = {
+                        walletconnect: {
+                            package: WalletConnectProvider,
+                            options: {
+                                infuraId: infuraId,
+                                rpc: {
+                                    [networkConfig.chainId]: networkConfig.rpcUrl
+                                },
+                                chainId: networkConfig.chainId
+                            }
+                        }
+                    };
+                
+                    // Создаем Web3Modal
+                    this.web3Modal = new Web3Modal({
+                        network: networkConfig.name.toLowerCase(),
+                        cacheProvider: true,
+                        providerOptions: providerOptions,
+                        theme: "dark"
+                    });
+                    
+                    console.log("Web3Modal успешно инициализирован:", this.web3Modal);
+                    
+                    // Try to retrieve the cached provider
+                    if (this.web3Modal.cachedProvider) {
+                        console.log("Найден кешированный провайдер:", this.web3Modal.cachedProvider);
+                        const provider = await this.web3Modal.connect();
+                        this.ethereum = provider;
+                        
+                        // Subscribe to provider events
+                        this.registerProviderEvents(provider);
+                        
+                        console.log("Восстановлена сессия из кешированного провайдера");
                     }
                 } catch (modalError) {
                     console.error("Ошибка при инициализации Web3Modal:", modalError);
-                    console.warn("Продолжаем без Web3Modal, используя только EthereumProvider");
+                    throw modalError;
                 }
-                
-                // Подписываемся на события провайдера
-                this.ethereum.on('accountsChanged', (accounts) => {
-                    if (accounts && accounts.length > 0) {
-                        this.selectedAccount = accounts[0];
-                        this._emitEvent('walletConnected', { account: this.selectedAccount });
-                    } else {
-                        this.selectedAccount = null;
-                        this._emitEvent('walletDisconnected');
-                    }
-                });
-                
-                this.ethereum.on('chainChanged', (chainId) => {
-                    this.chainId = chainId;
-                    this._emitEvent('networkChanged', { chainId: this.chainId });
-                });
-                
-                this.ethereum.on('disconnect', () => {
-                    this.selectedAccount = null;
-                    this.chainId = null;
-                    this._emitEvent('walletDisconnected');
-                });
 
                 this.initialized = true;
                 console.log("WalletConnect успешно инициализирован");
@@ -120,6 +104,37 @@
                 console.error("Ошибка при инициализации WalletConnect:", error);
                 throw error;
             }
+        }
+
+        /**
+         * Register event listeners for the provider
+         */
+        registerProviderEvents(provider) {
+            if (!provider) return;
+            
+            // Subscribe to accounts change
+            provider.on("accountsChanged", (accounts) => {
+                if (accounts && accounts.length > 0) {
+                    this.selectedAccount = accounts[0];
+                    this._emitEvent('walletConnected', { account: this.selectedAccount });
+                } else {
+                    this.selectedAccount = null;
+                    this._emitEvent('walletDisconnected');
+                }
+            });
+            
+            // Subscribe to chainId change
+            provider.on("chainChanged", (chainId) => {
+                this.chainId = chainId;
+                this._emitEvent('networkChanged', { chainId: this.chainId });
+            });
+            
+            // Subscribe to provider disconnection
+            provider.on("disconnect", (error) => {
+                this.selectedAccount = null;
+                this.chainId = null;
+                this._emitEvent('walletDisconnected');
+            });
         }
 
         /**
@@ -139,21 +154,28 @@
                     await this.initialize();
                 }
 
-                // Используем WalletConnect провайдер
-                if (this.ethereum) {
+                // Connect using Web3Modal
+                if (this.web3Modal) {
                     try {
-                        await this.ethereum.enable();
-                        const accounts = await this.ethereum.request({ method: 'eth_accounts' });
+                        console.log("Открываем модальное окно Web3Modal...");
+                        const provider = await this.web3Modal.connect();
+                        this.ethereum = provider;
                         
+                        // Subscribe to provider events
+                        this.registerProviderEvents(provider);
+                        
+                        // Get selected account
+                        const accounts = await provider.request({ method: 'eth_accounts' });
                         if (accounts && accounts.length > 0) {
                             this.selectedAccount = accounts[0];
-                            this.chainId = await this.ethereum.request({ method: 'eth_chainId' });
+                            this.chainId = await provider.request({ method: 'eth_chainId' });
+                            
                             this._emitEvent('walletConnected', { account: this.selectedAccount });
                             this.isConnecting = false;
                             return true;
                         }
                     } catch (error) {
-                        console.error("Ошибка при подключении через WalletConnect:", error);
+                        console.error("Ошибка при подключении через Web3Modal:", error);
                         throw error;
                     }
                 }
@@ -188,19 +210,31 @@
         async disconnect() {
             try {
                 if (this.ethereum) {
-                    // Отключаем WalletConnect провайдер
-                    await this.ethereum.disconnect();
-                    this.selectedAccount = null;
-                    this._emitEvent('walletDisconnected');
-                    return true;
-                } else if (window.ethereum) {
-                    // Для MetaMask и других кошельков просто сбрасываем состояние
-                    this.selectedAccount = null;
-                    this._emitEvent('walletDisconnected');
-                    return true;
+                    // If we have an active provider
+                    if (typeof this.ethereum.disconnect === 'function') {
+                        // Use disconnect method if available
+                        await this.ethereum.disconnect();
+                    } else if (typeof this.ethereum.close === 'function') {
+                        // Try using close method as fallback
+                        await this.ethereum.close();
+                    }
+                    
+                    this.ethereum = null;
                 }
                 
-                return false;
+                // Clear Web3Modal cached provider if available
+                if (this.web3Modal && typeof this.web3Modal.clearCachedProvider === 'function') {
+                    this.web3Modal.clearCachedProvider();
+                }
+                
+                // Reset state
+                this.selectedAccount = null;
+                this.chainId = null;
+                
+                // Emit disconnected event
+                this._emitEvent('walletDisconnected');
+                
+                return true;
             } catch (error) {
                 console.error("Ошибка при отключении кошелька:", error);
                 throw error;

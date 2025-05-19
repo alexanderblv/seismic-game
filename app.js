@@ -186,25 +186,30 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     }
                     
-                    // Load from CDN instead of local files
-                    loadScript('https://unpkg.com/@walletconnect/ethereum-provider@2.9.2/dist/index.umd.js')
-                        .then(() => loadScript('https://unpkg.com/@web3modal/standalone@2.4.3/dist/index.umd.js'))
+                    // Load from CDN instead of local files - using older versions for compatibility
+                    loadScript('https://unpkg.com/@walletconnect/ethereum-provider@1.8.0/dist/umd/index.min.js')
+                        .then(() => loadScript('https://unpkg.com/@walletconnect/web3modal@1.9.0/dist/index.min.js'))
                         .then(() => {
                             // Check if libraries loaded correctly
-                            if (window.EthereumProvider || window.W3m?.EthereumProvider) {
-                                console.log('WalletConnect EthereumProvider loaded dynamically');
+                            if (window.WalletConnectProvider || window.WalletConnect) {
+                                console.log('WalletConnect Provider loaded dynamically');
                             } else {
-                                console.error('WalletConnectEthereumProvider not found after dynamic loading');
+                                console.error('WalletConnect Provider not found after dynamic loading');
                             }
                             
-                            if (window.W3mStandalone || window.Web3ModalStandalone) {
+                            if (window.Web3Modal) {
                                 console.log('Web3Modal loaded dynamically');
                             } else {
-                                console.error('W3mStandalone not found after dynamic loading');
+                                console.error('Web3Modal not found after dynamic loading');
                             }
                             
+                            // Assign to expected variables
+                            window.EthereumProvider = window.WalletConnectProvider;
+                            window.Web3ModalStandalone = { 
+                                Web3Modal: window.Web3Modal
+                            };
+                            
                             // Resolve regardless of whether we found the components
-                            // to let the initialization logic handle the failure
                             resolve();
                         })
                         .catch(reject);

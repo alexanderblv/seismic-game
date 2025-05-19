@@ -52,14 +52,53 @@
     <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.8.0/web3.min.js"></script>
     
-    <!-- WalletConnect SDK v2 -->
+    <!-- Protect ethereum property from being overwritten -->
     <script>
-        // Define namespaces for Web3Modal components
-        window.EthereumProvider = window.EthereumProvider || {};
-        window.Web3ModalStandalone = window.Web3ModalStandalone || {};
+        (function() {
+            // Save existing ethereum if present
+            const originalEthereum = window.ethereum;
+            
+            // Create safe ethereum proxy
+            const safeEthereumProxy = {
+                get: function(target, prop) {
+                    // Always get fresh property from window.ethereum
+                    if (window.ethereum && typeof window.ethereum === 'object') {
+                        return window.ethereum[prop];
+                    }
+                    return undefined;
+                },
+                set: function(obj, prop, value) {
+                    console.log('Attempt to modify ethereum property blocked:', prop);
+                    return true; // Silently block attempts to set properties
+                }
+            };
+            
+            // Create a safe ethereum provider
+            window.__safeEthereumProvider = new Proxy({}, safeEthereumProxy);
+            
+            // Track potential provider injection conflicts
+            console.log("Protecting ethereum provider from conflicts");
+            
+            // If ethereum isn't defined yet, set up protection
+            if (typeof window.ethereum === 'undefined') {
+                Object.defineProperty(window, 'ethereum', {
+                    configurable: true,
+                    get: function() {
+                        return originalEthereum || window.__safeEthereumProvider;
+                    }
+                });
+            }
+        })();
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.10.0/dist/umd/ethereum-provider.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@web3modal/standalone@2.4.3/dist/index.umd.js"></script>
+    
+    <!-- WalletConnect SDK v2 - Direct UMD imports -->
+    <script src="https://unpkg.com/@walletconnect/ethereum-provider@2.10.0/dist/index.umd.js"></script>
+    <script src="https://unpkg.com/@web3modal/standalone@2.4.3/dist/index.umd.js"></script>
+    <script>
+        // Make provider objects available globally
+        window.EthereumProvider = window.WalletConnectEthereumProvider;
+        window.Web3ModalStandalone = window.W3mStandalone;
+    </script>
     
     <!-- Seismic SDK and application code -->
     <script src="seismic-config.js"></script>

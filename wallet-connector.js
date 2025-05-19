@@ -23,12 +23,26 @@
                 console.log("Инициализация WalletConnect...");
                 
                 // Проверяем доступность необходимых компонентов
-                if (!window.EthereumProvider || !window.EthereumProvider.init) {
+                if (!window.WalletConnectEthereumProvider) {
+                    console.error("WalletConnectEthereumProvider не найден в window");
                     throw new Error("EthereumProvider не загружен. Убедитесь, что скрипты загружены правильно.");
                 }
                 
-                if (!window.Web3ModalStandalone || !window.Web3ModalStandalone.Web3Modal) {
+                if (!window.EthereumProvider) {
+                    // Если не установлен через скрипт выше, устанавливаем вручную
+                    console.log("Устанавливаем EthereumProvider вручную");
+                    window.EthereumProvider = window.WalletConnectEthereumProvider;
+                }
+                
+                if (!window.W3mStandalone) {
+                    console.error("W3mStandalone не найден в window");
                     throw new Error("Web3ModalStandalone не загружен. Убедитесь, что скрипты загружены правильно.");
+                }
+                
+                if (!window.Web3ModalStandalone) {
+                    // Если не установлен через скрипт выше, устанавливаем вручную
+                    console.log("Устанавливаем Web3ModalStandalone вручную");
+                    window.Web3ModalStandalone = window.W3mStandalone;
                 }
                 
                 // Получаем конфигурацию сети
@@ -39,6 +53,8 @@
 
                 // ID проекта WalletConnect
                 const projectId = config.projectId || window.seismicConfig?.walletConnect?.projectId || "a85ac05209955cfd18fbe7c0fd018f23";
+                
+                console.log("Инициализация EthereumProvider...");
                 
                 // Настройка ethereum provider через WalletConnect
                 const ethereumProvider = await window.EthereumProvider.init({
@@ -51,6 +67,8 @@
                 
                 // Сохраняем провайдер
                 this.ethereum = ethereumProvider;
+                
+                console.log("Инициализация Web3Modal...");
                 
                 // Создаем модальное окно Web3Modal
                 this.web3Modal = new window.Web3ModalStandalone.Web3Modal({

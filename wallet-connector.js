@@ -53,6 +53,22 @@
             try {
                 console.log("Инициализация Web3Modal...");
                 
+                // Всегда используем безопасный провайдер если он доступен
+                if (window.__safeEthereumProvider) {
+                    this.provider = window.__safeEthereumProvider;
+                    
+                    // Проверяем подключен ли уже кошелек
+                    try {
+                        const accounts = await this.provider.request({ method: 'eth_accounts' });
+                        if (accounts.length > 0) {
+                            this.selectedAccount = accounts[0];
+                            this._emitEvent('accountChanged', { account: this.selectedAccount });
+                        }
+                    } catch (e) {
+                        console.warn("Ошибка при проверке аккаунтов:", e);
+                    }
+                }
+                
                 // Проверяем наличие необходимых компонентов для Web3Modal
                 const Web3Modal = window.W3M_HTML?.Web3Modal || window.Web3ModalHtml?.Web3Modal;
                 const EthereumClient = window.W3M?.EthereumClient || window.Web3ModalEthereum?.EthereumClient;
@@ -82,7 +98,7 @@
                         } catch (loadError) {
                             console.error("Failed to manually load Web3Modal dependencies:", loadError);
                             
-                            // Fallback to basic provider
+                            // Fallback to safe provider
                             if (window.__safeEthereumProvider || window.ethereum) {
                                 console.log("Fallback на базовый provider после ошибки загрузки");
                                 this.provider = window.__safeEthereumProvider || window.ethereum;
@@ -98,7 +114,7 @@
                         // Fallback на safe provider или basic provider
                         if (window.__safeEthereumProvider || window.ethereum) {
                             console.log("Fallback на базовый provider");
-                            // Используем safe provider если доступен
+                            // Всегда предпочитаем safe provider если доступен
                             this.provider = window.__safeEthereumProvider || window.ethereum;
                             
                             try {

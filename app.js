@@ -253,12 +253,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     
                     // Если всё еще не подключены, проверяем прямое подключение через window.ethereum
-                    if (!autoConnected && window.ethereum) {
+                    if (!autoConnected && (window.__safeEthereumProvider || window.ethereum)) {
                         try {
                             // Установка флага пользовательского подключения
                             window.__userInitiatedConnection = true;
                             
-                            // Используем безопасный провайдер
+                            // Всегда используем безопасный провайдер вместо прямого доступа к ethereum
                             const provider = window.__safeEthereumProvider || window.ethereum;
                             const accounts = await provider.request({ method: 'eth_requestAccounts' });
                             
@@ -278,7 +278,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             console.error('Failed to connect wallet directly:', error);
                             showError('Failed to connect wallet. Please try again or use a different wallet.');
                         }
-                    } else {
+                    } else if (!autoConnected) {
                         showError('No wallet detected. Please install a web3 wallet like MetaMask.');
                     }
                 } catch (error) {
@@ -287,12 +287,13 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 console.warn('WalletConnector not available, using fallback methods');
                 
-                // Прямая проверка ethereum
-                if (window.ethereum) {
+                // Прямая проверка ethereum через безопасный провайдер
+                if (window.__safeEthereumProvider || window.ethereum) {
                     try {
-                        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                        const provider = window.__safeEthereumProvider || window.ethereum;
+                        const accounts = await provider.request({ method: 'eth_accounts' });
                         if (accounts.length > 0) {
-                            const wallet = await seismic.completeConnection(accounts[0], window.ethereum);
+                            const wallet = await seismic.completeConnection(accounts[0], provider);
                             if (wallet) {
                                 updateUIForConnectedWallet(wallet);
                                 console.log('Wallet connected through direct ethereum provider:', wallet.address);
@@ -430,36 +431,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 } catch (error) {
                     console.warn('Failed to connect using EthereumHelper, trying direct connection:', error);
                 }
-            }
-            
-            // Прямое подключение, если предыдущие методы не сработали
-            if (window.ethereum) {
-                try {
-                    // Установка флага пользовательского подключения
-                    window.__userInitiatedConnection = true;
-                    
-                    // Используем безопасный провайдер
-                    const provider = window.__safeEthereumProvider || window.ethereum;
-                    const accounts = await provider.request({ method: 'eth_requestAccounts' });
-                    
-                    window.__userInitiatedConnection = false;
-                    
-                    if (accounts.length > 0) {
-                        const wallet = await seismic.completeConnection(accounts[0], provider);
-                        
-                        if (wallet) {
-                            updateUIForConnectedWallet(wallet);
-                            console.log('Wallet connected through direct connection:', wallet.address);
-                            return;
-                        }
-                    }
-                } catch (error) {
-                    window.__userInitiatedConnection = false;
-                    console.error('Failed to connect wallet directly:', error);
-                    showError('Failed to connect wallet. Please try again or use a different wallet.');
-                }
-            } else {
-                showError('No wallet detected. Please install a web3 wallet like MetaMask.');
             }
             
             // Если пользователь отменил соединение или соединение не удалось

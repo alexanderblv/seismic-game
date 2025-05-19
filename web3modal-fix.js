@@ -129,59 +129,79 @@
             if (isEthereumGetter) {
                 console.log("Обнаружен ethereum как getter, создаем прокси");
                 
-                // Вместо перезаписи window.ethereum, создаем safe proxy и сохраняем его
-                // для использования в других частях приложения
-                const safeProvider = {};
+                // Создаем прокси объект для безопасного использования ethereum
+                const safeProvider = new Proxy({}, {
+                    get: function(target, prop) {
+                        // Всегда получаем свежую ссылку на ethereum
+                        const currentEthereum = window.ethereum;
+                        if (currentEthereum && typeof currentEthereum === 'object') {
+                            // Если свойство - функция, привязываем к текущему ethereum
+                            if (typeof currentEthereum[prop] === 'function') {
+                                return function(...args) {
+                                    return currentEthereum[prop].apply(currentEthereum, args);
+                                };
+                            }
+                            // Иначе возвращаем значение свойства
+                            return currentEthereum[prop];
+                        }
+                        return undefined;
+                    },
+                    set: function(target, prop, value) {
+                        // Игнорируем попытки записи, чтобы не вызывать ошибки
+                        console.log(`Проигнорирована попытка установить ethereum.${prop}`, value);
+                        // Возвращаем true, чтобы не вызывать ошибок
+                        return true;
+                    },
+                    // Необходимо для поддержки Object.keys и других перечислений
+                    ownKeys: function() {
+                        const currentEthereum = window.ethereum;
+                        if (currentEthereum && typeof currentEthereum === 'object') {
+                            return Object.keys(currentEthereum);
+                        }
+                        return [];
+                    },
+                    getOwnPropertyDescriptor: function(target, prop) {
+                        const currentEthereum = window.ethereum;
+                        if (currentEthereum && typeof currentEthereum === 'object') {
+                            return Object.getOwnPropertyDescriptor(currentEthereum, prop);
+                        }
+                        return undefined;
+                    },
+                    has: function(target, prop) {
+                        const currentEthereum = window.ethereum;
+                        return currentEthereum && typeof currentEthereum === 'object' && prop in currentEthereum;
+                    }
+                });
                 
-                // Проксируем все методы и свойства без перезаписи window.ethereum
-                for (const key in originalEthereum) {
-                    if (typeof originalEthereum[key] === 'function') {
-                        safeProvider[key] = function(...args) {
-                            return originalEthereum[key](...args);
-                        };
-                    } else {
-                        // Используем getter для получения актуального значения свойства
-                        Object.defineProperty(safeProvider, key, {
-                            get: function() {
-                                return originalEthereum[key];
-                            },
-                            enumerable: true
+                // Сохраняем провайдер для использования в будущем
+                window.__safeEthereumProvider = safeProvider;
+                
+                // Добавляем перехват window.ethereum setter, если еще не добавлен
+                if (!window.__ethereumSetterPatched) {
+                    try {
+                        // Сохраняем оригинальный дескриптор
+                        const originalDescriptor = Object.getOwnPropertyDescriptor(window, 'ethereum');
+                        
+                        // Создаем новый дескриптор, который игнорирует попытки записи
+                        Object.defineProperty(window, 'ethereum', {
+                            configurable: true,
+                            get: originalDescriptor.get,
+                            set: function(newProvider) {
+                                console.log('Попытка заменить window.ethereum проигнорирована');
+                                // Сохраняем для дальнейшего доступа через window.__providedEthereum
+                                window.__providedEthereum = newProvider;
+                                // Не выполняем реальную установку, чтобы не вызвать ошибку
+                                return true;
+                            }
                         });
+                        
+                        window.__ethereumSetterPatched = true;
+                        console.log('Установлена защита от переопределения window.ethereum');
+                    } catch (err) {
+                        console.warn('Не удалось установить защиту от переопределения window.ethereum', err);
                     }
                 }
                 
-                // Добавляем основные методы, если их еще нет
-                if (!safeProvider.request && typeof originalEthereum.request === 'function') {
-                    safeProvider.request = function(args) {
-                        return originalEthereum.request(args);
-                    };
-                }
-                
-                if (!safeProvider.enable && typeof originalEthereum.enable === 'function') {
-                    safeProvider.enable = function() {
-                        return originalEthereum.enable();
-                    };
-                } else if (!safeProvider.enable && typeof originalEthereum.request === 'function') {
-                    safeProvider.enable = function() {
-                        return originalEthereum.request({ method: 'eth_requestAccounts' });
-                    };
-                }
-                
-                // События
-                if (!safeProvider.on && typeof originalEthereum.on === 'function') {
-                    safeProvider.on = function(eventName, listener) {
-                        return originalEthereum.on(eventName, listener);
-                    };
-                }
-                
-                if (!safeProvider.removeListener && typeof originalEthereum.removeListener === 'function') {
-                    safeProvider.removeListener = function(eventName, listener) {
-                        return originalEthereum.removeListener(eventName, listener);
-                    };
-                }
-                
-                // Сохраняем провайдер для использования в будущем (без перезаписи window.ethereum)
-                window.__safeEthereumProvider = safeProvider;
                 return safeProvider;
             }
             

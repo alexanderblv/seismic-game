@@ -283,7 +283,7 @@
                 let provider = null;
                 let isWeb3ModalConnection = false;
                 
-                // Принудительно пробуем сначала использовать Web3Modal, даже если есть window.ethereum
+                // Пробуем использовать Web3Modal
                 if (typeof window.Web3Modal === 'function') {
                     // На случай если Web3Modal было загружено после инициализации
                     if (!this.web3Modal) {
@@ -315,35 +315,13 @@
                             isWeb3ModalConnection = true;
                         } catch (modalError) {
                             console.log("Web3Modal connection failed:", modalError);
-                            provider = null;
+                            throw new Error("Web3Modal connection failed or cancelled by user. Please try again.");
                         }
+                    } else {
+                        throw new Error("Failed to initialize Web3Modal. Please refresh the page and try again.");
                     }
                 } else {
-                    console.warn("Web3Modal not available, falling back to direct provider");
-                }
-                
-                // Fallback to direct provider if Web3Modal failed or is not available
-                if (!provider) {
-                    console.log("Attempting to connect using direct provider");
-                    
-                    // Try to use the saved ethereum provider or the current window.ethereum
-                    provider = window._safeEthereumProvider || window.ethereum;
-                    
-                    if (!provider) {
-                        throw new Error("No Web3 provider detected. Please install MetaMask or another wallet.");
-                    }
-                    
-                    try {
-                        // Request accounts directly
-                        const accounts = await provider.request({ method: 'eth_requestAccounts' });
-                        if (!accounts || accounts.length === 0) {
-                            throw new Error("No accounts returned from wallet");
-                        }
-                        console.log("Direct provider connection successful");
-                    } catch (directError) {
-                        console.error("Direct provider connection failed:", directError);
-                        throw new Error("Failed to connect with direct provider: " + (directError.message || "Unknown error"));
-                    }
+                    throw new Error("Web3Modal not available. Please make sure all required scripts are loaded.");
                 }
                 
                 // Update the provider reference

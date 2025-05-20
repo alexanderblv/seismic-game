@@ -146,11 +146,10 @@
                 
                 // Используем переданный провайдер или пытаемся получить его из WalletConnector
                 const walletProvider = externalProvider || 
-                                     (window.WalletConnector ? window.WalletConnector.getProvider() : null) ||
-                                     window.ethereum;
+                                     (window.walletConnector ? window.walletConnector.getProvider() : null);
                 
                 if (!walletProvider) {
-                    throw new Error("Провайдер кошелька не найден");
+                    throw new Error("Провайдер кошелька не найден. Пожалуйста, подключите кошелек через Web3Modal.");
                 }
                 
                 // Подключаем провайдер к кошельку
@@ -332,6 +331,29 @@
                 console.error("Ошибка получения баланса:", error);
                 throw error;
             }
+        }
+        
+        // Отключение кошелька
+        disconnect() {
+            this.wallet = null;
+            this.signer = null;
+            
+            // Используем readonly provider для взаимодействия с сетью
+            if (this.provider && this.provider.provider && this.provider.provider.disconnect) {
+                try {
+                    this.provider.provider.disconnect();
+                } catch (e) {
+                    console.warn("Не удалось отключить провайдер:", e);
+                }
+            }
+            
+            // Создаем новый базовый provider
+            if (this.config.network && this.config.network.rpcUrl) {
+                this.provider = new ethers.providers.JsonRpcProvider(this.config.network.rpcUrl);
+            }
+            
+            console.log("Кошелек отключен");
+            return true;
         }
     }
     

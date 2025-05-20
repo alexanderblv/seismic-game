@@ -323,30 +323,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.log('Creating new WalletConnector instance');
                     window.walletConnector = new WalletConnector();
                 } else {
-                    // Fallback to direct connection if connector doesn't exist
-                    console.log('No wallet connector, trying direct connection');
-                    const provider = window._safeEthereumProvider || window.ethereum;
-                    
-                    if (!provider) {
-                        throw new Error('No wallet detected. Please install MetaMask or another Ethereum wallet.');
-                    }
-                    
-                    try {
-                        const accounts = await provider.request({ method: 'eth_requestAccounts' });
-                        if (accounts && accounts.length > 0) {
-                            // Complete connection with first account
-                            await completeWalletConnection(accounts[0]);
-                        } else {
-                            throw new Error('No accounts returned from wallet');
-                        }
-                    } catch (directError) {
-                        if (directError.code === 4001) {
-                            throw new Error('Connection rejected by user');
-                        } else {
-                            throw directError;
-                        }
-                    }
-                    return;
+                    console.error('WalletConnector not found. Please make sure wallet-connector.js is loaded.');
+                    throw new Error('WalletConnector not found. Please refresh the page and try again.');
                 }
             }
             
@@ -415,10 +393,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add Seismic network to wallet
     async function addNetwork() {
         try {
-            // Используем безопасный провайдер
-            const provider = window.__safeEthereumProvider || window.ethereum;
+            // Проверяем наличие WalletConnector
+            if (!window.walletConnector) {
+                throw new Error('WalletConnector not found. Please connect your wallet first.');
+            }
+            
+            // Получаем провайдер через WalletConnector
+            const provider = window.walletConnector.getProvider();
             if (!provider) {
-                throw new Error('No wallet detected');
+                throw new Error('No wallet provider available. Please connect your wallet first.');
             }
             
             // Устанавливаем флаг пользовательского подключения
@@ -1253,10 +1236,12 @@ document.addEventListener('DOMContentLoaded', () => {
     clearHistoryBtn.addEventListener('click', clearTransactionHistory);
     
     // Check if there is a wallet provider available
-    const hasWalletProvider = window.ethereum || typeof window.WalletConnector !== 'undefined';
+    const hasWalletProvider = typeof window.WalletConnector !== 'undefined' || 
+                             typeof Web3Modal === 'function' || 
+                             typeof WalletConnector === 'function';
     
     if (!hasWalletProvider) {
-        showError('This application requires a Web3 wallet like MetaMask. Please install one to continue.');
+        showError('This application requires a Web3 wallet connector. Please ensure all scripts are loaded correctly.');
         connectWalletBtn.disabled = true;
         addNetworkBtn.disabled = true;
     }

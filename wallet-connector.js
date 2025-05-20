@@ -266,6 +266,35 @@
             
             walletList.innerHTML = '';
             
+            // Add the "All Wallets" option at the top
+            if (this.web3Modal) {
+                const allWalletsItem = document.createElement('div');
+                allWalletsItem.className = 'wallet-item wallet-item-all';
+                allWalletsItem.dataset.wallet = 'all-wallets';
+                
+                allWalletsItem.innerHTML = `
+                    <div class="wallet-icon">
+                        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="40" height="40" rx="8" fill="#3396FF" />
+                            <path d="M10.5 13.5C10.5 11.0147 12.5147 9 15 9H25C27.4853 9 29.5 11.0147 29.5 13.5V26.5C29.5 28.9853 27.4853 31 25 31H15C12.5147 31 10.5 28.9853 10.5 26.5V13.5Z" stroke="white" stroke-width="2" />
+                            <path d="M25 22.5C26.3807 22.5 27.5 21.3807 27.5 20C27.5 18.6193 26.3807 17.5 25 17.5C23.6193 17.5 22.5 18.6193 22.5 20C22.5 21.3807 23.6193 22.5 25 22.5Z" stroke="white" stroke-width="2" />
+                            <path d="M15 22.5C16.3807 22.5 17.5 21.3807 17.5 20C17.5 18.6193 16.3807 17.5 15 17.5C13.6193 17.5 12.5 18.6193 12.5 20C12.5 21.3807 13.6193 22.5 15 22.5Z" stroke="white" stroke-width="2" />
+                        </svg>
+                    </div>
+                    <div class="wallet-name">All Wallets</div>
+                    <div class="wallet-status">
+                        <span class="wallet-recommended">RECOMMENDED</span>
+                    </div>
+                `;
+                
+                // Add click event to use Web3Modal
+                allWalletsItem.addEventListener('click', () => {
+                    this._connectToWallet('all-wallets');
+                });
+                
+                walletList.appendChild(allWalletsItem);
+            }
+            
             // Add each wallet to the list
             this.supportedWallets.forEach(wallet => {
                 const walletItem = document.createElement('div');
@@ -394,74 +423,89 @@
                 
                 let provider;
                 
-                // Handle different wallet connections
-                switch (walletId) {
-                    case 'metamask':
-                        // Connect to MetaMask
-                        if (window.ethereum?.isMetaMask) {
-                            provider = window.ethereum;
-                        } else {
-                            window.open('https://metamask.io/download/', '_blank');
+                // For WalletConnect or when using the general wallet selection, use Web3Modal
+                if (walletId === 'walletconnect' || walletId === 'all-wallets') {
+                    // Use Web3Modal for general wallet selection
+                    if (this.web3Modal) {
+                        try {
+                            // Force show the wallet selection modal
+                            provider = await this.web3Modal.connect();
+                        } catch (error) {
+                            console.log("User canceled connection or Web3Modal error:", error);
                             this.isConnecting = false;
                             return;
                         }
-                        break;
-                    
-                    case 'trust':
-                        // Connect to Trust Wallet
-                        if (window.ethereum?.isTrust || window.trustWallet) {
-                            provider = window.ethereum;
-                        } else {
-                            window.open('https://trustwallet.com/download', '_blank');
-                            this.isConnecting = false;
-                            return;
-                        }
-                        break;
-                    
-                    case 'rabby':
-                        // Connect to Rabby Wallet
-                        if (window.ethereum?.isRabby) {
-                            provider = window.ethereum;
-                        } else {
-                            window.open('https://rabby.io/', '_blank');
-                            this.isConnecting = false;
-                            return;
-                        }
-                        break;
-                    
-                    case 'coinbase':
-                        // Connect to Coinbase Wallet
-                        if (window.ethereum?.isCoinbaseWallet || window.coinbaseWalletExtension) {
-                            provider = window.ethereum;
-                        } else {
-                            window.open('https://www.coinbase.com/wallet/downloads', '_blank');
-                            this.isConnecting = false;
-                            return;
-                        }
-                        break;
-                    
-                    case 'walletconnect':
-                    default:
-                        // Use Web3Modal for WalletConnect or fallback
-                        if (this.web3Modal) {
-                            try {
-                                // Force show the wallet selection modal
-                                provider = await this.web3Modal.connect();
-                            } catch (error) {
-                                console.log("User canceled connection or Web3Modal error:", error);
+                    } else {
+                        throw new Error("Web3Modal not available");
+                    }
+                } else {
+                    // Handle specific wallet connections
+                    switch (walletId) {
+                        case 'metamask':
+                            // Connect to MetaMask
+                            if (window.ethereum?.isMetaMask) {
+                                provider = window.ethereum;
+                            } else {
+                                window.open('https://metamask.io/download/', '_blank');
                                 this.isConnecting = false;
                                 return;
                             }
-                        } else {
-                            console.warn("Web3Modal not available, attempting direct connection");
-                            // Try to use window.ethereum as fallback if available
-                            if (window.ethereum) {
+                            break;
+                        
+                        case 'trust':
+                            // Connect to Trust Wallet
+                            if (window.ethereum?.isTrust || window.trustWallet) {
                                 provider = window.ethereum;
                             } else {
-                                throw new Error("No Web3Modal or provider available");
+                                window.open('https://trustwallet.com/download', '_blank');
+                                this.isConnecting = false;
+                                return;
                             }
-                        }
-                        break;
+                            break;
+                        
+                        case 'rabby':
+                            // Connect to Rabby Wallet
+                            if (window.ethereum?.isRabby) {
+                                provider = window.ethereum;
+                            } else {
+                                window.open('https://rabby.io/', '_blank');
+                                this.isConnecting = false;
+                                return;
+                            }
+                            break;
+                        
+                        case 'coinbase':
+                            // Connect to Coinbase Wallet
+                            if (window.ethereum?.isCoinbaseWallet || window.coinbaseWalletExtension) {
+                                provider = window.ethereum;
+                            } else {
+                                window.open('https://www.coinbase.com/wallet/downloads', '_blank');
+                                this.isConnecting = false;
+                                return;
+                            }
+                            break;
+                        
+                        default:
+                            // Use Web3Modal as fallback for unknown wallet types
+                            if (this.web3Modal) {
+                                try {
+                                    provider = await this.web3Modal.connect();
+                                } catch (error) {
+                                    console.log("User canceled connection or Web3Modal error:", error);
+                                    this.isConnecting = false;
+                                    return;
+                                }
+                            } else {
+                                console.warn("Web3Modal not available, attempting direct connection");
+                                // Try to use window.ethereum as fallback if available
+                                if (window.ethereum) {
+                                    provider = window.ethereum;
+                                } else {
+                                    throw new Error("No Web3Modal or provider available");
+                                }
+                            }
+                            break;
+                    }
                 }
                 
                 // Set provider and register events
@@ -629,8 +673,34 @@
                     await this.initialize();
                 }
                 
-                // Always show the wallet selection modal to prevent cached connection issues
-                this.showWalletModal();
+                // Always show the standard Web3Modal to select wallets
+                // instead of our custom wallet selection modal
+                if (this.web3Modal) {
+                    try {
+                        // First clear cached provider to avoid auto-connecting
+                        this.web3Modal.clearCachedProvider();
+                        
+                        // Connect using Web3Modal which will show the wallet selection
+                        const provider = await this.web3Modal.connect();
+                        
+                        // Set provider and register events
+                        if (provider) {
+                            this.provider = provider;
+                            this._registerProviderEvents(provider);
+                            
+                            // Get accounts and chain ID
+                            await this._updateAccountsAndChain(provider);
+                        }
+                    } catch (error) {
+                        console.log("User canceled connection or Web3Modal error:", error);
+                        this.isConnecting = false;
+                        return false;
+                    }
+                } else {
+                    // Fallback to custom wallet modal if Web3Modal is not available
+                    this.showWalletModal();
+                }
+                
                 this.isConnecting = false;
                 return true;
             } catch (error) {

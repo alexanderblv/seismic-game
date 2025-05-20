@@ -372,8 +372,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     }
                     
-                    // Show the wallet selection modal
-                    window.walletConnector.showWalletModal();
+                    // Use Web3Modal directly if available for broader wallet selection
+                    if (window.walletConnector.web3Modal) {
+                        // Connect using Web3Modal which will show the standard wallet selection
+                        await window.walletConnector.connect();
+                    } else {
+                        // Show our custom wallet selection modal
+                        window.walletConnector.showWalletModal();
+                    }
                     
                     // Connection will be handled by the wallet connector
                     // and the walletConnected event will be triggered
@@ -413,7 +419,12 @@ document.addEventListener('DOMContentLoaded', () => {
                             network: seismicConfig.network
                         });
                         
-                        window.walletConnector.showWalletModal();
+                        // Use Web3Modal if available
+                        if (window.walletConnector.web3Modal) {
+                            await window.walletConnector.connect();
+                        } else {
+                            window.walletConnector.showWalletModal();
+                        }
                     } catch (e) {
                         console.error('Error creating wallet connector:', e);
                         showError('Could not initialize wallet connector. Try refreshing the page.');

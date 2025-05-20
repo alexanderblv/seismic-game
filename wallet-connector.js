@@ -82,6 +82,14 @@
             
             this.loadingPromise = new Promise(async (resolve) => {
                 try {
+                    // Check if Web3Modal is available in __walletConnectProviders (safe reference)
+                    if (window.__walletConnectProviders && typeof window.__walletConnectProviders.Web3Modal === 'function') {
+                        console.log("Using existing Web3Modal from safe reference");
+                        window.Web3Modal = window.__walletConnectProviders.Web3Modal;
+                        resolve(true);
+                        return;
+                    }
+
                     // Check if the scripts were already loaded in the HTML
                     if (document.querySelector('script[src*="web3modal"]')) {
                         console.log("Web3Modal script tag already exists, waiting for it to load");
@@ -92,27 +100,42 @@
                             console.log("Web3Modal loaded via existing script tag");
                             resolve(true);
                             return;
+                        } else {
+                            console.log("Web3Modal script exists but object not available");
                         }
                     }
                     
-                    // Check if we have safe references to the providers
-                    if (window.__walletConnectProviders && typeof window.__walletConnectProviders.Web3Modal === 'function') {
-                        console.log("Using existing Web3Modal from safe reference");
-                        window.Web3Modal = window.__walletConnectProviders.Web3Modal;
-                        resolve(true);
-                        return;
-                    }
-                    
-                    // Load required scripts if they aren't already loaded
+                    // Load WalletConnectProvider if not already loaded
                     if (!window.WalletConnectProvider) {
-                        await this._loadScript('https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js');
-                        console.log("Loaded WalletConnectProvider dynamically");
+                        console.log("WalletConnectProvider not found, attempting to load");
+                        if (window.__walletConnectProviders && window.__walletConnectProviders.WalletConnectProvider) {
+                            console.log("Using WalletConnectProvider from safe reference");
+                            window.WalletConnectProvider = window.__walletConnectProviders.WalletConnectProvider;
+                        } else {
+                            try {
+                                await this._loadScript('https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js');
+                                console.log("Loaded WalletConnectProvider dynamically");
+                            } catch (e) {
+                                console.error("Failed to load WalletConnectProvider:", e);
+                                // Try alternative CDN
+                                await this._loadScript('https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js');
+                                console.log("Loaded WalletConnectProvider from alternative CDN");
+                            }
+                        }
                     }
                     
-                    // Load Web3Modal using a CDN that's more reliable
+                    // Load Web3Modal if not already available
                     if (typeof window.Web3Modal !== 'function') {
-                        await this._loadScript('https://unpkg.com/web3modal@1.9.9/dist/index.min.js');
-                        console.log("Loaded Web3Modal dynamically");
+                        try {
+                            console.log("Loading Web3Modal dynamically");
+                            await this._loadScript('https://cdn.jsdelivr.net/npm/web3modal@1.9.9/dist/index.min.js');
+                            console.log("Loaded Web3Modal from primary CDN");
+                        } catch (e) {
+                            console.error("Failed to load Web3Modal from primary CDN:", e);
+                            // Try alternative CDN
+                            await this._loadScript('https://unpkg.com/web3modal@1.9.9/dist/index.min.js');
+                            console.log("Loaded Web3Modal from alternative CDN");
+                        }
                     }
                     
                     // Give it a moment to initialize
@@ -165,6 +188,9 @@
                 
                 // Add WalletConnect if available
                 if (window.WalletConnectProvider) {
+                    // Ensure we use _safeEthereumProvider for consistency
+                    const safeProvider = window._safeEthereumProvider;
+                    
                     providerOptions.walletconnect = {
                         package: window.WalletConnectProvider,
                         options: {
@@ -208,21 +234,22 @@
                 console.log("Initializing Web3Modal with options:", web3ModalOptions);
                 
                 try {
-                    // Try creating Web3Modal with timeout to ensure it's fully loaded
+                    // Create Web3Modal instance
+                    this.web3Modal = new window.Web3Modal(web3ModalOptions);
+                    console.log("Web3Modal initialized successfully");
+                    
+                    // Add a safety timeout for older browsers or slow connections
                     setTimeout(() => {
-                        try {
-                            if (!this.web3Modal && typeof window.Web3Modal === 'function') {
+                        if (!this.web3Modal && typeof window.Web3Modal === 'function') {
+                            try {
                                 this.web3Modal = new window.Web3Modal(web3ModalOptions);
-                                console.log("Web3Modal initialized successfully with timeout");
+                                console.log("Web3Modal initialized with backup timeout mechanism");
+                            } catch (delayedError) {
+                                console.error("Failed to create Web3Modal in timeout:", delayedError);
                             }
-                        } catch (delayedError) {
-                            console.error("Failed to create Web3Modal instance with timeout:", delayedError);
                         }
                     }, 1000);
                     
-                    // Also try immediately for faster execution when possible
-                    this.web3Modal = new window.Web3Modal(web3ModalOptions);
-                    console.log("Web3Modal initialized successfully");
                     return true;
                 } catch (innerError) {
                     console.error("Failed to create Web3Modal instance:", innerError);

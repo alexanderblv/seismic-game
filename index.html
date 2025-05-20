@@ -60,11 +60,32 @@
             
             console.log("Setup ethereum protection...", typeof originalEthereum);
             
-            // Store ethereum in a safe place instead of making it getter-only
+            // Store ethereum in a safe place
             window._safeEthereumProvider = originalEthereum;
             
-            // Don't override the window.ethereum property with a getter
-            // Let wallet extensions inject their providers normally
+            // Create a proxy for ethereum that will redirect calls to the safe reference
+            // This allows libraries to interact with ethereum while preventing overwriting
+            if (originalEthereum) {
+                try {
+                    Object.defineProperty(window, 'ethereum', {
+                        get: function() {
+                            // Always return the latest reference in case it changes
+                            return window._safeEthereumProvider;
+                        },
+                        set: function(newProvider) {
+                            // When something tries to set ethereum, we update our safe reference
+                            // instead of allowing the property to be overwritten
+                            console.log("Ethereum provider update attempted, storing safely");
+                            window._safeEthereumProvider = newProvider;
+                        },
+                        configurable: true // Allow reconfiguration if needed
+                    });
+                    console.log("Set up ethereum proxy protection");
+                } catch (e) {
+                    console.error("Failed to set up ethereum proxy protection:", e);
+                }
+            }
+            
             console.log("Saved ethereum reference for safe access");
             
             // Track provider injections for debugging
@@ -194,6 +215,7 @@
     <script src="seismic-config.js"></script>
     <script src="seismic-sdk.js"></script>
     <script src="wallet-connector.js"></script>
+    <script src="app.js"></script>
 </head>
 <body>
     <header class="bg-dark text-white p-3">

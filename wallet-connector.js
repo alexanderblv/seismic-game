@@ -66,6 +66,9 @@
             try {
                 console.log("Initializing wallet connector...");
                 
+                // Wait a moment for any provider injections to complete
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
                 // Check for available wallets
                 this._checkInstalledWallets();
                 
@@ -82,14 +85,16 @@
                     rpcUrl: "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
                 };
                 
+                // Ensure Web3Modal is loaded
+                await this._ensureWeb3ModalLoaded();
+                
                 // Create Web3Modal instance
                 this._initializeWeb3Modal(projectId, networkConfig);
                 
                 // Initialize ethers provider
                 this._initializeEthersProvider();
                 
-                // Try to reconnect from cached session
-                this._attemptReconnect();
+                // Don't attempt reconnect to avoid connection conflicts
                 
                 this.initialized = true;
                 return true;
@@ -98,6 +103,48 @@
                 this.lastError = error.message || "Failed to initialize wallet connector";
                 return false;
             }
+        }
+        
+        /**
+         * Ensure Web3Modal is loaded by dynamically importing it if needed
+         */
+        async _ensureWeb3ModalLoaded() {
+            if (typeof window.Web3Modal === 'function') {
+                console.log("Web3Modal already loaded");
+                return;
+            }
+            
+            console.log("Web3Modal not found, attempting to load it dynamically");
+            
+            try {
+                // Load required scripts
+                await this._loadScript('https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js');
+                await this._loadScript('https://cdn.jsdelivr.net/npm/web3modal@1.9.9/dist/index.min.js');
+                
+                // Check if loading was successful
+                if (typeof window.Web3Modal !== 'function') {
+                    console.warn("Failed to load Web3Modal, wallet connection may not work properly");
+                } else {
+                    console.log("Successfully loaded Web3Modal dynamically");
+                }
+            } catch (error) {
+                console.error("Error loading Web3Modal:", error);
+                throw new Error("Could not load Web3Modal. Wallet connection may not work properly.");
+            }
+        }
+        
+        /**
+         * Helper to load a script dynamically
+         */
+        _loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.async = true;
+                script.onload = resolve;
+                script.onerror = (err) => reject(new Error(`Failed to load script: ${src}`));
+                document.head.appendChild(script);
+            });
         }
         
         /**
@@ -261,7 +308,10 @@
                                 rpc: {
                                     [networkConfig.chainId]: networkConfig.rpcUrl
                                 },
-                                chainId: networkConfig.chainId
+                                chainId: networkConfig.chainId,
+                                bridge: "https://bridge.walletconnect.org",
+                                qrcode: true,
+                                pollingInterval: 15000
                             }
                         }
                     };
@@ -278,10 +328,11 @@
                         };
                     }
                     
-                    // Create Web3Modal instance
+                    // Create Web3Modal instance with safer options
                     this.web3Modal = new window.Web3Modal({
-                        cacheProvider: true,
+                        cacheProvider: false, // Disabled to prevent auto-connecting
                         providerOptions,
+                        disableInjectedProvider: false, // Allow access to injected providers
                         theme: "dark"
                     });
                     
@@ -307,27 +358,18 @@
         }
         
         /**
-         * Attempt to reconnect from cached session
-         */
-        async _attemptReconnect() {
-            // Check if there's a cached provider but don't automatically connect
-            // This avoids the issue where user can't choose a different wallet
-            if (this.web3Modal && this.web3Modal.cachedProvider) {
-                console.log("Found cached provider, but won't reconnect automatically.");
-                console.log("User should explicitly choose which wallet to connect.");
-                
-                // Optional: display some UI indication that there was a previous connection
-                // but we're requiring a fresh choice
-                return false;
-            }
-            return false;
-        }
-        
-        /**
          * Connect to a specific wallet
          */
         async _connectToWallet(walletId) {
             console.log(`Connecting to wallet: ${walletId}`);
+            
+            // Prevent multiple connection attempts in quick succession
+            if (this.isConnecting) {
+                console.log("Another connection already in progress. Please wait.");
+                return;
+            }
+            
+            this.isConnecting = true;
             
             try {
                 // Clear cached provider if Web3Modal is available to ensure fresh connection
@@ -360,6 +402,7 @@
                             provider = window.ethereum;
                         } else {
                             window.open('https://metamask.io/download/', '_blank');
+                            this.isConnecting = false;
                             return;
                         }
                         break;
@@ -370,6 +413,7 @@
                             provider = window.ethereum;
                         } else {
                             window.open('https://trustwallet.com/download', '_blank');
+                            this.isConnecting = false;
                             return;
                         }
                         break;
@@ -380,6 +424,7 @@
                             provider = window.ethereum;
                         } else {
                             window.open('https://rabby.io/', '_blank');
+                            this.isConnecting = false;
                             return;
                         }
                         break;
@@ -390,6 +435,7 @@
                             provider = window.ethereum;
                         } else {
                             window.open('https://www.coinbase.com/wallet/downloads', '_blank');
+                            this.isConnecting = false;
                             return;
                         }
                         break;
@@ -398,10 +444,22 @@
                     default:
                         // Use Web3Modal for WalletConnect or fallback
                         if (this.web3Modal) {
-                            // Force show the wallet selection modal
-                            provider = await this.web3Modal.connect();
+                            try {
+                                // Force show the wallet selection modal
+                                provider = await this.web3Modal.connect();
+                            } catch (error) {
+                                console.log("User canceled connection or Web3Modal error:", error);
+                                this.isConnecting = false;
+                                return;
+                            }
                         } else {
-                            throw new Error("Web3Modal not initialized");
+                            console.warn("Web3Modal not available, attempting direct connection");
+                            // Try to use window.ethereum as fallback if available
+                            if (window.ethereum) {
+                                provider = window.ethereum;
+                            } else {
+                                throw new Error("No Web3Modal or provider available");
+                            }
                         }
                         break;
                 }
@@ -411,15 +469,36 @@
                     this.provider = provider;
                     this._registerProviderEvents(provider);
                     
-                    // Get accounts and chain ID
-                    await this._updateAccountsAndChain(provider);
-                    
-                    // Close modal
-                    this.closeWalletModal();
+                    try {
+                        // Get accounts and chain ID
+                        await this._updateAccountsAndChain(provider);
+                        
+                        // Close modal
+                        this.closeWalletModal();
+                    } catch (error) {
+                        // Check if this is a "request already pending" error
+                        if (error.code === -32002) {
+                            console.warn("Connection request already pending. Please check your wallet and confirm the pending request.");
+                            // Show a more user-friendly message in UI
+                            const pendingMessage = document.createElement('div');
+                            pendingMessage.className = 'wallet-pending-message';
+                            pendingMessage.textContent = 'Connection request pending. Please check your wallet and confirm the connection request.';
+                            document.querySelector('.wallet-modal-body').prepend(pendingMessage);
+                            
+                            // Don't close the modal yet so the user can see this message
+                        } else {
+                            throw error;
+                        }
+                    }
                 }
             } catch (error) {
                 console.error(`Failed to connect to ${walletId}:`, error);
                 this.lastError = error.message || `Failed to connect to ${walletId}`;
+            } finally {
+                // Reset connecting state after short delay to prevent rapid clicking
+                setTimeout(() => {
+                    this.isConnecting = false;
+                }, 1000);
             }
         }
         

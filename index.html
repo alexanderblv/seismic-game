@@ -55,41 +55,33 @@
     <!-- Protect ethereum property from being overwritten -->
     <script>
         (function() {
-            // Save existing ethereum if present
+            // Save a reference to the original ethereum
             const originalEthereum = window.ethereum;
             
-            // Create safe ethereum proxy
-            const safeEthereumProxy = {
-                get: function(target, prop) {
-                    // Always get fresh property from window.ethereum
-                    if (window.ethereum && typeof window.ethereum === 'object') {
-                        return window.ethereum[prop];
-                    }
-                    return undefined;
-                },
-                set: function(obj, prop, value) {
-                    console.log('Attempt to modify ethereum property blocked:', prop);
-                    return true; // Silently block attempts to set properties
-                }
-            };
+            console.log("Setup ethereum protection...", typeof originalEthereum);
             
-            // Create a safe ethereum provider
-            window.__safeEthereumProvider = new Proxy({}, safeEthereumProxy);
+            // Create backup of ethereum in a safe property
+            window._originalEthereum = originalEthereum;
             
-            // Track potential provider injection conflicts
-            console.log("Protecting ethereum provider from conflicts");
+            // Create ethereum logger to debug access
+            function logEthereumAccess(action, prop, value) {
+                console.debug(`Ethereum ${action}:`, prop, value);
+            }
             
-            // Check if ethereum is already defined with a getter
+            // Create safe ethereum proxy only if we don't already have a getter
             const descriptor = Object.getOwnPropertyDescriptor(window, 'ethereum');
             
-            // Only define the property if it doesn't exist or isn't already a getter
             if (!descriptor || !descriptor.get) {
+                // No getter exists, so we can safely define ours
                 Object.defineProperty(window, 'ethereum', {
                     configurable: true,
                     get: function() {
-                        return originalEthereum || window.__safeEthereumProvider;
+                        return originalEthereum || null;
                     }
                 });
+                console.log("Protected ethereum with a getter");
+            } else {
+                console.log("Ethereum already has a getter, not overriding");
             }
         })();
     </script>

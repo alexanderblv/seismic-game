@@ -384,8 +384,44 @@ document.addEventListener('DOMContentLoaded', () => {
                     connectWalletBtn.disabled = false;
                 }
             } else {
-                console.error('Wallet connector not found');
-                showError('Wallet connector not found. Please reload the page and try again.');
+                // If walletConnector not available, try to create it
+                console.log('Creating new wallet connector instance');
+                
+                // Import the necessary script if not already there
+                if (typeof window.WalletConnector !== 'function') {
+                    try {
+                        // First make sure wallet-connector.js is loaded
+                        if (!document.querySelector('script[src*="wallet-connector.js"]')) {
+                            const script = document.createElement('script');
+                            script.src = 'wallet-connector.js';
+                            script.async = true;
+                            document.head.appendChild(script);
+                            
+                            // Wait for script to load
+                            await new Promise((resolve, reject) => {
+                                script.onload = resolve;
+                                script.onerror = reject;
+                            });
+                        }
+                        
+                        // Create a new instance
+                        window.walletConnector = new window.WalletConnector();
+                        
+                        // Initialize and show modal
+                        await window.walletConnector.initialize({
+                            projectId: seismicConfig.walletConnect?.projectId,
+                            network: seismicConfig.network
+                        });
+                        
+                        window.walletConnector.showWalletModal();
+                    } catch (e) {
+                        console.error('Error creating wallet connector:', e);
+                        showError('Could not initialize wallet connector. Try refreshing the page.');
+                    }
+                } else {
+                    showError('Wallet connector not available. Please reload the page and try again.');
+                }
+                
                 walletConnectInitiated = false;
                 connectWalletBtn.disabled = false;
             }

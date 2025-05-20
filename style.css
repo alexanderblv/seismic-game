@@ -622,4 +622,24 @@ body.wallet-modal-open {
         width: 90%;
         margin: 0 auto;
     }
+}
+
+/* Wallet Pending Message */
+.wallet-pending-message {
+    background-color: #FFB74D;
+    color: #5D4037;
+    padding: 12px 16px;
+    margin: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    text-align: center;
+    font-weight: 500;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    animation: pulse-warning 2s infinite;
+}
+
+@keyframes pulse-warning {
+    0% { opacity: 0.7; }
+    50% { opacity: 1; }
+    100% { opacity: 0.7; }
 } 

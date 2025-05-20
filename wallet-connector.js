@@ -153,6 +153,23 @@
                         }
                     }
                     
+                    // Try to load Coinbase Wallet SDK
+                    if (!window.CoinbaseWalletSDK) {
+                        try {
+                            console.log("Loading Coinbase Wallet SDK");
+                            await this._loadScript('https://cdn.jsdelivr.net/npm/@coinbase/wallet-sdk@3.6.0/dist/index.min.js');
+                            console.log("Loaded Coinbase Wallet SDK");
+                        } catch (e) {
+                            console.warn("Failed to load Coinbase Wallet SDK:", e);
+                            try {
+                                await this._loadScript('https://unpkg.com/@coinbase/wallet-sdk@3.6.0/dist/index.min.js');
+                                console.log("Loaded Coinbase Wallet SDK from alternative CDN");
+                            } catch (e2) {
+                                console.error("Failed to load Coinbase Wallet SDK from alternative source:", e2);
+                            }
+                        }
+                    }
+                    
                     // Load Web3Modal if not already available
                     if (typeof window.Web3Modal !== 'function') {
                         try {
@@ -217,9 +234,6 @@
                 
                 // Add WalletConnect if available
                 if (window.WalletConnectProvider) {
-                    // Ensure we use _safeEthereumProvider for consistency
-                    const safeProvider = window._safeEthereumProvider;
-                    
                     providerOptions.walletconnect = {
                         package: window.WalletConnectProvider,
                         options: {
@@ -251,12 +265,27 @@
                     console.log("Added Coinbase Wallet provider option");
                 }
                 
-                // Create Web3Modal instance with safer options
+                // Add Trust Wallet if available
+                if (window.ethereum?.isTrust || window.ethereum?.isTrustWallet) {
+                    console.log("Trust Wallet detected in the environment");
+                }
+                
+                // Add Binance Chain Wallet if available
+                if (window.BinanceChain) {
+                    providerOptions.binancechainwallet = {
+                        package: true
+                    };
+                    console.log("Added Binance Chain Wallet provider option");
+                }
+
+                // IMPORTANT: Do not skip the modal UI selection
                 const web3ModalOptions = {
                     cacheProvider: false, // Disabled to prevent auto-connecting
                     providerOptions,
                     disableInjectedProvider: false, // Allow access to injected providers
-                    theme: "dark"
+                    theme: "dark",
+                    // Force showing selection even if only one option
+                    showInjectedOption: true 
                 };
                 
                 // Log the options we're using
@@ -266,6 +295,14 @@
                     // Create Web3Modal instance
                     this.web3Modal = new window.Web3Modal(web3ModalOptions);
                     console.log("Web3Modal initialized successfully");
+                    
+                    // Override default connect method to ensure modal always shows
+                    const originalConnect = this.web3Modal.connect.bind(this.web3Modal);
+                    this.web3Modal.connect = async () => {
+                        // Force modal to open
+                        this.web3Modal.toggleModal();
+                        return originalConnect();
+                    };
                     
                     // Add a safety timeout for older browsers or slow connections
                     setTimeout(() => {
@@ -366,7 +403,7 @@
                     }
                 }
                 
-                // Перед подключением очистим прошлые соединения, чтобы избежать конфликтов
+                // Clear previous connections to avoid conflicts
                 if (this.provider) {
                     try {
                         if (typeof this.provider.disconnect === 'function') {
@@ -382,12 +419,11 @@
                 let provider = null;
                 let isWeb3ModalConnection = false;
                 
-                // Try to get the safe provider reference first
+                // Get safe provider reference as fallback only
                 const safeProvider = window._safeEthereumProvider || window.ethereum;
                 
-                // Пробуем использовать Web3Modal
+                // Use Web3Modal as primary connection method
                 if (typeof window.Web3Modal === 'function' && this.web3Modal) {
-                    // On the Web3Modal flow
                     console.log("Attempting to connect using Web3Modal");
                     try {
                         // Always clear cached provider to avoid auto-connecting to previous wallet
@@ -406,9 +442,19 @@
                         isWeb3ModalConnection = true;
                     } catch (modalError) {
                         console.log("Web3Modal connection failed:", modalError);
-                        console.log("Falling back to direct provider");
-                        // Fall back to direct provider
-                        provider = safeProvider;
+                        console.log("Falling back to direct provider only if user rejected modal");
+                        
+                        // Only fall back to direct provider if it was a user rejection
+                        // This prevents automatically connecting to MetaMask without selection
+                        if (modalError.message && (
+                            modalError.message.includes("User closed modal") || 
+                            modalError.message.includes("user rejected") ||
+                            modalError.message.includes("User Rejected")
+                        )) {
+                            provider = null; // Don't auto-connect to MetaMask
+                        } else {
+                            provider = safeProvider; // Only use as fallback for other errors
+                        }
                     }
                 } else {
                     console.log("Web3Modal not available, using direct provider");
@@ -416,7 +462,7 @@
                 }
                 
                 if (!provider) {
-                    throw new Error("No wallet provider available. Please install MetaMask or another web3 wallet.");
+                    throw new Error("No wallet provider available. Please install MetaMask or another web3 wallet and try again.");
                 }
                 
                 // Update the provider reference

@@ -1,6 +1,10 @@
 {
-  "name": "Seismic Transaction Sender",
-  "description": "A Web3 application for sending transactions on Seismic networks",
-  "url": "https://your-app-url.com",
-  "icons": ["https://your-app-url.com/favicon.ico"]
+  "name": "Seismic Game",
+  "description": "Connect your wallet to Seismic Game",
+  "url": "https://seismic-game.vercel.app",
+  "icons": ["https://seismic-game.vercel.app/favicon.ico"],
+  "redirect": {
+    "native": "seismic-game://",
+    "universal": "https://seismic-game.vercel.app"
+  }
 } 

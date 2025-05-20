@@ -27,7 +27,7 @@
                 console.log("Initializing wallet connector...");
                 
                 // Wait a moment for any provider injections to complete
-                await new Promise(resolve => setTimeout(resolve, 500));
+                await new Promise(resolve => setTimeout(resolve, 1000));
                 
                 // Project ID for WalletConnect (required for v2)
                 const projectId = config.projectId || window.seismicConfig?.walletConnect?.projectId || "a85ac05209955cfd18fbe7c0fd018f23";
@@ -43,7 +43,13 @@
                 this._setupSafeProviderReference();
                 
                 // Ensure Web3Modal is loaded
-                const web3ModalLoaded = await this._ensureWeb3ModalLoaded();
+                let web3ModalLoaded = false;
+                try {
+                    web3ModalLoaded = await this._ensureWeb3ModalLoaded();
+                } catch (e) {
+                    console.warn("Error loading Web3Modal:", e);
+                }
+                
                 if (!web3ModalLoaded) {
                     console.warn("Failed to load Web3Modal, falling back to direct provider");
                     // Even if Web3Modal failed to load, we can still try to use the injected provider
@@ -63,7 +69,16 @@
             } catch (error) {
                 console.error("Failed to initialize wallet connector:", error);
                 this.lastError = error.message || "Failed to initialize wallet connector";
-                return false;
+                // Even if initialization fails, we can still try to use the injected provider
+                if (!this.provider && window._safeEthereumProvider) {
+                    try {
+                        this.provider = new ethers.providers.Web3Provider(window._safeEthereumProvider);
+                        this.initialized = true;
+                    } catch (e) {
+                        console.error("Failed to create fallback provider:", e);
+                    }
+                }
+                return this.initialized;
             }
         }
         
@@ -294,8 +309,35 @@
                         // Register event handlers for the provider
                         this._registerProviderEvents(providerToUse);
                         
-                        // Update accounts/chain info if already connected
-                        this._updateAccountsAndChain(providerToUse);
+                        // Check if already connected without triggering a permission request
+                        // This avoids unwanted permission popups during initialization
+                        if (typeof providerToUse.request === 'function') {
+                            // Use eth_accounts which doesn't trigger a permission popup
+                            providerToUse.request({ method: 'eth_accounts' })
+                                .then(accounts => {
+                                    if (accounts && accounts.length > 0) {
+                                        this.selectedAccount = accounts[0];
+                                        
+                                        // Get chain ID
+                                        providerToUse.request({ method: 'eth_chainId' })
+                                            .then(chainId => {
+                                                // Convert hex to decimal if needed
+                                                if (typeof chainId === 'string' && chainId.startsWith('0x')) {
+                                                    chainId = parseInt(chainId, 16);
+                                                }
+                                                this.chainId = chainId;
+                                                
+                                                // Emit connection event
+                                                this._emitEvent('walletConnected', { 
+                                                    account: this.selectedAccount,
+                                                    chainId: this.chainId
+                                                });
+                                            })
+                                            .catch(e => console.warn("Failed to get chain ID:", e));
+                                    }
+                                })
+                                .catch(e => console.warn("Failed to check accounts:", e));
+                        }
                     }
                 }
             } catch (error) {
@@ -410,9 +452,37 @@
                 
                 // Different provider implementations have different methods
                 if (typeof provider.request === 'function') {
-                    accounts = await provider.request({ method: 'eth_requestAccounts' });
+                    try {
+                        accounts = await provider.request({ method: 'eth_requestAccounts' });
+                    } catch (requestError) {
+                        // Handle common errors
+                        if (requestError.code === -32002) {
+                            // Request already pending, wait a moment and try to get accounts without requesting
+                            console.log("Account request already pending, trying to get existing accounts");
+                            try {
+                                // Use eth_accounts which doesn't trigger a new permission popup
+                                accounts = await provider.request({ method: 'eth_accounts' });
+                            } catch (e) {
+                                console.warn("Failed to get accounts without permission:", e);
+                            }
+                        } else if (requestError.code === 4001) {
+                            // User rejected request - this is a valid user choice
+                            console.log("User rejected the connection request");
+                            return false;
+                        } else {
+                            // Some other error occurred
+                            console.error("Failed to get accounts:", requestError);
+                            throw requestError;
+                        }
+                    }
                 } else if (typeof provider.enable === 'function') {
-                    accounts = await provider.enable();
+                    try {
+                        accounts = await provider.enable();
+                    } catch (enableError) {
+                        // User likely rejected the request
+                        console.log("User rejected the enable request");
+                        return false;
+                    }
                 } else if (provider.accounts) {
                     accounts = provider.accounts;
                 }
@@ -446,7 +516,8 @@
                 }
             } catch (error) {
                 console.error("Failed to get accounts:", error);
-                throw error;
+                // Don't throw the error to prevent Uncaught promise exceptions
+                return false;
             }
             
             return false;

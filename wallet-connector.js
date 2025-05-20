@@ -24,9 +24,6 @@
             try {
                 console.log("Initializing wallet connector...");
                 
-                // Wait a moment for any provider injections to complete
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
                 // Project ID for WalletConnect (required for v2)
                 const projectId = config.projectId || window.seismicConfig?.walletConnect?.projectId || "a85ac05209955cfd18fbe7c0fd018f23";
                 
@@ -42,9 +39,6 @@
                 
                 // Create Web3Modal instance
                 this._initializeWeb3Modal(projectId, networkConfig);
-                
-                // Initialize ethers provider
-                this._initializeEthersProvider();
                 
                 this.initialized = true;
                 return true;
@@ -151,14 +145,85 @@
         }
         
         /**
-         * Initialize ethers provider
+         * Connect to wallet using Web3Modal
          */
-        _initializeEthersProvider() {
-            // Initialize ethers if available
-            if (typeof window.ethers !== 'undefined') {
-                console.log("Ethers library found");
-            } else {
-                console.warn("Ethers library not found");
+        async connect() {
+            if (this.isConnecting) {
+                console.log("Connection process already started");
+                return false;
+            }
+            
+            try {
+                this.isConnecting = true;
+                this.lastError = null;
+                
+                // Initialize if needed
+                if (!this.initialized) {
+                    await this.initialize();
+                }
+                
+                if (!this.web3Modal) {
+                    throw new Error("Web3Modal not initialized");
+                }
+                
+                // Clear cached provider to prevent automatically connecting to the last used provider
+                this.web3Modal.clearCachedProvider();
+                
+                // Disconnect existing provider if any
+                if (this.provider) {
+                    this._cleanupProvider();
+                }
+                
+                // Connect using Web3Modal
+                console.log("Opening Web3Modal to select wallet...");
+                const provider = await this.web3Modal.connect();
+                
+                if (provider) {
+                    this.provider = provider;
+                    
+                    // Register provider event listeners
+                    this._registerProviderEvents(provider);
+                    
+                    // Update accounts and chain ID
+                    const connected = await this._updateAccountsAndChain(provider);
+                    
+                    if (connected) {
+                        console.log(`Successfully connected to wallet with address ${this.selectedAccount}`);
+                    } else {
+                        console.warn("Failed to get accounts from provider");
+                    }
+                } else {
+                    console.warn("Provider is null after connection");
+                }
+                
+                this.isConnecting = false;
+                return !!this.selectedAccount;
+            } catch (error) {
+                console.error("Error connecting wallet:", error);
+                this.lastError = error.message || "Failed to connect to wallet";
+                this.isConnecting = false;
+                return false;
+            }
+        }
+        
+        /**
+         * Clean up existing provider
+         */
+        async _cleanupProvider() {
+            if (!this.provider) return;
+            
+            try {
+                // Attempt to disconnect current provider if possible
+                if (typeof this.provider.disconnect === 'function') {
+                    await this.provider.disconnect();
+                }
+                
+                // Reset provider state
+                this.provider = null;
+                this.selectedAccount = null;
+                this.chainId = null;
+            } catch (e) {
+                console.warn("Error cleaning up previous provider:", e);
             }
         }
         
@@ -197,10 +262,14 @@
                         console.warn("Failed to get chain ID:", e);
                     }
                     
-                    // Emit connection event
+                    // Emit both events to ensure compatibility
                     this._emitEvent('walletConnected', { 
                         account: this.selectedAccount,
                         chainId: this.chainId
+                    });
+                    
+                    this._emitEvent('accountsChanged', { 
+                        account: this.selectedAccount
                     });
                     
                     return true;
@@ -236,9 +305,8 @@
                     console.log("accountsChanged event:", accounts);
                     if (accounts && accounts.length > 0) {
                         this.selectedAccount = accounts[0];
-                        this._emitEvent('walletConnected', { 
-                            account: this.selectedAccount,
-                            chainId: this.chainId
+                        this._emitEvent('accountsChanged', { 
+                            account: this.selectedAccount
                         });
                     } else {
                         this.selectedAccount = null;
@@ -272,60 +340,6 @@
         }
         
         /**
-         * Connect to wallet using Web3Modal
-         */
-        async connect() {
-            if (this.isConnecting) {
-                console.log("Connection process already started");
-                return false;
-            }
-            
-            try {
-                this.isConnecting = true;
-                this.lastError = null;
-                
-                // Initialize if needed
-                if (!this.initialized) {
-                    await this.initialize();
-                }
-                
-                // Use Web3Modal for connection
-                if (this.web3Modal) {
-                    try {
-                        // First clear cached provider to avoid auto-connecting
-                        this.web3Modal.clearCachedProvider();
-                        
-                        // Connect using Web3Modal which will show the wallet selection
-                        const provider = await this.web3Modal.connect();
-                        
-                        // Set provider and register events
-                        if (provider) {
-                            this.provider = provider;
-                            this._registerProviderEvents(provider);
-                            
-                            // Get accounts and chain ID
-                            await this._updateAccountsAndChain(provider);
-                        }
-                    } catch (error) {
-                        console.log("User canceled connection or Web3Modal error:", error);
-                        this.isConnecting = false;
-                        return false;
-                    }
-                } else {
-                    throw new Error("Web3Modal is not available");
-                }
-                
-                this.isConnecting = false;
-                return true;
-            } catch (error) {
-                console.error("Error connecting to wallet:", error);
-                this.lastError = error.message || "Failed to connect to wallet";
-                this.isConnecting = false;
-                return false;
-            }
-        }
-        
-        /**
          * Disconnect wallet
          */
         async disconnect() {
@@ -335,15 +349,8 @@
                     this.web3Modal.clearCachedProvider();
                 }
                 
-                // Close provider connection if possible
-                if (this.provider && typeof this.provider.disconnect === 'function') {
-                    await this.provider.disconnect();
-                }
-                
-                // Reset state
-                this.provider = null;
-                this.selectedAccount = null;
-                this.chainId = null;
+                // Clean up the provider
+                await this._cleanupProvider();
                 
                 // Emit event
                 this._emitEvent('walletDisconnected');

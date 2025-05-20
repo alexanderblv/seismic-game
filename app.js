@@ -80,8 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('Account changed event:', event.detail);
                 
                 if (event.detail && event.detail.account) {
-                    // Reload the page or update UI as needed
-                    window.location.reload();
+                    completeWalletConnection(event.detail.account);
                 }
             });
             
@@ -372,10 +371,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     }
                     
-                    // Use Web3Modal for wallet connection
-                    await window.walletConnector.connect();
+                    // Connect using Web3Modal
+                    const connected = await window.walletConnector.connect();
                     
-                    // Connection will be handled by the event listener
+                    if (!connected) {
+                        console.log('User canceled wallet connection or it failed');
+                        walletConnectInitiated = false;
+                        connectWalletBtn.disabled = false;
+                    }
+                    
+                    // Connection will be handled by the wallet connector events
                 } catch (error) {
                     console.error('Failed to connect wallet through walletConnector:', error);
                     showError('Failed to connect wallet: ' + (error.message || 'Unknown error'));
@@ -401,21 +406,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     }
                     
-                    // Create a new instance
-                    if (typeof window.WalletConnector === 'function') {
-                        window.walletConnector = new window.WalletConnector();
-                        
-                        // Initialize wallet connector
-                        await window.walletConnector.initialize({
-                            projectId: seismicConfig.walletConnect?.projectId,
-                            network: seismicConfig.network
-                        });
-                        
-                        // Use Web3Modal for wallet connection
-                        await window.walletConnector.connect();
-                    } else {
-                        throw new Error('WalletConnector not available');
+                    // Create a new instance if not already created
+                    if (!window.walletConnector) {
+                        window.walletConnector = new WalletConnector();
                     }
+                    
+                    // Initialize and connect
+                    await window.walletConnector.initialize({
+                        projectId: seismicConfig.walletConnect?.projectId,
+                        network: seismicConfig.network
+                    });
+                    
+                    await window.walletConnector.connect();
                 } catch (e) {
                     console.error('Error creating wallet connector:', e);
                     showError('Could not initialize wallet connector. Try refreshing the page.');

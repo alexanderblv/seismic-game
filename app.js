@@ -66,16 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Set up wallet event handlers
     function setupWalletListeners() {
         if (window.walletConnector) {
-            // Listen to wallet connected event
-            document.addEventListener('wallet:walletConnected', (event) => {
-                console.log('Wallet connected event:', event.detail);
-                
-                if (event.detail && event.detail.account) {
-                    completeWalletConnection(event.detail.account);
-                }
-            });
-            
-            // Listen to account changed event
+            // Listen to wallet connected event (comes from accountsChanged in the new implementation)
             document.addEventListener('wallet:accountsChanged', (event) => {
                 console.log('Account changed event:', event.detail);
                 
@@ -363,7 +354,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Use our global wallet connector
             if (window.walletConnector) {
                 try {
-                    // Initialize wallet connector if not already
+                    // Initialize wallet connector if needed
                     if (!window.walletConnector.initialized) {
                         await window.walletConnector.initialize({
                             projectId: seismicConfig.walletConnect?.projectId,
@@ -375,12 +366,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     const connected = await window.walletConnector.connect();
                     
                     if (!connected) {
-                        console.log('User canceled wallet connection or it failed');
+                        console.log('User cancelled wallet connection');
                         walletConnectInitiated = false;
                         connectWalletBtn.disabled = false;
                     }
                     
-                    // Connection will be handled by the wallet connector events
+                    // Connection will be handled by the wallet connector
+                    // and the wallet:accountsChanged event will be triggered
                 } catch (error) {
                     console.error('Failed to connect wallet through walletConnector:', error);
                     showError('Failed to connect wallet: ' + (error.message || 'Unknown error'));
@@ -391,36 +383,40 @@ document.addEventListener('DOMContentLoaded', () => {
                 // If walletConnector not available, try to create it
                 console.log('Creating new wallet connector instance');
                 
-                try {
-                    // First make sure wallet-connector.js is loaded
-                    if (!document.querySelector('script[src*="wallet-connector.js"]')) {
-                        const script = document.createElement('script');
-                        script.src = 'wallet-connector.js';
-                        script.async = true;
-                        document.head.appendChild(script);
+                // Import the necessary script if not already there
+                if (typeof window.WalletConnector !== 'function') {
+                    try {
+                        // First make sure wallet-connector.js is loaded
+                        if (!document.querySelector('script[src*="wallet-connector.js"]')) {
+                            const script = document.createElement('script');
+                            script.src = 'wallet-connector.js';
+                            script.async = true;
+                            document.head.appendChild(script);
+                            
+                            // Wait for script to load
+                            await new Promise((resolve, reject) => {
+                                script.onload = resolve;
+                                script.onerror = reject;
+                            });
+                        }
                         
-                        // Wait for script to load
-                        await new Promise((resolve, reject) => {
-                            script.onload = resolve;
-                            script.onerror = reject;
+                        // Create a new instance
+                        window.walletConnector = new window.WalletConnector();
+                        
+                        // Initialize wallet connector
+                        await window.walletConnector.initialize({
+                            projectId: seismicConfig.walletConnect?.projectId,
+                            network: seismicConfig.network
                         });
+                        
+                        // Connect using Web3Modal
+                        await window.walletConnector.connect();
+                    } catch (e) {
+                        console.error('Error creating wallet connector:', e);
+                        showError('Could not initialize wallet connector. Try refreshing the page.');
                     }
-                    
-                    // Create a new instance if not already created
-                    if (!window.walletConnector) {
-                        window.walletConnector = new WalletConnector();
-                    }
-                    
-                    // Initialize and connect
-                    await window.walletConnector.initialize({
-                        projectId: seismicConfig.walletConnect?.projectId,
-                        network: seismicConfig.network
-                    });
-                    
-                    await window.walletConnector.connect();
-                } catch (e) {
-                    console.error('Error creating wallet connector:', e);
-                    showError('Could not initialize wallet connector. Try refreshing the page.');
+                } else {
+                    showError('Wallet connector not available. Please reload the page and try again.');
                 }
                 
                 walletConnectInitiated = false;

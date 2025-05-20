@@ -291,7 +291,7 @@ document.addEventListener('DOMContentLoaded', () => {
         refreshBalance();
     }
 
-    // Connect wallet button click handler
+    // Connect to wallet
     async function connectWallet() {
         try {
             if (walletConnectInitiated) {
@@ -301,12 +301,37 @@ document.addEventListener('DOMContentLoaded', () => {
             
             walletConnectInitiated = true;
             connectWalletBtn.disabled = true;
+            loadingOverlay.classList.remove('d-none');
+            loadingText.textContent = 'Connecting wallet...';
             
             console.log('Connecting wallet...');
             
             // Check if wallet connector exists
             if (!window.walletConnector) {
-                throw new Error('Wallet connector not initialized');
+                // Fallback to direct connection if connector doesn't exist
+                console.log('No wallet connector, trying direct connection');
+                const provider = window._safeEthereumProvider || window.ethereum;
+                
+                if (!provider) {
+                    throw new Error('No wallet detected. Please install MetaMask or another Ethereum wallet.');
+                }
+                
+                try {
+                    const accounts = await provider.request({ method: 'eth_requestAccounts' });
+                    if (accounts && accounts.length > 0) {
+                        // Complete connection with first account
+                        await completeWalletConnection(accounts[0]);
+                    } else {
+                        throw new Error('No accounts returned from wallet');
+                    }
+                } catch (directError) {
+                    if (directError.code === 4001) {
+                        throw new Error('Connection rejected by user');
+                    } else {
+                        throw directError;
+                    }
+                }
+                return;
             }
             
             // Initialize wallet connector if needed
@@ -327,22 +352,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             
-            // Attempt to connect using Web3Modal
-            console.log('Attempting to connect via Web3Modal...');
+            // Attempt to connect using wallet connector
             const connected = await window.walletConnector.connect();
             
             if (!connected) {
-                console.log('Web3Modal connection failed or was cancelled by user');
-                throw new Error('Connection cancelled or failed');
+                const lastError = window.walletConnector.getLastError();
+                throw new Error(lastError || 'Connection failed or was cancelled by user');
             }
             
-            console.log('Web3Modal connection successful');
-            
-            // Connection will be handled by event listeners
-            // The wallet:accountsChanged event will trigger completeWalletConnection
+            // Get connected account - either from event or directly
+            const account = window.walletConnector.getSelectedAccount();
+            if (account) {
+                await completeWalletConnection(account);
+            } else {
+                console.log('No account found yet, waiting for accountsChanged event');
+                // Connection will be handled by event listeners
+                // The wallet:accountsChanged event will trigger completeWalletConnection
+            }
             
         } catch (error) {
             console.error('Wallet connection error:', error);
+            loadingOverlay.classList.add('d-none');
             showError('Failed to connect wallet: ' + (error.message || 'Unknown error'));
         } finally {
             walletConnectInitiated = false;

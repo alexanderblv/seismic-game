@@ -60,16 +60,16 @@
             
             console.log("Setup ethereum protection...", typeof originalEthereum);
             
-            // Create backup of ethereum in a safe property
-            window._originalEthereum = originalEthereum;
+            // Store ethereum in a safe place instead of making it getter-only
+            window._safeEthereumProvider = originalEthereum;
             
-            // Instead of using a getter that can't be overwritten, make the property configurable
-            // but still preserve the original ethereum
-            if (window.ethereum) {
-                // Store ethereum in a safe place
-                window._safeEthereumProvider = window.ethereum;
-                console.log("Saved ethereum reference for safe access");
-            }
+            // Don't override the window.ethereum property with a getter
+            // Let wallet extensions inject their providers normally
+            console.log("Saved ethereum reference for safe access");
+            
+            // Track provider injections for debugging
+            const ethDescriptor = Object.getOwnPropertyDescriptor(window, 'ethereum');
+            console.log("Current ethereum property descriptor:", ethDescriptor ? "Exists" : "Not set");
         })();
     </script>
     

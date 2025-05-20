@@ -13,6 +13,7 @@
             this.isConnecting = false;
             this.lastError = null;
             this.walletListeners = [];
+            this.loadingPromise = null;
         }
 
         /**
@@ -38,7 +39,14 @@
                 };
                 
                 // Ensure Web3Modal is loaded
-                await this._ensureWeb3ModalLoaded();
+                const web3ModalLoaded = await this._ensureWeb3ModalLoaded();
+                if (!web3ModalLoaded) {
+                    console.warn("Failed to load Web3Modal, falling back to direct provider");
+                    // Even if Web3Modal failed to load, we can still try to use the injected provider
+                    this._initializeEthersProvider();
+                    this.initialized = true;
+                    return true;
+                }
                 
                 // Create Web3Modal instance
                 this._initializeWeb3Modal(projectId, networkConfig);
@@ -64,51 +72,66 @@
                 return true;
             }
             
+            // Prevent multiple loading attempts
+            if (this.loadingPromise) {
+                return this.loadingPromise;
+            }
+            
             console.log("Web3Modal not found, attempting to load it dynamically");
             
-            try {
-                // Check if the scripts were already loaded in the HTML
-                if (document.querySelector('script[src*="web3modal"]')) {
-                    console.log("Web3Modal script tag already exists, waiting for it to load");
-                    // Wait a moment for the script to initialize
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                    
-                    if (typeof window.Web3Modal === 'function') {
-                        console.log("Web3Modal loaded via existing script tag");
-                        return true;
+            this.loadingPromise = new Promise(async (resolve) => {
+                try {
+                    // Check if the scripts were already loaded in the HTML
+                    if (document.querySelector('script[src*="web3modal"]')) {
+                        console.log("Web3Modal script tag already exists, waiting for it to load");
+                        // Wait a moment for the script to initialize
+                        await new Promise(resolve => setTimeout(resolve, 1500));
+                        
+                        if (typeof window.Web3Modal === 'function') {
+                            console.log("Web3Modal loaded via existing script tag");
+                            resolve(true);
+                            return;
+                        }
                     }
+                    
+                    // Check if we have safe references to the providers
+                    if (window.__walletConnectProviders && typeof window.__walletConnectProviders.Web3Modal === 'function') {
+                        console.log("Using existing Web3Modal from safe reference");
+                        window.Web3Modal = window.__walletConnectProviders.Web3Modal;
+                        resolve(true);
+                        return;
+                    }
+                    
+                    // Load required scripts if they aren't already loaded
+                    if (!window.WalletConnectProvider) {
+                        await this._loadScript('https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js');
+                        console.log("Loaded WalletConnectProvider dynamically");
+                    }
+                    
+                    // Load Web3Modal using a CDN that's more reliable
+                    if (typeof window.Web3Modal !== 'function') {
+                        await this._loadScript('https://unpkg.com/web3modal@1.9.9/dist/index.min.js');
+                        console.log("Loaded Web3Modal dynamically");
+                    }
+                    
+                    // Give it a moment to initialize
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    // Check if loading was successful
+                    if (typeof window.Web3Modal !== 'function') {
+                        console.warn("Failed to load Web3Modal, wallet connection may not work properly");
+                        resolve(false);
+                    } else {
+                        console.log("Successfully loaded Web3Modal dynamically");
+                        resolve(true);
+                    }
+                } catch (error) {
+                    console.error("Error loading Web3Modal:", error);
+                    resolve(false);
                 }
-                
-                // Check if we have safe references to the providers
-                if (window.__walletConnectProviders && typeof window.__walletConnectProviders.Web3Modal === 'function') {
-                    console.log("Using existing Web3Modal from safe reference");
-                    window.Web3Modal = window.__walletConnectProviders.Web3Modal;
-                    return true;
-                }
-                
-                // Load required scripts if they aren't already loaded
-                if (!window.WalletConnectProvider) {
-                    await this._loadScript('https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js');
-                    console.log("Loaded WalletConnectProvider dynamically");
-                }
-                
-                if (typeof window.Web3Modal !== 'function') {
-                    await this._loadScript('https://cdn.jsdelivr.net/npm/web3modal@1.9.9/dist/index.min.js');
-                    console.log("Loaded Web3Modal dynamically");
-                }
-                
-                // Check if loading was successful
-                if (typeof window.Web3Modal !== 'function') {
-                    console.warn("Failed to load Web3Modal, wallet connection may not work properly");
-                    return false;
-                } else {
-                    console.log("Successfully loaded Web3Modal dynamically");
-                    return true;
-                }
-            } catch (error) {
-                console.error("Error loading Web3Modal:", error);
-                throw new Error("Could not load Web3Modal. Wallet connection may not work properly.");
-            }
+            });
+            
+            return this.loadingPromise;
         }
         
         /**
@@ -226,56 +249,72 @@
                     }
                 }
                 
-                // Check if Web3Modal is available
-                if (!this.web3Modal) {
-                    throw new Error("Web3Modal not available. Please refresh the page and try again.");
-                }
+                let provider = null;
                 
-                // Always clear cached provider to avoid auto-connecting to previous wallet
-                if (this.web3Modal.clearCachedProvider) {
+                // Try Web3Modal approach first
+                if (this.web3Modal) {
+                    console.log("Attempting to connect using Web3Modal");
                     try {
-                        this.web3Modal.clearCachedProvider();
-                    } catch (clearError) {
-                        console.warn("Failed to clear cached provider:", clearError);
+                        // Always clear cached provider to avoid auto-connecting to previous wallet
+                        if (this.web3Modal.clearCachedProvider) {
+                            try {
+                                this.web3Modal.clearCachedProvider();
+                            } catch (clearError) {
+                                console.warn("Failed to clear cached provider:", clearError);
+                            }
+                        }
+                        
+                        // Connect using Web3Modal which will show the standard wallet selection
+                        console.log("Opening Web3Modal for wallet selection");
+                        provider = await this.web3Modal.connect();
+                        console.log("Web3Modal connection successful");
+                    } catch (modalError) {
+                        console.log("Web3Modal connection failed:", modalError);
+                        provider = null;
                     }
                 }
                 
-                // Connect using Web3Modal which will show the standard wallet selection
-                console.log("Opening Web3Modal for wallet selection");
-                let provider;
-                try {
-                    // Show the Web3Modal wallet selection
-                    provider = await this.web3Modal.connect();
-                } catch (modalError) {
-                    console.log("User canceled connection or Web3Modal error:", modalError);
-                    this.isConnecting = false;
-                    return false;
-                }
-                
+                // Fallback to direct provider if Web3Modal failed or is not available
                 if (!provider) {
-                    console.error("No provider returned from Web3Modal");
-                    throw new Error("Failed to connect to wallet: No provider returned");
+                    console.log("Attempting to connect using direct provider");
+                    
+                    // Try to use the saved ethereum provider or the current window.ethereum
+                    provider = window._safeEthereumProvider || window.ethereum;
+                    
+                    if (!provider) {
+                        throw new Error("No Web3 provider detected. Please install MetaMask or another wallet.");
+                    }
+                    
+                    try {
+                        // Request accounts directly
+                        const accounts = await provider.request({ method: 'eth_requestAccounts' });
+                        if (!accounts || accounts.length === 0) {
+                            throw new Error("No accounts returned from wallet");
+                        }
+                        console.log("Direct provider connection successful");
+                    } catch (directError) {
+                        console.error("Direct provider connection failed:", directError);
+                        throw new Error("Failed to connect with direct provider: " + (directError.message || "Unknown error"));
+                    }
                 }
                 
-                console.log("Provider connected:", provider);
-                
-                // Set provider and register events
+                // Update the provider reference
                 this.provider = provider;
+                
+                // Set up event listeners for this provider
                 this._registerProviderEvents(provider);
                 
-                // Get accounts and chain ID
-                const updated = await this._updateAccountsAndChain(provider);
-                if (!updated) {
-                    throw new Error("Failed to get account information from wallet");
-                }
+                // Update accounts and chain ID
+                await this._updateAccountsAndChain(provider);
                 
-                this.isConnecting = false;
                 return true;
             } catch (error) {
                 console.error("Error connecting to wallet:", error);
-                this.lastError = error.message || "Failed to connect to wallet";
-                this.isConnecting = false;
+                this.lastError = error.message || "Unknown connection error";
+                this._emitEvent('wallet:error', { error: this.lastError });
                 return false;
+            } finally {
+                this.isConnecting = false;
             }
         }
         

@@ -63,10 +63,18 @@
             // Store ethereum in a safe place
             window._safeEthereumProvider = originalEthereum;
             
-            // Create a proxy for ethereum that will redirect calls to the safe reference
-            // This allows libraries to interact with ethereum while preventing overwriting
-            if (originalEthereum) {
-                try {
+            // Only setup the protection if we don't already have conflicts
+            // This prevents errors with extensions that use Object.defineProperty
+            try {
+                // Skip if the property is already defined with a getter/setter
+                const descriptor = Object.getOwnPropertyDescriptor(window, 'ethereum');
+                if (descriptor && (descriptor.get || descriptor.set)) {
+                    console.log("Ethereum property already has getter/setter, skipping protection");
+                    return;
+                }
+                
+                // Create a proxy for ethereum that will redirect calls to the safe reference
+                if (originalEthereum) {
                     Object.defineProperty(window, 'ethereum', {
                         get: function() {
                             // Always return the latest reference in case it changes
@@ -81,9 +89,11 @@
                         configurable: true // Allow reconfiguration if needed
                     });
                     console.log("Set up ethereum proxy protection");
-                } catch (e) {
-                    console.error("Failed to set up ethereum proxy protection:", e);
                 }
+            } catch (e) {
+                console.error("Failed to set up ethereum proxy protection:", e);
+                // If we can't set up the protection, at least ensure we have the safe reference
+                window._safeEthereumProvider = window.ethereum || originalEthereum;
             }
             
             console.log("Saved ethereum reference for safe access");

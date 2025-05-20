@@ -39,6 +39,9 @@
                     rpcUrl: "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
                 };
                 
+                // Get the safe provider reference
+                this._setupSafeProviderReference();
+                
                 // Ensure Web3Modal is loaded
                 const web3ModalLoaded = await this._ensureWeb3ModalLoaded();
                 if (!web3ModalLoaded) {
@@ -61,6 +64,17 @@
                 console.error("Failed to initialize wallet connector:", error);
                 this.lastError = error.message || "Failed to initialize wallet connector";
                 return false;
+            }
+        }
+        
+        /**
+         * Setup safe provider reference
+         */
+        _setupSafeProviderReference() {
+            // If we don't already have a safe reference, create one
+            if (!window._safeEthereumProvider) {
+                window._safeEthereumProvider = window.ethereum;
+                console.log("Created safe provider reference");
             }
         }
         
@@ -265,11 +279,27 @@
          * Initialize ethers provider
          */
         _initializeEthersProvider() {
-            // Initialize ethers if available
-            if (typeof window.ethers !== 'undefined') {
-                console.log("Ethers library found");
-            } else {
-                console.warn("Ethers library not found");
+            try {
+                // Check if ethers is available
+                if (typeof ethers !== 'undefined') {
+                    console.log("Ethers library found");
+                    
+                    // Use the safe reference to ethereum provider
+                    const providerToUse = window._safeEthereumProvider || window.ethereum;
+                    
+                    if (providerToUse) {
+                        // Create ethers provider from ethereum
+                        this.provider = new ethers.providers.Web3Provider(providerToUse);
+                        
+                        // Register event handlers for the provider
+                        this._registerProviderEvents(providerToUse);
+                        
+                        // Update accounts/chain info if already connected
+                        this._updateAccountsAndChain(providerToUse);
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to initialize Ethers provider:", error);
             }
         }
         
@@ -310,49 +340,45 @@
                 let provider = null;
                 let isWeb3ModalConnection = false;
                 
+                // Try to get the safe provider reference first
+                const safeProvider = window._safeEthereumProvider || window.ethereum;
+                
                 // Пробуем использовать Web3Modal
-                if (typeof window.Web3Modal === 'function') {
-                    // На случай если Web3Modal было загружено после инициализации
-                    if (!this.web3Modal) {
-                        const networkConfig = window.seismicConfig?.network || {
-                            chainId: 1,
-                            name: "Ethereum",
-                            rpcUrl: "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
-                        };
-                        const projectId = window.seismicConfig?.walletConnect?.projectId || "a85ac05209955cfd18fbe7c0fd018f23";
-                        this._initializeWeb3Modal(projectId, networkConfig);
-                    }
-                    
-                    if (this.web3Modal) {
-                        console.log("Attempting to connect using Web3Modal");
-                        try {
-                            // Always clear cached provider to avoid auto-connecting to previous wallet
-                            if (this.web3Modal.clearCachedProvider) {
-                                try {
-                                    this.web3Modal.clearCachedProvider();
-                                } catch (clearError) {
-                                    console.warn("Failed to clear cached provider:", clearError);
-                                }
+                if (typeof window.Web3Modal === 'function' && this.web3Modal) {
+                    // On the Web3Modal flow
+                    console.log("Attempting to connect using Web3Modal");
+                    try {
+                        // Always clear cached provider to avoid auto-connecting to previous wallet
+                        if (this.web3Modal.clearCachedProvider) {
+                            try {
+                                this.web3Modal.clearCachedProvider();
+                            } catch (clearError) {
+                                console.warn("Failed to clear cached provider:", clearError);
                             }
-                            
-                            // Connect using Web3Modal which will show the standard wallet selection
-                            console.log("Opening Web3Modal for wallet selection");
-                            provider = await this.web3Modal.connect();
-                            console.log("Web3Modal connection successful");
-                            isWeb3ModalConnection = true;
-                        } catch (modalError) {
-                            console.log("Web3Modal connection failed:", modalError);
-                            throw new Error("Web3Modal connection failed or cancelled by user. Please try again.");
                         }
-                    } else {
-                        throw new Error("Failed to initialize Web3Modal. Please refresh the page and try again.");
+                        
+                        // Connect using Web3Modal which will show the standard wallet selection
+                        console.log("Opening Web3Modal for wallet selection");
+                        provider = await this.web3Modal.connect();
+                        console.log("Web3Modal connection successful");
+                        isWeb3ModalConnection = true;
+                    } catch (modalError) {
+                        console.log("Web3Modal connection failed:", modalError);
+                        console.log("Falling back to direct provider");
+                        // Fall back to direct provider
+                        provider = safeProvider;
                     }
                 } else {
-                    throw new Error("Web3Modal not available. Please make sure all required scripts are loaded.");
+                    console.log("Web3Modal not available, using direct provider");
+                    provider = safeProvider;
+                }
+                
+                if (!provider) {
+                    throw new Error("No wallet provider available. Please install MetaMask or another web3 wallet.");
                 }
                 
                 // Update the provider reference
-                this.provider = provider;
+                this.provider = new ethers.providers.Web3Provider(provider);
                 
                 // Set up event listeners for this provider
                 this._registerProviderEvents(provider);
@@ -364,6 +390,7 @@
                 this.isWeb3ModalConnection = isWeb3ModalConnection;
                 
                 return true;
+                
             } catch (error) {
                 console.error("Error connecting to wallet:", error);
                 this.lastError = error.message || "Unknown connection error";

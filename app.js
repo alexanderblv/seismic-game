@@ -306,12 +306,15 @@ document.addEventListener('DOMContentLoaded', () => {
             
             console.log('Connecting wallet...');
             
-            // Проверяем наличие Web3Modal в глобальной области видимости
-            const hasWeb3Modal = typeof window.Web3Modal === 'function';
-            console.log('Web3Modal доступен:', hasWeb3Modal);
+            // Проверяем наличие кошелька в браузере
+            const hasProvider = window.ethereum || window._safeEthereumProvider;
+            
+            if (!hasProvider) {
+                throw new Error('No Web3 wallet detected. Please install MetaMask or another compatible wallet.');
+            }
             
             // Пытаемся восстановить Web3Modal, если он есть в safe references но не в глобальной области
-            if (!hasWeb3Modal && window.__walletConnectProviders && typeof window.__walletConnectProviders.Web3Modal === 'function') {
+            if (window.__walletConnectProviders && typeof window.__walletConnectProviders.Web3Modal === 'function') {
                 console.log('Восстанавливаем Web3Modal из safe references');
                 window.Web3Modal = window.__walletConnectProviders.Web3Modal;
             }
@@ -1236,14 +1239,17 @@ document.addEventListener('DOMContentLoaded', () => {
     clearHistoryBtn.addEventListener('click', clearTransactionHistory);
     
     // Check if there is a wallet provider available
-    const hasWalletProvider = typeof window.WalletConnector !== 'undefined' || 
-                             typeof Web3Modal === 'function' || 
-                             typeof WalletConnector === 'function';
+    const hasWalletProvider = typeof window.walletConnector !== 'undefined' || 
+                             typeof window.ethereum !== 'undefined' || 
+                             typeof window._safeEthereumProvider !== 'undefined';
     
     if (!hasWalletProvider) {
         showError('This application requires a Web3 wallet connector. Please ensure all scripts are loaded correctly.');
         connectWalletBtn.disabled = true;
         addNetworkBtn.disabled = true;
+    } else {
+        // Enable the button if a provider is available
+        connectWalletBtn.disabled = false;
     }
     
     // Initialize SDK on page load

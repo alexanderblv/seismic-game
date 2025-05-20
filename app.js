@@ -1,5 +1,32 @@
 // Seismic Transaction Sender App
+
+// Debug function to log environment status
+function logEnvironmentStatus(title) {
+    console.group(title || 'Web3 Environment Status');
+    console.log('window.ethereum:', window.ethereum ? 'Available' : 'Not available');
+    console.log('window.Web3Modal:', typeof window.Web3Modal === 'function' ? 'Available' : 'Not available');
+    console.log('window.WalletConnectProvider:', window.WalletConnectProvider ? 'Available' : 'Not available');
+    console.log('window.walletConnector:', window.walletConnector ? 'Available' : 'Not available');
+    
+    if (window.ethereum) {
+        console.log('ethereum.isMetaMask:', window.ethereum.isMetaMask);
+        console.log('ethereum.isRabby:', window.ethereum.isRabby);
+        console.log('ethereum.isCoinbaseWallet:', window.ethereum.isCoinbaseWallet);
+    }
+    
+    // Check for safe references
+    console.log('_safeEthereumProvider:', window._safeEthereumProvider ? 'Available' : 'Not available');
+    console.log('__walletConnectProviders:', window.__walletConnectProviders ? 'Available' : 'Not available');
+    console.groupEnd();
+}
+
+// Log environment status when the script loads
+logEnvironmentStatus('Initial Web3 Environment');
+
 document.addEventListener('DOMContentLoaded', () => {
+    // Log environment status again when DOM is loaded
+    logEnvironmentStatus('DOM Loaded Web3 Environment');
+    
     // Initialize the SDK
     const seismic = new SeismicSDK();
     
@@ -159,154 +186,80 @@ document.addEventListener('DOMContentLoaded', () => {
             
             console.log('SDK initialized');
             
-            // Dynamic loader for WalletConnect libraries
-            async function loadWalletConnectLibraries() {
-                return new Promise((resolve, reject) => {
-                    console.log('Attempting to dynamically load WalletConnect libraries...');
-                    
-                    // Helper to load scripts dynamically
-                    function loadScript(src) {
-                        return new Promise((scriptResolve, scriptReject) => {
-                            const script = document.createElement('script');
-                            script.src = src;
-                            script.async = true;
-                            script.onload = () => scriptResolve();
-                            script.onerror = (err) => scriptReject(new Error(`Failed to load script: ${src}`));
-                            document.head.appendChild(script);
-                        });
-                    }
-                    
-                    // Load the first provider, then try alternatives if that fails
-                    loadScript('https://unpkg.com/@walletconnect/ethereum-provider@1.8.0/dist/umd/index.min.js')
-                        .then(() => loadScript('https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js'))
-                        .then(() => loadScript('https://cdn.jsdelivr.net/npm/web3modal@1.9.9/dist/index.min.js'))
-                        .then(() => {
-                            console.log('All WalletConnect libraries loaded successfully');
-                            
-                            // WalletConnectProvider (the original or our backup)
-                            const provider = window.WalletConnectProvider || window.WalletConnect;
-                            if (provider) {
-                                console.log('Using WalletConnectProvider:', provider);
-                                // Make it available as expected
-                                window.WalletConnectProvider = provider;
-                            } else {
-                                console.warn('No WalletConnectProvider available');
-                            }
-                            
-                            // Web3Modal
-                            if (window.Web3Modal) {
-                                console.log('Web3Modal loaded successfully');
-                                
-                                // Make it available through the expected interfaces
-                                window.EthereumProvider = window.WalletConnectProvider;
-                                window.Web3ModalStandalone = {
-                                    Web3Modal: window.Web3Modal
-                                };
-                            } else {
-                                console.warn('Web3Modal not found after loading');
-                            }
-                            
-                            resolve();
-                        })
-                        .catch(error => {
-                            console.error('Error loading WalletConnect libraries:', error);
-                            
-                            // Try one more alternative CDN as last resort
-                            console.log('Trying alternative CDN sources...');
-                            
-                            Promise.all([
-                                loadScript('https://cdn.jsdelivr.net/gh/WalletConnect/walletconnect-monorepo@1.8.0/packages/providers/web3-provider/dist/umd/index.min.js'),
-                                loadScript('https://cdn.jsdelivr.net/gh/Web3Modal/web3modal@1.9.8/dist/index.js')
-                            ]).then(() => {
-                                console.log('Loaded alternative WalletConnect libraries');
-                                
-                                // Set up globals from alternative sources
-                                if (window.WalletConnectProvider) {
-                                    window.EthereumProvider = window.WalletConnectProvider;
-                                }
-                                
-                                if (window.Web3Modal) {
-                                    window.Web3ModalStandalone = {
-                                        Web3Modal: window.Web3Modal
-                                    };
-                                }
-                                
-                                resolve();
-                            }).catch(finalError => {
-                                console.error('Failed to load all alternative sources:', finalError);
-                                reject(finalError);
-                            });
-                        });
-                });
-            }
+            // Wait for DOM to be fully loaded
+            await new Promise(resolve => {
+                if (document.readyState === 'complete') {
+                    resolve();
+                } else {
+                    window.addEventListener('load', resolve);
+                }
+            });
             
-            // Проверяем наличие необходимых компонентов WalletConnect
-            if (!window.EthereumProvider || !window.Web3ModalStandalone) {
-                console.warn('WalletConnect components not found. Attempting to load them dynamically...');
+            // Check if Web3Modal is available in the global scope
+            const hasWeb3Modal = typeof window.Web3Modal === 'function';
+            const hasWalletConnectProvider = !!window.WalletConnectProvider;
+            
+            console.log('Checking for wallet dependencies:', {
+                hasWeb3Modal,
+                hasWalletConnectProvider
+            });
+            
+            if (!hasWeb3Modal || !hasWalletConnectProvider) {
+                console.warn('Some wallet dependencies are missing. Attempting to use safe references...');
                 
-                try {
-                    // Try to load the libraries dynamically
-                    await loadWalletConnectLibraries();
-                    
-                    // Check again after dynamic loading
-                    if (!window.EthereumProvider || !window.Web3ModalStandalone) {
-                        console.error('WalletConnect components not loaded properly. Make sure EthereumProvider and Web3ModalStandalone are available.');
-                        showError('Failed to initialize wallet connector. Please check your internet connection and try again.');
-                        loadingOverlay.classList.add('d-none');
-                        return;
+                // Try to use safe references if available
+                if (window.__walletConnectProviders) {
+                    if (!hasWeb3Modal && typeof window.__walletConnectProviders.Web3Modal === 'function') {
+                        window.Web3Modal = window.__walletConnectProviders.Web3Modal;
+                        console.log('Using Web3Modal from safe reference');
                     }
-                } catch (loadError) {
-                    console.error('Failed to dynamically load WalletConnect components:', loadError);
-                    showError('Failed to load WalletConnect components. Please check your internet connection and try again.');
-                    loadingOverlay.classList.add('d-none');
-                    return;
+                    
+                    if (!hasWalletConnectProvider && window.__walletConnectProviders.WalletConnectProvider) {
+                        window.WalletConnectProvider = window.__walletConnectProviders.WalletConnectProvider;
+                        console.log('Using WalletConnectProvider from safe reference');
+                    }
                 }
             }
             
-            // Инициализация WalletConnector с настройками из seismicConfig
-            if (window.WalletConnector) {
-                try {
-                    // Ждем инициализации кошелька
-                    await window.WalletConnector.initialize({
-                        projectId: seismicConfig.walletConnect?.projectId,
-                        network: seismicConfig.network
-                    });
-                    console.log('WalletConnector initialized successfully');
-                    
-                    // Настраиваем слушатели событий кошелька
-                    setupWalletListeners();
-                    
-                    // Проверяем подключен ли уже кошелек через WalletConnector
-                    if (window.WalletConnector.isConnected()) {
-                        try {
-                            // Получаем адрес подключенного кошелька
-                            const address = window.WalletConnector.getSelectedAccount();
-                            
-                            // Завершаем подключение к Seismic SDK
-                            const wallet = await seismic.completeConnection(
-                                address, 
-                                window.WalletConnector.getProvider()
-                            );
-                            
-                            if (wallet) {
-                                updateUIForConnectedWallet(wallet);
-                                console.log('Wallet connected through WalletConnector:', wallet.address);
-                            }
-                        } catch (error) {
-                            console.error('Failed to connect wallet through WalletConnector:', error);
-                        } finally {
-                            loadingOverlay.classList.add('d-none');
-                        }
-                    }
-                } catch (error) {
-                    console.error('Failed to initialize WalletConnector:', error);
+            // Create global WalletConnector instance if not already exists
+            if (!window.walletConnector) {
+                if (typeof window.WalletConnector === 'function') {
+                    console.log('Creating WalletConnector instance');
+                    window.walletConnector = new window.WalletConnector();
+                } else {
+                    console.error('WalletConnector class not found in global scope');
+                    throw new Error('Failed to initialize wallet connector: WalletConnector class not found');
                 }
-            } else {
-                console.warn('WalletConnector not available');
+            }
+            
+            // Initialize wallet connector
+            try {
+                await window.walletConnector.initialize({
+                    projectId: seismicConfig.walletConnect?.projectId,
+                    network: seismicConfig.network
+                });
+                console.log('WalletConnector initialized successfully');
+                
+                // Setup wallet event listeners
+                setupWalletListeners();
+                
+                // Check if wallet is already connected
+                if (window.walletConnector.isConnected()) {
+                    const address = window.walletConnector.getSelectedAccount();
+                    console.log('Found connected wallet:', address);
+                    
+                    if (address) {
+                        // Complete connection
+                        await completeWalletConnection(address);
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to initialize wallet connector:', err);
+                showError('There was a problem initializing the wallet connector. You may need to refresh the page.');
             }
         } catch (error) {
-            console.error('Failed to initialize SDK:', error);
-            showError('Failed to initialize Seismic SDK. Please refresh the page and try again.');
+            console.error('Failed to initialize application:', error);
+            showError('Failed to initialize the application. Please refresh the page and try again.');
         } finally {
             loadingOverlay.classList.add('d-none');
         }
@@ -351,80 +304,47 @@ document.addEventListener('DOMContentLoaded', () => {
             
             console.log('Connecting wallet...');
             
-            // Use our global wallet connector
-            if (window.walletConnector) {
-                try {
-                    // Initialize wallet connector if needed
-                    if (!window.walletConnector.initialized) {
-                        await window.walletConnector.initialize({
-                            projectId: seismicConfig.walletConnect?.projectId,
-                            network: seismicConfig.network
-                        });
-                    }
-                    
-                    // Connect using Web3Modal
-                    const connected = await window.walletConnector.connect();
-                    
-                    if (!connected) {
-                        console.log('User cancelled wallet connection');
-                        walletConnectInitiated = false;
-                        connectWalletBtn.disabled = false;
-                    }
-                    
-                    // Connection will be handled by the wallet connector
-                    // and the wallet:accountsChanged event will be triggered
-                } catch (error) {
-                    console.error('Failed to connect wallet through walletConnector:', error);
-                    showError('Failed to connect wallet: ' + (error.message || 'Unknown error'));
-                    walletConnectInitiated = false;
-                    connectWalletBtn.disabled = false;
-                }
-            } else {
-                // If walletConnector not available, try to create it
-                console.log('Creating new wallet connector instance');
-                
-                // Import the necessary script if not already there
-                if (typeof window.WalletConnector !== 'function') {
-                    try {
-                        // First make sure wallet-connector.js is loaded
-                        if (!document.querySelector('script[src*="wallet-connector.js"]')) {
-                            const script = document.createElement('script');
-                            script.src = 'wallet-connector.js';
-                            script.async = true;
-                            document.head.appendChild(script);
-                            
-                            // Wait for script to load
-                            await new Promise((resolve, reject) => {
-                                script.onload = resolve;
-                                script.onerror = reject;
-                            });
-                        }
-                        
-                        // Create a new instance
-                        window.walletConnector = new window.WalletConnector();
-                        
-                        // Initialize wallet connector
-                        await window.walletConnector.initialize({
-                            projectId: seismicConfig.walletConnect?.projectId,
-                            network: seismicConfig.network
-                        });
-                        
-                        // Connect using Web3Modal
-                        await window.walletConnector.connect();
-                    } catch (e) {
-                        console.error('Error creating wallet connector:', e);
-                        showError('Could not initialize wallet connector. Try refreshing the page.');
-                    }
-                } else {
-                    showError('Wallet connector not available. Please reload the page and try again.');
-                }
-                
-                walletConnectInitiated = false;
-                connectWalletBtn.disabled = false;
+            // Check if wallet connector exists
+            if (!window.walletConnector) {
+                throw new Error('Wallet connector not initialized');
             }
+            
+            // Initialize wallet connector if needed
+            if (!window.walletConnector.initialized) {
+                console.log('Initializing wallet connector...');
+                try {
+                    const initSuccess = await window.walletConnector.initialize({
+                        projectId: seismicConfig.walletConnect?.projectId,
+                        network: seismicConfig.network
+                    });
+                    
+                    if (!initSuccess) {
+                        throw new Error('Failed to initialize wallet connector');
+                    }
+                } catch (initError) {
+                    console.error('Wallet connector initialization error:', initError);
+                    throw new Error('Could not initialize wallet connector: ' + (initError.message || 'Unknown error'));
+                }
+            }
+            
+            // Attempt to connect using Web3Modal
+            console.log('Attempting to connect via Web3Modal...');
+            const connected = await window.walletConnector.connect();
+            
+            if (!connected) {
+                console.log('Web3Modal connection failed or was cancelled by user');
+                throw new Error('Connection cancelled or failed');
+            }
+            
+            console.log('Web3Modal connection successful');
+            
+            // Connection will be handled by event listeners
+            // The wallet:accountsChanged event will trigger completeWalletConnection
+            
         } catch (error) {
             console.error('Wallet connection error:', error);
             showError('Failed to connect wallet: ' + (error.message || 'Unknown error'));
+        } finally {
             walletConnectInitiated = false;
             connectWalletBtn.disabled = false;
         }

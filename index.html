@@ -63,25 +63,12 @@
             // Create backup of ethereum in a safe property
             window._originalEthereum = originalEthereum;
             
-            // Create ethereum logger to debug access
-            function logEthereumAccess(action, prop, value) {
-                console.debug(`Ethereum ${action}:`, prop, value);
-            }
-            
-            // Create safe ethereum proxy only if we don't already have a getter
-            const descriptor = Object.getOwnPropertyDescriptor(window, 'ethereum');
-            
-            if (!descriptor || !descriptor.get) {
-                // No getter exists, so we can safely define ours
-                Object.defineProperty(window, 'ethereum', {
-                    configurable: true,
-                    get: function() {
-                        return originalEthereum || null;
-                    }
-                });
-                console.log("Protected ethereum with a getter");
-            } else {
-                console.log("Ethereum already has a getter, not overriding");
+            // Instead of using a getter that can't be overwritten, make the property configurable
+            // but still preserve the original ethereum
+            if (window.ethereum) {
+                // Store ethereum in a safe place
+                window._safeEthereumProvider = window.ethereum;
+                console.log("Saved ethereum reference for safe access");
             }
         })();
     </script>
@@ -127,71 +114,29 @@
         try {
             console.log('Setting up WalletConnect global objects...');
             
-            // Find the correct objects based on what was loaded
-            let ethereumProvider = null;
-            let web3ModalStandalone = null;
-            
-            // Check for various possible names for the EthereumProvider
-            if (window.WalletConnectEthereumProvider) {
-                ethereumProvider = window.WalletConnectEthereumProvider;
-                console.log('Found WalletConnectEthereumProvider');
-            } else if (window.w3mEthereumProvider) {
-                ethereumProvider = window.w3mEthereumProvider;
-                console.log('Found w3mEthereumProvider');
-            } else if (window.EthereumProvider) {
-                ethereumProvider = window.EthereumProvider;
-                console.log('Found EthereumProvider');
-            } else {
-                // Try to find by looking at all properties
-                for (const key in window) {
-                    if (window[key] && typeof window[key] === 'object' && 
-                        window[key].init && typeof window[key].init === 'function') {
-                        console.log('Found potential EthereumProvider:', key);
-                        ethereumProvider = window[key];
-                        break;
-                    }
-                }
+            // Make sure Web3Modal is globally accessible
+            if (typeof window.Web3Modal !== 'function') {
+                console.error('Web3Modal not loaded properly. Try refreshing the page.');
             }
             
-            // Check for various possible names for Web3Modal
-            if (window.W3mStandalone) {
-                web3ModalStandalone = window.W3mStandalone;
-                console.log('Found W3mStandalone');
-            } else if (window.Web3ModalStandalone) {
-                web3ModalStandalone = window.Web3ModalStandalone;
-                console.log('Found Web3ModalStandalone');
-            } else {
-                // Try to find by looking at all properties
-                for (const key in window) {
-                    if (window[key] && typeof window[key] === 'object' && 
-                        window[key].Web3Modal && typeof window[key].Web3Modal === 'function') {
-                        console.log('Found potential Web3ModalStandalone:', key);
-                        web3ModalStandalone = window[key];
-                        break;
-                    }
+            // Make sure WalletConnectProvider is globally accessible
+            if (!window.WalletConnectProvider) {
+                // Try to find it in the possible locations
+                if (typeof window.WalletConnect !== 'undefined') {
+                    window.WalletConnectProvider = window.WalletConnect;
+                    console.log('Using WalletConnect as WalletConnectProvider');
                 }
-            }
-            
-            // Check if ethereum property is a getter before trying to set global objects
-            const descriptor = Object.getOwnPropertyDescriptor(window, 'ethereum');
-            const hasGetter = descriptor && descriptor.get;
-            
-            // Don't directly set window properties if ethereum is a getter
-            if (!hasGetter) {
-                // Set the global objects for our app
-                window.EthereumProvider = ethereumProvider;
-                window.Web3ModalStandalone = web3ModalStandalone;
             }
             
             // Store in a safe global object that won't conflict
             window.__walletConnectProviders = {
-                EthereumProvider: ethereumProvider,
-                Web3ModalStandalone: web3ModalStandalone
+                WalletConnectProvider: window.WalletConnectProvider,
+                Web3Modal: window.Web3Modal
             };
             
             console.log('WalletConnect global objects set up:', {
-                EthereumProvider: !!ethereumProvider,
-                Web3ModalStandalone: !!web3ModalStandalone
+                WalletConnectProvider: !!window.WalletConnectProvider,
+                Web3Modal: typeof window.Web3Modal === 'function'
             });
         } catch (error) {
             console.error('Error setting up WalletConnect global objects:', error);

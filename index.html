@@ -73,74 +73,121 @@
         })();
     </script>
     
-    <!-- Debug script to check loaded modules -->
+    <!-- Load WalletConnect libraries in correct order -->
     <script>
-        function checkLoadedModules() {
-            console.log('Checking loaded WalletConnect modules:');
-            console.log('- window.EthereumProvider:', typeof window.EthereumProvider);
-            console.log('- window.WalletConnectEthereumProvider:', typeof window.WalletConnectEthereumProvider);
-            console.log('- window.Web3ModalStandalone:', typeof window.Web3ModalStandalone);
-            console.log('- window.W3mStandalone:', typeof window.W3mStandalone);
-        }
-        
-        // Check before loading
-        console.log('Before loading WalletConnect libraries:');
-        checkLoadedModules();
-    </script>
-    
-    <!-- WalletConnect SDK - Using local files -->
-    <script>
-        console.log('Loading WalletConnect libraries...');
-    </script>
-    <script src="https://unpkg.com/@walletconnect/ethereum-provider@1.8.0/dist/umd/index.min.js" 
-            onload="console.log('EthereumProvider script loaded')"
-            onerror="console.error('Failed to load EthereumProvider script')"></script>
+        // Функция для последовательной загрузки скриптов
+        function loadScriptsInOrder(scripts, onComplete) {
+            let index = 0;
             
-    <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"
-            onload="console.log('WalletConnect Provider script loaded')" 
-            onerror="console.error('Failed to load WalletConnect Provider script')"></script>
-            
-    <script src="https://cdn.jsdelivr.net/npm/web3modal@1.9.9/dist/index.min.js"
-            onload="console.log('Web3Modal script loaded')" 
-            onerror="console.error('Failed to load Web3Modal script')"></script>
-    
-    <!-- Initialize WalletConnect modules -->
-    <script>
-        // Check after loading
-        console.log('After loading WalletConnect libraries:');
-        checkLoadedModules();
-        
-        // Set up global objects for WalletConnect
-        try {
-            console.log('Setting up WalletConnect global objects...');
-            
-            // Make sure Web3Modal is globally accessible
-            if (typeof window.Web3Modal !== 'function') {
-                console.error('Web3Modal not loaded properly. Try refreshing the page.');
-            }
-            
-            // Make sure WalletConnectProvider is globally accessible
-            if (!window.WalletConnectProvider) {
-                // Try to find it in the possible locations
-                if (typeof window.WalletConnect !== 'undefined') {
-                    window.WalletConnectProvider = window.WalletConnect;
-                    console.log('Using WalletConnect as WalletConnectProvider');
+            function loadNext() {
+                if (index >= scripts.length) {
+                    if (onComplete) onComplete();
+                    return;
                 }
+                
+                const scriptInfo = scripts[index++];
+                const script = document.createElement('script');
+                script.src = scriptInfo.src;
+                script.async = false; // Важно для последовательной загрузки
+                
+                script.onload = function() {
+                    console.log(`Loaded script: ${scriptInfo.name}`);
+                    loadNext();
+                };
+                
+                script.onerror = function(err) {
+                    console.error(`Failed to load script: ${scriptInfo.name}`, err);
+                    if (scriptInfo.fallback) {
+                        console.log(`Trying fallback for: ${scriptInfo.name}`);
+                        const fallbackScript = document.createElement('script');
+                        fallbackScript.src = scriptInfo.fallback;
+                        fallbackScript.async = false;
+                        fallbackScript.onload = function() {
+                            console.log(`Loaded fallback script: ${scriptInfo.name}`);
+                            loadNext();
+                        };
+                        fallbackScript.onerror = function() {
+                            console.error(`Fallback also failed for: ${scriptInfo.name}`);
+                            loadNext(); // Continue anyway
+                        };
+                        document.head.appendChild(fallbackScript);
+                    } else {
+                        loadNext(); // Continue anyway
+                    }
+                };
+                
+                document.head.appendChild(script);
             }
             
-            // Store in a safe global object that won't conflict
-            window.__walletConnectProviders = {
-                WalletConnectProvider: window.WalletConnectProvider,
-                Web3Modal: window.Web3Modal
-            };
-            
-            console.log('WalletConnect global objects set up:', {
-                WalletConnectProvider: !!window.WalletConnectProvider,
-                Web3Modal: typeof window.Web3Modal === 'function'
-            });
-        } catch (error) {
-            console.error('Error setting up WalletConnect global objects:', error);
+            loadNext();
         }
+        
+        console.log('Loading WalletConnect libraries in sequence...');
+        
+        // Определяем список скриптов для загрузки в правильном порядке
+        const scripts = [
+            {
+                name: 'WalletConnect EthereumProvider',
+                src: 'https://unpkg.com/@walletconnect/ethereum-provider@1.8.0/dist/umd/index.min.js',
+                fallback: 'https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@1.8.0/dist/umd/index.min.js'
+            },
+            {
+                name: 'WalletConnect Web3Provider',
+                src: 'https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js',
+                fallback: 'https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js'
+            },
+            {
+                name: 'Web3Modal',
+                src: 'https://unpkg.com/web3modal@1.9.9/dist/index.min.js',
+                fallback: 'https://cdn.jsdelivr.net/npm/web3modal@1.9.9/dist/index.min.js'
+            }
+        ];
+        
+        // Запускаем последовательную загрузку
+        loadScriptsInOrder(scripts, function() {
+            console.log('All wallet libraries loaded successfully');
+            
+            // Проверяем загруженные модули
+            function checkLoadedModules() {
+                console.log('Checking loaded WalletConnect modules:');
+                console.log('- window.EthereumProvider:', typeof window.EthereumProvider);
+                console.log('- window.WalletConnectEthereumProvider:', typeof window.WalletConnectEthereumProvider);
+                console.log('- window.Web3ModalStandalone:', typeof window.Web3ModalStandalone);
+                console.log('- window.W3mStandalone:', typeof window.W3mStandalone);
+                console.log('- window.Web3Modal:', typeof window.Web3Modal);
+                console.log('- window.WalletConnectProvider:', typeof window.WalletConnectProvider);
+            }
+            
+            // Check after loading
+            checkLoadedModules();
+            
+            // Set up global objects for WalletConnect
+            try {
+                console.log('Setting up WalletConnect global objects...');
+                
+                // Make sure WalletConnectProvider is globally accessible
+                if (!window.WalletConnectProvider) {
+                    // Try to find it in the possible locations
+                    if (typeof window.WalletConnect !== 'undefined') {
+                        window.WalletConnectProvider = window.WalletConnect;
+                        console.log('Using WalletConnect as WalletConnectProvider');
+                    }
+                }
+                
+                // Store in a safe global object that won't conflict
+                window.__walletConnectProviders = {
+                    WalletConnectProvider: window.WalletConnectProvider,
+                    Web3Modal: window.Web3Modal
+                };
+                
+                console.log('WalletConnect global objects set up:', {
+                    WalletConnectProvider: !!window.WalletConnectProvider,
+                    Web3Modal: typeof window.Web3Modal === 'function'
+                });
+            } catch (error) {
+                console.error('Error setting up WalletConnect global objects:', error);
+            }
+        });
     </script>
     
     <!-- Seismic SDK and application code -->

@@ -14,6 +14,7 @@
             this.lastError = null;
             this.walletListeners = [];
             this.loadingPromise = null;
+            this.isWeb3ModalConnection = false;
         }
 
         /**
@@ -154,7 +155,7 @@
         _initializeWeb3Modal(projectId, networkConfig) {
             // Check if Web3Modal is available
             if (typeof window.Web3Modal !== 'function') {
-                console.warn("Web3Modal not available");
+                console.warn("Web3Modal not available, will try to load it dynamically");
                 return false;
             }
             
@@ -177,6 +178,9 @@
                             pollingInterval: 15000
                         }
                     };
+                    console.log("Added WalletConnect provider option");
+                } else {
+                    console.warn("WalletConnectProvider not available");
                 }
                 
                 // Add Coinbase Wallet if available
@@ -189,6 +193,7 @@
                             chainId: networkConfig.chainId
                         }
                     };
+                    console.log("Added Coinbase Wallet provider option");
                 }
                 
                 // Create Web3Modal instance with safer options
@@ -203,6 +208,19 @@
                 console.log("Initializing Web3Modal with options:", web3ModalOptions);
                 
                 try {
+                    // Try creating Web3Modal with timeout to ensure it's fully loaded
+                    setTimeout(() => {
+                        try {
+                            if (!this.web3Modal && typeof window.Web3Modal === 'function') {
+                                this.web3Modal = new window.Web3Modal(web3ModalOptions);
+                                console.log("Web3Modal initialized successfully with timeout");
+                            }
+                        } catch (delayedError) {
+                            console.error("Failed to create Web3Modal instance with timeout:", delayedError);
+                        }
+                    }, 1000);
+                    
+                    // Also try immediately for faster execution when possible
                     this.web3Modal = new window.Web3Modal(web3ModalOptions);
                     console.log("Web3Modal initialized successfully");
                     return true;
@@ -249,29 +267,59 @@
                     }
                 }
                 
-                let provider = null;
-                
-                // Try Web3Modal approach first
-                if (this.web3Modal) {
-                    console.log("Attempting to connect using Web3Modal");
+                // Перед подключением очистим прошлые соединения, чтобы избежать конфликтов
+                if (this.provider) {
                     try {
-                        // Always clear cached provider to avoid auto-connecting to previous wallet
-                        if (this.web3Modal.clearCachedProvider) {
-                            try {
-                                this.web3Modal.clearCachedProvider();
-                            } catch (clearError) {
-                                console.warn("Failed to clear cached provider:", clearError);
-                            }
+                        if (typeof this.provider.disconnect === 'function') {
+                            await this.provider.disconnect();
                         }
-                        
-                        // Connect using Web3Modal which will show the standard wallet selection
-                        console.log("Opening Web3Modal for wallet selection");
-                        provider = await this.web3Modal.connect();
-                        console.log("Web3Modal connection successful");
-                    } catch (modalError) {
-                        console.log("Web3Modal connection failed:", modalError);
-                        provider = null;
+                        console.log("Disconnected previous provider");
+                    } catch (e) {
+                        console.warn("Failed to disconnect previous provider:", e);
                     }
+                    this.provider = null;
+                }
+                
+                let provider = null;
+                let isWeb3ModalConnection = false;
+                
+                // Принудительно пробуем сначала использовать Web3Modal, даже если есть window.ethereum
+                if (typeof window.Web3Modal === 'function') {
+                    // На случай если Web3Modal было загружено после инициализации
+                    if (!this.web3Modal) {
+                        const networkConfig = window.seismicConfig?.network || {
+                            chainId: 1,
+                            name: "Ethereum",
+                            rpcUrl: "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
+                        };
+                        const projectId = window.seismicConfig?.walletConnect?.projectId || "a85ac05209955cfd18fbe7c0fd018f23";
+                        this._initializeWeb3Modal(projectId, networkConfig);
+                    }
+                    
+                    if (this.web3Modal) {
+                        console.log("Attempting to connect using Web3Modal");
+                        try {
+                            // Always clear cached provider to avoid auto-connecting to previous wallet
+                            if (this.web3Modal.clearCachedProvider) {
+                                try {
+                                    this.web3Modal.clearCachedProvider();
+                                } catch (clearError) {
+                                    console.warn("Failed to clear cached provider:", clearError);
+                                }
+                            }
+                            
+                            // Connect using Web3Modal which will show the standard wallet selection
+                            console.log("Opening Web3Modal for wallet selection");
+                            provider = await this.web3Modal.connect();
+                            console.log("Web3Modal connection successful");
+                            isWeb3ModalConnection = true;
+                        } catch (modalError) {
+                            console.log("Web3Modal connection failed:", modalError);
+                            provider = null;
+                        }
+                    }
+                } else {
+                    console.warn("Web3Modal not available, falling back to direct provider");
                 }
                 
                 // Fallback to direct provider if Web3Modal failed or is not available
@@ -306,6 +354,9 @@
                 
                 // Update accounts and chain ID
                 await this._updateAccountsAndChain(provider);
+                
+                // Store connection type for future reference
+                this.isWeb3ModalConnection = isWeb3ModalConnection;
                 
                 return true;
             } catch (error) {

@@ -1,0 +1,5 @@
+[33mcommit 496a5fac132be96f5cd8ad4e1397905400167a4e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m
+Author: User <user@example.com>
+Date:   Mon May 19 13:27:54 2025 +0200
+
+    Switch to WalletConnect v1 libraries for better compatibility

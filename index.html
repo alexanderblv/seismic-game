@@ -73,22 +73,24 @@
                     return;
                 }
                 
-                // Create a proxy for ethereum that will redirect calls to the safe reference
+                // Create a proxy for ethereum that will allow provider modifications
                 if (originalEthereum) {
+                    let _currentProvider = originalEthereum;
                     Object.defineProperty(window, 'ethereum', {
                         get: function() {
-                            // Always return the latest reference in case it changes
-                            return window._safeEthereumProvider;
+                            // Always return the current provider
+                            return _currentProvider;
                         },
                         set: function(newProvider) {
-                            // When something tries to set ethereum, we update our safe reference
-                            // instead of allowing the property to be overwritten
-                            console.log("Ethereum provider update attempted, storing safely");
+                            // Allow ethereum to be updated by wallet providers
+                            console.log("Ethereum provider updated");
+                            _currentProvider = newProvider;
+                            // Also update our safe reference
                             window._safeEthereumProvider = newProvider;
                         },
                         configurable: true // Allow reconfiguration if needed
                     });
-                    console.log("Set up ethereum proxy protection");
+                    console.log("Set up ethereum property with proper getter/setter");
                 }
             } catch (e) {
                 console.error("Failed to set up ethereum proxy protection:", e);

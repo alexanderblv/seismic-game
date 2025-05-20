@@ -291,105 +291,46 @@ document.addEventListener('DOMContentLoaded', () => {
         refreshBalance();
     }
 
-    // Connect to wallet
+    // Connect wallet
     async function connectWallet() {
+        if (walletConnectInitiated) {
+            console.log('Wallet connection already in progress');
+            return;
+        }
+        
         try {
-            if (walletConnectInitiated) {
-                console.log('Wallet connection already in progress');
-                return;
-            }
-            
             walletConnectInitiated = true;
             connectWalletBtn.disabled = true;
             loadingOverlay.classList.remove('d-none');
-            loadingText.textContent = 'Connecting wallet...';
+            loadingText.textContent = 'Connecting to wallet...';
             
             console.log('Connecting wallet...');
             
-            // Проверяем наличие кошелька в браузере
-            const hasProvider = window.ethereum || window._safeEthereumProvider;
-            
-            if (!hasProvider) {
-                throw new Error('No Web3 wallet detected. Please install MetaMask or another compatible wallet.');
-            }
-            
-            // Пытаемся восстановить Web3Modal, если он есть в safe references но не в глобальной области
-            if (window.__walletConnectProviders && typeof window.__walletConnectProviders.Web3Modal === 'function') {
-                console.log('Восстанавливаем Web3Modal из safe references');
-                window.Web3Modal = window.__walletConnectProviders.Web3Modal;
-            }
-            
-            // Check if wallet connector exists
-            if (!window.walletConnector) {
-                // Create new instance if needed
-                if (typeof WalletConnector === 'function') {
-                    console.log('Creating new WalletConnector instance');
-                    window.walletConnector = new WalletConnector();
-                } else {
-                    console.error('WalletConnector not found. Please make sure wallet-connector.js is loaded.');
-                    throw new Error('WalletConnector not found. Please refresh the page and try again.');
-                }
-            }
-            
-            // Initialize wallet connector if needed
+            // Ensure wallet connector is initialized first
             if (!window.walletConnector.initialized) {
-                console.log('Initializing wallet connector...');
-                try {
-                    const initSuccess = await window.walletConnector.initialize({
-                        projectId: seismicConfig.walletConnect?.projectId,
-                        network: seismicConfig.network
-                    });
-                    
-                    if (!initSuccess) {
-                        throw new Error('Failed to initialize wallet connector');
-                    }
-                } catch (initError) {
-                    console.error('Wallet connector initialization error:', initError);
-                    throw new Error('Could not initialize wallet connector: ' + (initError.message || 'Unknown error'));
-                }
+                await window.walletConnector.initialize({
+                    projectId: seismicConfig.walletConnect?.projectId,
+                    network: seismicConfig.network
+                });
             }
             
-            // Attempt to connect using wallet connector
-            const connected = await window.walletConnector.connect();
+            // Connect using the wallet connector
+            await window.walletConnector.connect();
             
-            if (!connected) {
-                const lastError = window.walletConnector.getLastError();
-                throw new Error(lastError || 'Connection failed or was cancelled by user');
-            }
+            // After successful connection, get the selected account
+            const selectedAccount = window.walletConnector.getSelectedAccount();
             
-            // Get connected account - either from event or directly
-            const account = window.walletConnector.getSelectedAccount();
-            if (account) {
-                await completeWalletConnection(account);
+            if (selectedAccount) {
+                await completeWalletConnection(selectedAccount);
             } else {
-                console.log('No account found yet, waiting for accountsChanged event');
-                // Connection will be handled by event listeners
-                // The wallet:accountsChanged event will trigger completeWalletConnection
-                
-                // Add a timeout to detect if we've missed the event
-                setTimeout(() => {
-                    if (walletConnectInitiated) {
-                        console.log('Connection event timeout - checking account directly');
-                        const account = window.walletConnector.getSelectedAccount();
-                        if (account) {
-                            completeWalletConnection(account);
-                        } else {
-                            console.log('No account available after timeout');
-                            loadingOverlay.classList.add('d-none');
-                            walletConnectInitiated = false;
-                            connectWalletBtn.disabled = false;
-                        }
-                    }
-                }, 3000);
+                throw new Error('No account selected after connection');
             }
-            
         } catch (error) {
             console.error('Wallet connection error:', error);
-            loadingOverlay.classList.add('d-none');
-            showError('Failed to connect wallet: ' + (error.message || 'Unknown error'));
-        } finally {
-            // Don't reset the flag here, let it be reset when connection is complete
+            walletConnectInitiated = false;
             connectWalletBtn.disabled = false;
+            loadingOverlay.classList.add('d-none');
+            showError(error.message || 'Failed to connect wallet. Please try again.');
         }
     }
     

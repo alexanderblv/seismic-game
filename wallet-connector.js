@@ -89,19 +89,9 @@
             // Create a safe reference without modifying the original ethereum object
             // This avoids conflicts with wallets that prevent overriding ethereum
             if (!window._safeEthereumProvider && window.ethereum) {
-                // Create a proxy to avoid direct modification
-                window._safeEthereumProvider = Object.create(Object.getPrototypeOf(window.ethereum));
-                // Copy properties without setting them directly on window
-                Object.keys(window.ethereum).forEach(key => {
-                    try {
-                        if (typeof window.ethereum[key] !== 'undefined') {
-                            window._safeEthereumProvider[key] = window.ethereum[key];
-                        }
-                    } catch (e) {
-                        console.warn(`Could not copy ethereum property: ${key}`, e);
-                    }
-                });
-                console.log("Created safe provider reference without modifying window.ethereum");
+                // Simply store a reference without trying to modify or proxy the object
+                window._safeEthereumProvider = window.ethereum;
+                console.log("Created safe provider reference to window.ethereum");
             }
         }
         
@@ -298,90 +288,60 @@
         }
         
         /**
-         * Connect to wallet using Web3Modal
+         * Connect to wallet
          */
         async connect() {
             if (this.isConnecting) {
-                console.log("Connection process already started");
+                console.log('Connection already in progress');
                 return false;
             }
             
+            // Disconnect any existing connection
+            if (this.isConnected()) {
+                console.log('Disconnected previous provider');
+                await this.disconnect();
+            }
+            
+            this.isConnecting = true;
+            
             try {
-                this.isConnecting = true;
-                this.lastError = null;
-                
-                // Initialize if needed
-                if (!this.initialized) {
-                    const initialized = await this.initialize();
-                    if (!initialized) {
-                        throw new Error("Failed to initialize wallet connector");
-                    }
-                }
-                
-                // Clear previous connections to avoid conflicts
-                if (this.provider) {
-                    try {
-                        if (typeof this.provider.disconnect === 'function') {
-                            await this.provider.disconnect();
-                        }
-                        console.log("Disconnected previous provider");
-                    } catch (e) {
-                        console.warn("Failed to disconnect previous provider:", e);
-                    }
-                    this.provider = null;
-                }
-                
                 let provider = null;
                 
-                // ONLY use Web3Modal for connections - no fallbacks to direct provider
-                if (typeof window.Web3Modal === 'function' && this.web3Modal) {
-                    console.log("Attempting to connect using Web3Modal");
+                // Attempt to use Web3Modal if available
+                if (this.web3Modal) {
                     try {
-                        // Always clear cached provider to avoid auto-connecting
-                        if (this.web3Modal.clearCachedProvider) {
-                            try {
-                                this.web3Modal.clearCachedProvider();
-                            } catch (clearError) {
-                                console.warn("Failed to clear cached provider:", clearError);
-                            }
-                        }
-                        
-                        // Connect using Web3Modal which will show the standard wallet selection
-                        console.log("Opening Web3Modal for wallet selection");
+                        console.log('Attempting connection with Web3Modal...');
                         provider = await this.web3Modal.connect();
-                        console.log("Web3Modal connection successful");
                         this.isWeb3ModalConnection = true;
-                    } catch (modalError) {
-                        console.log("Web3Modal connection failed or was cancelled:", modalError);
-                        // NEVER fall back to direct provider - just fail the connection
-                        throw new Error("Wallet selection was cancelled or failed. Please try again.");
+                        console.log('User selected wallet via Web3Modal');
+                    } catch (e) {
+                        console.warn('Web3Modal connection error, falling back to direct connection:', e);
                     }
+                } else if (window.ethereum) {
+                    // Fallback to direct connection using injected provider
+                    console.log('Web3Modal not available. Attempting direct connection with injected provider...');
+                    provider = window.ethereum;
+                    this.isWeb3ModalConnection = false;
                 } else {
-                    // Don't use direct provider - we need Web3Modal
-                    console.log("Web3Modal not available. Cannot connect without wallet selection");
-                    throw new Error("Wallet selector not available. Please refresh the page and try again.");
+                    console.error('Web3Modal not available. Cannot connect without wallet selection');
+                    throw new Error('Wallet selector not available. Please refresh the page and try again.');
                 }
                 
                 if (!provider) {
-                    throw new Error("No wallet provider available. Please install MetaMask or another web3 wallet and try again.");
+                    throw new Error('No provider available after connection attempt');
                 }
                 
-                // Update the provider reference
-                this.provider = new ethers.providers.Web3Provider(provider);
+                console.log('Provider successfully obtained:', provider);
                 
-                // Set up event listeners for this provider
-                this._registerProviderEvents(provider);
-                
-                // Update accounts and chain ID
+                // Update the provider
                 await this._updateAccountsAndChain(provider);
                 
                 return true;
-                
             } catch (error) {
-                console.error("Error connecting to wallet:", error);
-                this.lastError = error.message || "Unknown connection error";
-                this._emitEvent('wallet:error', { error: this.lastError });
-                return false;
+                console.error('Error connecting to wallet:', error);
+                this.lastError = error.message || 'Failed to connect wallet';
+                this.isConnecting = false;
+                throw error;
             } finally {
                 this.isConnecting = false;
             }

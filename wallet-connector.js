@@ -296,135 +296,105 @@
                 return false;
             }
             
-            // Disconnect any existing connection
+            // Disconnect any existing connection first
             if (this.isConnected()) {
-                console.log('Disconnected previous provider');
+                console.log('Disconnecting previous connection first');
                 await this.disconnect();
             }
             
             this.isConnecting = true;
+            this.lastError = null;
             
             try {
                 let provider = null;
                 
-                // Attempt to use Web3Modal if available
+                // First try using Web3Modal if available
                 if (this.web3Modal) {
                     try {
-                        console.log('Attempting connection with Web3Modal...');
+                        console.log('Opening Web3Modal wallet selector...');
                         provider = await this.web3Modal.connect();
                         this.isWeb3ModalConnection = true;
                         console.log('User selected wallet via Web3Modal');
                     } catch (e) {
-                        console.warn('Web3Modal connection error, falling back to direct connection:', e);
+                        // Don't throw here - this could just be user rejecting the modal
+                        console.warn('Web3Modal error or user cancelled:', e.message || e);
+                        
+                        // Check if this was user cancellation (common error)
+                        if (e.message && (
+                            e.message.includes('User closed modal') || 
+                            e.message.includes('User rejected') ||
+                            e.message.includes('User denied'))
+                        ) {
+                            throw new Error('Wallet connection cancelled by user. Please try again.');
+                        }
+                        
+                        // For other errors, fall back to direct provider
+                        console.log('Falling back to direct provider connection');
                     }
-                } else if (window.ethereum) {
-                    // Fallback to direct connection using injected provider
-                    console.log('Web3Modal not available. Attempting direct connection with injected provider...');
+                }
+                
+                // Fall back to direct provider if Web3Modal failed or isn't available
+                if (!provider && window.ethereum) {
+                    console.log('Using direct injected provider connection');
                     provider = window.ethereum;
                     this.isWeb3ModalConnection = false;
-                } else {
-                    console.error('Web3Modal not available. Cannot connect without wallet selection');
-                    throw new Error('Wallet selector not available. Please refresh the page and try again.');
                 }
                 
+                // If we still don't have a provider, we can't proceed
                 if (!provider) {
-                    throw new Error('No provider available after connection attempt');
+                    throw new Error('No wallet provider detected. Please install MetaMask or another Web3 wallet.');
                 }
                 
-                console.log('Provider successfully obtained:', provider);
+                console.log('Provider obtained:', provider);
                 
-                // Update the provider
-                await this._updateAccountsAndChain(provider);
+                // Update the provider instance and request accounts
+                this.provider = new ethers.providers.Web3Provider(provider);
                 
-                return true;
+                // Register event listeners
+                this._registerProviderEvents(provider);
+                
+                // Request accounts - this will prompt the user to connect if not already connected
+                try {
+                    console.log('Requesting accounts from wallet...');
+                    const accounts = await provider.request({ method: 'eth_requestAccounts' });
+                    
+                    if (!accounts || accounts.length === 0) {
+                        throw new Error('No accounts returned from wallet. Please make sure your wallet is unlocked.');
+                    }
+                    
+                    this.selectedAccount = accounts[0];
+                    console.log('Connected to account:', this.selectedAccount);
+                    
+                    // Get chain ID
+                    this.chainId = await provider.request({ method: 'eth_chainId' });
+                    if (typeof this.chainId === 'string' && this.chainId.startsWith('0x')) {
+                        this.chainId = parseInt(this.chainId, 16);
+                    }
+                    
+                    // Emit connection event
+                    this._emitEvent('accountsChanged', { account: this.selectedAccount });
+                    
+                    return true;
+                } catch (requestError) {
+                    // Handle user rejection
+                    if (requestError.code === 4001) {
+                        throw new Error('You rejected the connection request. Please try again and confirm the connection in your wallet.');
+                    }
+                    // Handle already pending
+                    else if (requestError.code === -32002) {
+                        throw new Error('Connection request already pending. Please check your wallet and approve the connection.');
+                    }
+                    // Other errors
+                    throw requestError;
+                }
             } catch (error) {
-                console.error('Error connecting to wallet:', error);
-                this.lastError = error.message || 'Failed to connect wallet';
+                console.error('Error connecting wallet:', error);
+                this.lastError = error.message || 'Unknown wallet connection error';
                 this.isConnecting = false;
                 throw error;
             } finally {
                 this.isConnecting = false;
             }
-        }
-        
-        /**
-         * Update accounts and chain ID
-         */
-        async _updateAccountsAndChain(provider) {
-            try {
-                let accounts = [];
-                
-                // Different provider implementations have different methods
-                if (typeof provider.request === 'function') {
-                    try {
-                        accounts = await provider.request({ method: 'eth_requestAccounts' });
-                    } catch (requestError) {
-                        // Handle common errors
-                        if (requestError.code === -32002) {
-                            // Request already pending, wait a moment and try to get accounts without requesting
-                            console.log("Account request already pending, trying to get existing accounts");
-                            try {
-                                // Use eth_accounts which doesn't trigger a new permission popup
-                                accounts = await provider.request({ method: 'eth_accounts' });
-                            } catch (e) {
-                                console.warn("Failed to get accounts without permission:", e);
-                            }
-                        } else if (requestError.code === 4001) {
-                            // User rejected request - this is a valid user choice
-                            console.log("User rejected the connection request");
-                            return false;
-                        } else {
-                            // Some other error occurred
-                            console.error("Failed to get accounts:", requestError);
-                            throw requestError;
-                        }
-                    }
-                } else if (typeof provider.enable === 'function') {
-                    try {
-                        accounts = await provider.enable();
-                    } catch (enableError) {
-                        // User likely rejected the request
-                        console.log("User rejected the enable request");
-                        return false;
-                    }
-                } else if (provider.accounts) {
-                    accounts = provider.accounts;
-                }
-                
-                if (accounts && accounts.length > 0) {
-                    this.selectedAccount = accounts[0];
-                    
-                    // Get chain ID
-                    try {
-                        if (typeof provider.request === 'function') {
-                            this.chainId = await provider.request({ method: 'eth_chainId' });
-                        } else if (provider.chainId) {
-                            this.chainId = provider.chainId;
-                        }
-                        
-                        // Convert hex to decimal if needed
-                        if (typeof this.chainId === 'string' && this.chainId.startsWith('0x')) {
-                            this.chainId = parseInt(this.chainId, 16);
-                        }
-                    } catch (e) {
-                        console.warn("Failed to get chain ID:", e);
-                    }
-                    
-                    // Emit connection event
-                    this._emitEvent('walletConnected', { 
-                        account: this.selectedAccount,
-                        chainId: this.chainId
-                    });
-                    
-                    return true;
-                }
-            } catch (error) {
-                console.error("Failed to get accounts:", error);
-                // Don't throw the error to prevent Uncaught promise exceptions
-                return false;
-            }
-            
-            return false;
         }
         
         /**

@@ -11,6 +11,45 @@
     <!-- Favicon -->
     <link rel="shortcut icon" href="data:image/x-icon;base64,AAABAAEAEBAAAAEAIABoBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AVVVVB1VVVQdVVVUH////wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AVVVVQc8PGczOzxkM1VVVR////8A////AP///wD///8A////AP///8A////AP///wD///8A////AP///wD///8APD1mLT09nv89PZ7/PDxkLf///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8AVVVVB0w9Zi09PZ7/PT2e/zw8ZC1VVVUH////AP///wD///8A////AP///wD///8A////AP///wD///8A////AFVVVQM8PWYtPT2e/z09nv88PGQtVVVVB////wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8APD1mLT09nv89PZ7/PDxkLf///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AFVVVQc8PGczOzxkM1VVVQdVVVUHPDxkM1VVVQdVVVUHPDxkM1VVVQdVVVUHPDxkM1VVVQc8PGQzVVVVBlVVVQdVVVUHVVVVB1VVVQdVVVUHVVVVBzw8ZDM8PGQzVVVVB1VVVQc8PGQzVVVVB1VVVQc8PGQzVVVVH////wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A" type="image/x-icon">
     
+    <!-- IMPORTANT: Protect ethereum property from being overwritten - moved early to prevent conflicts -->
+    <script>
+        (function() {
+            console.log("Setting up early ethereum protection...");
+            
+            // Only run if ethereum doesn't already have protection
+            if (!Object.getOwnPropertyDescriptor(window, 'ethereum') || 
+                (!Object.getOwnPropertyDescriptor(window, 'ethereum').get && 
+                 !Object.getOwnPropertyDescriptor(window, 'ethereum').set)) {
+                
+                // Save the current ethereum value if it exists
+                const originalEthereum = window.ethereum;
+                console.log("Saving original ethereum:", typeof originalEthereum);
+                
+                // Store in a safe reference
+                window._safeEthereumProvider = originalEthereum;
+                
+                // Set up a properly configurable getter/setter
+                let _currentProvider = originalEthereum;
+                Object.defineProperty(window, 'ethereum', {
+                    configurable: true,
+                    get: function() {
+                        return _currentProvider;
+                    },
+                    set: function(newProvider) {
+                        console.log("Ethereum provider updated");
+                        _currentProvider = newProvider;
+                        // Also update safe reference
+                        window._safeEthereumProvider = newProvider;
+                    }
+                });
+                
+                console.log("Ethereum property protection installed early");
+            } else {
+                console.log("Ethereum property already has protection, not modifying");
+            }
+        })();
+    </script>
+    
     <!-- Hard Trust Wallet blocker -->
     <script>
         // Immediately block Trust Wallet
@@ -51,60 +90,6 @@
     <!-- First load ethers.js and other core libraries -->
     <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.8.0/web3.min.js"></script>
-    
-    <!-- Protect ethereum property from being overwritten -->
-    <script>
-        (function() {
-            // Save a reference to the original ethereum
-            const originalEthereum = window.ethereum;
-            
-            console.log("Setup ethereum protection...", typeof originalEthereum);
-            
-            // Store ethereum in a safe place
-            window._safeEthereumProvider = originalEthereum;
-            
-            // Only setup the protection if we don't already have conflicts
-            // This prevents errors with extensions that use Object.defineProperty
-            try {
-                // Skip if the property is already defined with a getter/setter
-                const descriptor = Object.getOwnPropertyDescriptor(window, 'ethereum');
-                if (descriptor && (descriptor.get || descriptor.set)) {
-                    console.log("Ethereum property already has getter/setter, skipping protection");
-                    return;
-                }
-                
-                // Create a proxy for ethereum that will allow provider modifications
-                if (originalEthereum) {
-                    let _currentProvider = originalEthereum;
-                    Object.defineProperty(window, 'ethereum', {
-                        get: function() {
-                            // Always return the current provider
-                            return _currentProvider;
-                        },
-                        set: function(newProvider) {
-                            // Allow ethereum to be updated by wallet providers
-                            console.log("Ethereum provider updated");
-                            _currentProvider = newProvider;
-                            // Also update our safe reference
-                            window._safeEthereumProvider = newProvider;
-                        },
-                        configurable: true // Allow reconfiguration if needed
-                    });
-                    console.log("Set up ethereum property with proper getter/setter");
-                }
-            } catch (e) {
-                console.error("Failed to set up ethereum proxy protection:", e);
-                // If we can't set up the protection, at least ensure we have the safe reference
-                window._safeEthereumProvider = window.ethereum || originalEthereum;
-            }
-            
-            console.log("Saved ethereum reference for safe access");
-            
-            // Track provider injections for debugging
-            const ethDescriptor = Object.getOwnPropertyDescriptor(window, 'ethereum');
-            console.log("Current ethereum property descriptor:", ethDescriptor ? "Exists" : "Not set");
-        })();
-    </script>
     
     <!-- Load WalletConnect libraries in correct order -->
     <script>

@@ -306,31 +306,64 @@ document.addEventListener('DOMContentLoaded', () => {
             
             console.log('Connecting wallet...');
             
-            // Ensure wallet connector is initialized first
-            if (!window.walletConnector.initialized) {
+            // Ensure the wallet connector is initialized
+            if (!window.walletConnector || !window.walletConnector.initialized) {
+                console.log('Initializing wallet connector first...');
+                if (!window.walletConnector) {
+                    console.log('Creating new wallet connector instance');
+                    window.walletConnector = new WalletConnector();
+                }
+                
                 await window.walletConnector.initialize({
                     projectId: seismicConfig.walletConnect?.projectId,
                     network: seismicConfig.network
                 });
+                console.log('Wallet connector initialized');
             }
             
-            // Connect using the wallet connector
-            await window.walletConnector.connect();
+            // Connect to wallet
+            console.log('Attempting to connect to wallet...');
+            const connected = await window.walletConnector.connect();
             
-            // After successful connection, get the selected account
+            if (!connected) {
+                throw new Error('Failed to connect to wallet. Please try again.');
+            }
+            
+            // Get the selected account
             const selectedAccount = window.walletConnector.getSelectedAccount();
             
-            if (selectedAccount) {
-                await completeWalletConnection(selectedAccount);
-            } else {
-                throw new Error('No account selected after connection');
+            if (!selectedAccount) {
+                throw new Error('No account was selected during wallet connection. Please try again.');
             }
+            
+            console.log('Successfully connected to account:', selectedAccount);
+            
+            // Complete the wallet connection process
+            await completeWalletConnection(selectedAccount);
         } catch (error) {
             console.error('Wallet connection error:', error);
-            walletConnectInitiated = false;
-            connectWalletBtn.disabled = false;
+            
+            // Clear the UI
             loadingOverlay.classList.add('d-none');
-            showError(error.message || 'Failed to connect wallet. Please try again.');
+            connectWalletBtn.disabled = false;
+            
+            // Show appropriate error message based on error type
+            let errorMessage = error.message || 'Failed to connect wallet. Please try again.';
+            
+            // Check for common error patterns
+            if (errorMessage.includes('rejected') || errorMessage.includes('denied') || errorMessage.includes('cancelled')) {
+                errorMessage = 'Connection request was rejected. Please approve the connection in your wallet.';
+            } else if (errorMessage.includes('pending')) {
+                errorMessage = 'Connection already pending. Please check your wallet for approval requests.';
+            } else if (errorMessage.includes('No account')) {
+                errorMessage = 'No account was selected. Please try again and select an account in your wallet.';
+            } else if (errorMessage.includes('No wallet')) {
+                errorMessage = 'No wallet detected. Please install MetaMask or another Web3 wallet extension.';
+            }
+            
+            showError(errorMessage);
+        } finally {
+            walletConnectInitiated = false;
         }
     }
     

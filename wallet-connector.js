@@ -86,10 +86,22 @@
          * Setup safe provider reference
          */
         _setupSafeProviderReference() {
-            // If we don't already have a safe reference, create one
-            if (!window._safeEthereumProvider) {
-                window._safeEthereumProvider = window.ethereum;
-                console.log("Created safe provider reference");
+            // Create a safe reference without modifying the original ethereum object
+            // This avoids conflicts with wallets that prevent overriding ethereum
+            if (!window._safeEthereumProvider && window.ethereum) {
+                // Create a proxy to avoid direct modification
+                window._safeEthereumProvider = Object.create(Object.getPrototypeOf(window.ethereum));
+                // Copy properties without setting them directly on window
+                Object.keys(window.ethereum).forEach(key => {
+                    try {
+                        if (typeof window.ethereum[key] !== 'undefined') {
+                            window._safeEthereumProvider[key] = window.ethereum[key];
+                        }
+                    } catch (e) {
+                        console.warn(`Could not copy ethereum property: ${key}`, e);
+                    }
+                });
+                console.log("Created safe provider reference without modifying window.ethereum");
             }
         }
         
@@ -111,92 +123,61 @@
             
             this.loadingPromise = new Promise(async (resolve) => {
                 try {
-                    // Check if Web3Modal is available in __walletConnectProviders (safe reference)
-                    if (window.__walletConnectProviders && typeof window.__walletConnectProviders.Web3Modal === 'function') {
-                        console.log("Using existing Web3Modal from safe reference");
-                        window.Web3Modal = window.__walletConnectProviders.Web3Modal;
-                        resolve(true);
-                        return;
-                    }
-
-                    // Check if the scripts were already loaded in the HTML
-                    if (document.querySelector('script[src*="web3modal"]')) {
-                        console.log("Web3Modal script tag already exists, waiting for it to load");
-                        // Wait a moment for the script to initialize
-                        await new Promise(resolve => setTimeout(resolve, 1500));
-                        
-                        if (typeof window.Web3Modal === 'function') {
-                            console.log("Web3Modal loaded via existing script tag");
-                            resolve(true);
-                            return;
-                        } else {
-                            console.log("Web3Modal script exists but object not available");
-                        }
-                    }
-                    
-                    // Load WalletConnectProvider if not already loaded
+                    // First, load WalletConnect provider which is required by Web3Modal
                     if (!window.WalletConnectProvider) {
-                        console.log("WalletConnectProvider not found, attempting to load");
-                        if (window.__walletConnectProviders && window.__walletConnectProviders.WalletConnectProvider) {
-                            console.log("Using WalletConnectProvider from safe reference");
-                            window.WalletConnectProvider = window.__walletConnectProviders.WalletConnectProvider;
-                        } else {
+                        console.log("Loading WalletConnectProvider first (required for Web3Modal)");
+                        try {
+                            await this._loadScript('https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js');
+                            console.log("Loaded WalletConnectProvider from CDN");
+                            
+                            // Give it a moment to initialize
+                            await new Promise(resolve => setTimeout(resolve, 300));
+                        } catch (e) {
+                            console.error("Failed to load WalletConnectProvider from primary CDN, trying alternative...");
                             try {
-                                await this._loadScript('https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js');
-                                console.log("Loaded WalletConnectProvider dynamically");
-                            } catch (e) {
-                                console.error("Failed to load WalletConnectProvider:", e);
-                                // Try alternative CDN
                                 await this._loadScript('https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js');
                                 console.log("Loaded WalletConnectProvider from alternative CDN");
+                                await new Promise(resolve => setTimeout(resolve, 300));
+                            } catch (err) {
+                                console.error("Failed to load WalletConnectProvider from any source:", err);
+                                // Continue anyway as we'll try to use Web3Modal standalone
                             }
                         }
-                    }
-                    
-                    // Try to load Coinbase Wallet SDK
-                    if (!window.CoinbaseWalletSDK) {
-                        try {
-                            console.log("Loading Coinbase Wallet SDK");
-                            await this._loadScript('https://cdn.jsdelivr.net/npm/@coinbase/wallet-sdk@3.6.0/dist/index.min.js');
-                            console.log("Loaded Coinbase Wallet SDK");
-                        } catch (e) {
-                            console.warn("Failed to load Coinbase Wallet SDK:", e);
-                            try {
-                                await this._loadScript('https://unpkg.com/@coinbase/wallet-sdk@3.6.0/dist/index.min.js');
-                                console.log("Loaded Coinbase Wallet SDK from alternative CDN");
-                            } catch (e2) {
-                                console.error("Failed to load Coinbase Wallet SDK from alternative source:", e2);
-                            }
-                        }
-                    }
-                    
-                    // Load Web3Modal if not already available
-                    if (typeof window.Web3Modal !== 'function') {
-                        try {
-                            console.log("Loading Web3Modal dynamically");
-                            await this._loadScript('https://cdn.jsdelivr.net/npm/web3modal@1.9.9/dist/index.min.js');
-                            console.log("Loaded Web3Modal from primary CDN");
-                        } catch (e) {
-                            console.error("Failed to load Web3Modal from primary CDN:", e);
-                            // Try alternative CDN
-                            await this._loadScript('https://unpkg.com/web3modal@1.9.9/dist/index.min.js');
-                            console.log("Loaded Web3Modal from alternative CDN");
-                        }
-                    }
-                    
-                    // Give it a moment to initialize
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    
-                    // Check if loading was successful
-                    if (typeof window.Web3Modal !== 'function') {
-                        console.warn("Failed to load Web3Modal, wallet connection may not work properly");
-                        resolve(false);
                     } else {
-                        console.log("Successfully loaded Web3Modal dynamically");
-                        resolve(true);
+                        console.log("WalletConnectProvider already loaded");
                     }
+                    
+                    // Now load Web3Modal
+                    console.log("Loading Web3Modal after provider prep");
+                    try {
+                        await this._loadScript('https://cdn.jsdelivr.net/npm/web3modal@1.9.12/dist/index.min.js');
+                        console.log("Loaded Web3Modal v1.9.12 from CDN");
+                    } catch (e) {
+                        console.error("Failed to load Web3Modal v1.9.12, trying alternative version...");
+                        try {
+                            await this._loadScript('https://unpkg.com/web3modal@1.9.9/dist/index.min.js');
+                            console.log("Loaded Web3Modal v1.9.9 from alternative CDN");
+                        } catch (err) {
+                            console.error("Failed to load Web3Modal from any source:", err);
+                            resolve(false);
+                            return;
+                        }
+                    }
+                    
+                    // Give some time for Web3Modal to initialize
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                    
+                    // Check if we have Web3Modal loaded
+                    if (typeof window.Web3Modal !== 'function') {
+                        console.error("Web3Modal failed to initialize properly");
+                        resolve(false);
+                        return;
+                    }
+                    
+                    console.log("Successfully loaded and initialized Web3Modal");
+                    resolve(true);
                 } catch (error) {
-                    console.error("Error loading Web3Modal:", error);
+                    console.error("Error in Web3Modal loading process:", error);
                     resolve(false);
                 }
             });
@@ -224,7 +205,7 @@
         _initializeWeb3Modal(projectId, networkConfig) {
             // Check if Web3Modal is available
             if (typeof window.Web3Modal !== 'function') {
-                console.warn("Web3Modal not available, will try to load it dynamically");
+                console.error("Web3Modal not available despite loading attempt");
                 return false;
             }
             
@@ -252,70 +233,32 @@
                     console.warn("WalletConnectProvider not available");
                 }
                 
-                // Add Coinbase Wallet if available
-                if (window.CoinbaseWalletSDK) {
-                    providerOptions.coinbasewallet = {
-                        package: window.CoinbaseWalletSDK,
-                        options: {
-                            appName: "Seismic",
-                            rpc: networkConfig.rpcUrl,
-                            chainId: networkConfig.chainId
-                        }
-                    };
-                    console.log("Added Coinbase Wallet provider option");
-                }
-                
-                // Add Trust Wallet if available
-                if (window.ethereum?.isTrust || window.ethereum?.isTrustWallet) {
-                    console.log("Trust Wallet detected in the environment");
-                }
-                
-                // Add Binance Chain Wallet if available
-                if (window.BinanceChain) {
-                    providerOptions.binancechainwallet = {
-                        package: true
-                    };
-                    console.log("Added Binance Chain Wallet provider option");
-                }
-
-                // IMPORTANT: Do not skip the modal UI selection
+                // CRITICAL: Create Web3Modal with forced UI selection
                 const web3ModalOptions = {
-                    cacheProvider: false, // Disabled to prevent auto-connecting
+                    cacheProvider: false, // NEVER cache to avoid auto-connecting
                     providerOptions,
-                    disableInjectedProvider: false, // Allow access to injected providers
+                    disableInjectedProvider: false,
                     theme: "dark",
-                    // Force showing selection even if only one option
-                    showInjectedOption: true 
+                    showInjectedOption: true // Always show injected wallets like MetaMask
                 };
                 
-                // Log the options we're using
-                console.log("Initializing Web3Modal with options:", web3ModalOptions);
+                console.log("Initializing Web3Modal with selection-focused options:", web3ModalOptions);
                 
                 try {
                     // Create Web3Modal instance
                     this.web3Modal = new window.Web3Modal(web3ModalOptions);
                     console.log("Web3Modal initialized successfully");
                     
-                    // Override default connect method to ensure modal always shows
+                    // Ensure modal always shows - override internal methods
                     const originalConnect = this.web3Modal.connect.bind(this.web3Modal);
                     this.web3Modal.connect = async () => {
                         // Force modal to open
                         this.web3Modal.toggleModal();
+                        // Return connection result 
                         return originalConnect();
                     };
                     
-                    // Add a safety timeout for older browsers or slow connections
-                    setTimeout(() => {
-                        if (!this.web3Modal && typeof window.Web3Modal === 'function') {
-                            try {
-                                this.web3Modal = new window.Web3Modal(web3ModalOptions);
-                                console.log("Web3Modal initialized with backup timeout mechanism");
-                            } catch (delayedError) {
-                                console.error("Failed to create Web3Modal in timeout:", delayedError);
-                            }
-                        }
-                    }, 1000);
-                    
+                    console.log("Web3Modal connect method overridden to force wallet selection");
                     return true;
                 } catch (innerError) {
                     console.error("Failed to create Web3Modal instance:", innerError);
@@ -337,44 +280,16 @@
                     console.log("Ethers library found");
                     
                     // Use the safe reference to ethereum provider
-                    const providerToUse = window._safeEthereumProvider || window.ethereum;
+                    const providerToUse = window._safeEthereumProvider;
                     
                     if (providerToUse) {
-                        // Create ethers provider from ethereum
+                        // Create ethers provider from ethereum but don't connect yet
                         this.provider = new ethers.providers.Web3Provider(providerToUse);
+                        console.log("Created ethers provider (not connected)");
                         
-                        // Register event handlers for the provider
+                        // Only register events - DO NOT check for accounts/permissions here
+                        // to avoid triggering MetaMask popup without user action
                         this._registerProviderEvents(providerToUse);
-                        
-                        // Check if already connected without triggering a permission request
-                        // This avoids unwanted permission popups during initialization
-                        if (typeof providerToUse.request === 'function') {
-                            // Use eth_accounts which doesn't trigger a permission popup
-                            providerToUse.request({ method: 'eth_accounts' })
-                                .then(accounts => {
-                                    if (accounts && accounts.length > 0) {
-                                        this.selectedAccount = accounts[0];
-                                        
-                                        // Get chain ID
-                                        providerToUse.request({ method: 'eth_chainId' })
-                                            .then(chainId => {
-                                                // Convert hex to decimal if needed
-                                                if (typeof chainId === 'string' && chainId.startsWith('0x')) {
-                                                    chainId = parseInt(chainId, 16);
-                                                }
-                                                this.chainId = chainId;
-                                                
-                                                // Emit connection event
-                                                this._emitEvent('walletConnected', { 
-                                                    account: this.selectedAccount,
-                                                    chainId: this.chainId
-                                                });
-                                            })
-                                            .catch(e => console.warn("Failed to get chain ID:", e));
-                                    }
-                                })
-                                .catch(e => console.warn("Failed to check accounts:", e));
-                        }
                     }
                 }
             } catch (error) {
@@ -417,16 +332,12 @@
                 }
                 
                 let provider = null;
-                let isWeb3ModalConnection = false;
                 
-                // Get safe provider reference as fallback only
-                const safeProvider = window._safeEthereumProvider || window.ethereum;
-                
-                // Use Web3Modal as primary connection method
+                // ONLY use Web3Modal for connections - no fallbacks to direct provider
                 if (typeof window.Web3Modal === 'function' && this.web3Modal) {
                     console.log("Attempting to connect using Web3Modal");
                     try {
-                        // Always clear cached provider to avoid auto-connecting to previous wallet
+                        // Always clear cached provider to avoid auto-connecting
                         if (this.web3Modal.clearCachedProvider) {
                             try {
                                 this.web3Modal.clearCachedProvider();
@@ -439,26 +350,16 @@
                         console.log("Opening Web3Modal for wallet selection");
                         provider = await this.web3Modal.connect();
                         console.log("Web3Modal connection successful");
-                        isWeb3ModalConnection = true;
+                        this.isWeb3ModalConnection = true;
                     } catch (modalError) {
-                        console.log("Web3Modal connection failed:", modalError);
-                        console.log("Falling back to direct provider only if user rejected modal");
-                        
-                        // Only fall back to direct provider if it was a user rejection
-                        // This prevents automatically connecting to MetaMask without selection
-                        if (modalError.message && (
-                            modalError.message.includes("User closed modal") || 
-                            modalError.message.includes("user rejected") ||
-                            modalError.message.includes("User Rejected")
-                        )) {
-                            provider = null; // Don't auto-connect to MetaMask
-                        } else {
-                            provider = safeProvider; // Only use as fallback for other errors
-                        }
+                        console.log("Web3Modal connection failed or was cancelled:", modalError);
+                        // NEVER fall back to direct provider - just fail the connection
+                        throw new Error("Wallet selection was cancelled or failed. Please try again.");
                     }
                 } else {
-                    console.log("Web3Modal not available, using direct provider");
-                    provider = safeProvider;
+                    // Don't use direct provider - we need Web3Modal
+                    console.log("Web3Modal not available. Cannot connect without wallet selection");
+                    throw new Error("Wallet selector not available. Please refresh the page and try again.");
                 }
                 
                 if (!provider) {
@@ -473,9 +374,6 @@
                 
                 // Update accounts and chain ID
                 await this._updateAccountsAndChain(provider);
-                
-                // Store connection type for future reference
-                this.isWeb3ModalConnection = isWeb3ModalConnection;
                 
                 return true;
                 

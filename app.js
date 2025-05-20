@@ -372,17 +372,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     }
                     
-                    // Use Web3Modal directly if available for broader wallet selection
-                    if (window.walletConnector.web3Modal) {
-                        // Connect using Web3Modal which will show the standard wallet selection
-                        await window.walletConnector.connect();
-                    } else {
-                        // Show our custom wallet selection modal
-                        window.walletConnector.showWalletModal();
-                    }
+                    // Use Web3Modal for wallet connection
+                    await window.walletConnector.connect();
                     
-                    // Connection will be handled by the wallet connector
-                    // and the walletConnected event will be triggered
+                    // Connection will be handled by the event listener
                 } catch (error) {
                     console.error('Failed to connect wallet through walletConnector:', error);
                     showError('Failed to connect wallet: ' + (error.message || 'Unknown error'));
@@ -393,44 +386,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 // If walletConnector not available, try to create it
                 console.log('Creating new wallet connector instance');
                 
-                // Import the necessary script if not already there
-                if (typeof window.WalletConnector !== 'function') {
-                    try {
-                        // First make sure wallet-connector.js is loaded
-                        if (!document.querySelector('script[src*="wallet-connector.js"]')) {
-                            const script = document.createElement('script');
-                            script.src = 'wallet-connector.js';
-                            script.async = true;
-                            document.head.appendChild(script);
-                            
-                            // Wait for script to load
-                            await new Promise((resolve, reject) => {
-                                script.onload = resolve;
-                                script.onerror = reject;
-                            });
-                        }
+                try {
+                    // First make sure wallet-connector.js is loaded
+                    if (!document.querySelector('script[src*="wallet-connector.js"]')) {
+                        const script = document.createElement('script');
+                        script.src = 'wallet-connector.js';
+                        script.async = true;
+                        document.head.appendChild(script);
                         
-                        // Create a new instance
+                        // Wait for script to load
+                        await new Promise((resolve, reject) => {
+                            script.onload = resolve;
+                            script.onerror = reject;
+                        });
+                    }
+                    
+                    // Create a new instance
+                    if (typeof window.WalletConnector === 'function') {
                         window.walletConnector = new window.WalletConnector();
                         
-                        // Initialize and show modal
+                        // Initialize wallet connector
                         await window.walletConnector.initialize({
                             projectId: seismicConfig.walletConnect?.projectId,
                             network: seismicConfig.network
                         });
                         
-                        // Use Web3Modal if available
-                        if (window.walletConnector.web3Modal) {
-                            await window.walletConnector.connect();
-                        } else {
-                            window.walletConnector.showWalletModal();
-                        }
-                    } catch (e) {
-                        console.error('Error creating wallet connector:', e);
-                        showError('Could not initialize wallet connector. Try refreshing the page.');
+                        // Use Web3Modal for wallet connection
+                        await window.walletConnector.connect();
+                    } else {
+                        throw new Error('WalletConnector not available');
                     }
-                } else {
-                    showError('Wallet connector not available. Please reload the page and try again.');
+                } catch (e) {
+                    console.error('Error creating wallet connector:', e);
+                    showError('Could not initialize wallet connector. Try refreshing the page.');
                 }
                 
                 walletConnectInitiated = false;

@@ -310,17 +310,17 @@
          * Attempt to reconnect from cached session
          */
         async _attemptReconnect() {
-            // Check if there's a cached provider
+            // Check if there's a cached provider but don't automatically connect
+            // This avoids the issue where user can't choose a different wallet
             if (this.web3Modal && this.web3Modal.cachedProvider) {
-                try {
-                    console.log("Found cached provider, attempting to reconnect");
-                    await this.connect();
-                } catch (error) {
-                    console.warn("Failed to reconnect from cached provider:", error);
-                    // Clear cached provider
-                    this.web3Modal.clearCachedProvider();
-                }
+                console.log("Found cached provider, but won't reconnect automatically.");
+                console.log("User should explicitly choose which wallet to connect.");
+                
+                // Optional: display some UI indication that there was a previous connection
+                // but we're requiring a fresh choice
+                return false;
             }
+            return false;
         }
         
         /**
@@ -330,6 +330,26 @@
             console.log(`Connecting to wallet: ${walletId}`);
             
             try {
+                // Clear cached provider if Web3Modal is available to ensure fresh connection
+                if (this.web3Modal && this.web3Modal.cachedProvider) {
+                    console.log(`Clearing cached provider before connecting to ${walletId}`);
+                    this.web3Modal.clearCachedProvider();
+                }
+                
+                // Clear any existing provider connections
+                if (this.provider) {
+                    try {
+                        // Attempt to disconnect current provider if possible
+                        if (typeof this.provider.disconnect === 'function') {
+                            await this.provider.disconnect();
+                        }
+                        // Reset provider state
+                        this.provider = null;
+                    } catch (e) {
+                        console.warn("Error disconnecting previous provider:", e);
+                    }
+                }
+                
                 let provider;
                 
                 // Handle different wallet connections
@@ -378,6 +398,7 @@
                     default:
                         // Use Web3Modal for WalletConnect or fallback
                         if (this.web3Modal) {
+                            // Force show the wallet selection modal
                             provider = await this.web3Modal.connect();
                         } else {
                             throw new Error("Web3Modal not initialized");
@@ -529,32 +550,10 @@
                     await this.initialize();
                 }
                 
-                // If Web3Modal is available, use it
-                if (this.web3Modal) {
-                    try {
-                        const provider = await this.web3Modal.connect();
-                        this.provider = provider;
-                        
-                        // Register events
-                        this._registerProviderEvents(provider);
-                        
-                        // Update accounts and chain
-                        const connected = await this._updateAccountsAndChain(provider);
-                        
-                        this.isConnecting = false;
-                        return connected;
-                    } catch (error) {
-                        console.error("Error connecting with Web3Modal:", error);
-                        this.lastError = error.message || "Failed to connect with Web3Modal";
-                        this.isConnecting = false;
-                        return false;
-                    }
-                } else {
-                    // Show wallet selection modal
-                    this.showWalletModal();
-                    this.isConnecting = false;
-                    return false;
-                }
+                // Always show the wallet selection modal to prevent cached connection issues
+                this.showWalletModal();
+                this.isConnecting = false;
+                return true;
             } catch (error) {
                 console.error("Error connecting to wallet:", error);
                 this.lastError = error.message || "Failed to connect to wallet";

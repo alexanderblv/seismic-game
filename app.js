@@ -65,9 +65,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Set up wallet event handlers
     function setupWalletListeners() {
-        if (window.WalletConnector) {
+        if (window.walletConnector) {
             // Listen to wallet connected event
-            document.addEventListener('walletConnected', (event) => {
+            document.addEventListener('wallet:walletConnected', (event) => {
                 console.log('Wallet connected event:', event.detail);
                 
                 if (event.detail && event.detail.account) {
@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             
             // Listen to account changed event
-            document.addEventListener('accountChanged', (event) => {
+            document.addEventListener('wallet:accountsChanged', (event) => {
                 console.log('Account changed event:', event.detail);
                 
                 if (event.detail && event.detail.account) {
@@ -86,14 +86,14 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             
             // Listen to network changed event
-            document.addEventListener('networkChanged', (event) => {
+            document.addEventListener('wallet:networkChanged', (event) => {
                 console.log('Network changed event:', event.detail);
                 // Reload the page when network changes
                 window.location.reload();
             });
             
             // Listen to wallet disconnected event
-            document.addEventListener('walletDisconnected', (event) => {
+            document.addEventListener('wallet:walletDisconnected', (event) => {
                 console.log('Wallet disconnected event');
                 // Reload the page when wallet is disconnected
                 window.location.reload();
@@ -108,8 +108,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadingOverlay.classList.remove('d-none');
                 loadingText.textContent = 'Completing connection...';
                 
-                // Get provider from WalletConnector
-                const provider = window.WalletConnector ? window.WalletConnector.getProvider() : null;
+                // Get provider from walletConnector
+                const provider = window.walletConnector ? window.walletConnector.getProvider() : null;
                 
                 // Complete wallet connection in SDK
                 const wallet = await seismic.completeConnection(address, provider);

@@ -1,435 +1,96 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Seismic Transaction Sender</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="style.css">
+    <title>Seismic Game - Privy React Auth</title>
+    <meta name="description" content="Блокчейн игра с Privy аутентификацией">
     
     <!-- Favicon -->
-    <link rel="shortcut icon" href="data:image/x-icon;base64,AAABAAEAEBAAAAEAIABoBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AVVVVB1VVVQdVVVUH////wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AVVVVQc8PGczOzxkM1VVVR////8A////AP///wD///8A////AP///8A////AP///wD///8A////AP///wD///8APD1mLT09nv89PZ7/PDxkLf///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8AVVVVB0w9Zi09PZ7/PT2e/zw8ZC1VVVUH////AP///wD///8A////AP///wD///8A////AP///wD///8A////AFVVVQM8PWYtPT2e/z09nv88PGQtVVVVB////wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8APD1mLT09nv89PZ7/PDxkLf///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AFVVVQc8PGczOzxkM1VVVQdVVVUHPDxkM1VVVQdVVVUHPDxkM1VVVQdVVVUHPDxkM1VVVQc8PGQzVVVVBlVVVQdVVVUHVVVVB1VVVQdVVVUHVVVVBzw8ZDM8PGQzVVVVB1VVVQc8PGQzVVVVB1VVVQc8PGQzVVVVH////wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A" type="image/x-icon">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌊</text></svg>">
     
-    <!-- Load React и ReactDOM -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Preconnect to Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     
-    <!-- Load ethers.js v5 for compatibility -->
-    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <!-- Meta tags for security -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+    <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin-allow-popups">
     
-    <!-- Configuration -->
-    <script src="seismic-config.js"></script>
-    
-    <!-- Load Seismic SDK -->
-    <script src="seismic-sdk.js"></script>
-
-    <!-- Load Privy JS SDK Core via CDN -->
-    <script src="https://unpkg.com/@privy-io/js-sdk-core@latest/dist/index.umd.js"></script>
+    <style>
+        /* Critical CSS для начальной загрузки */
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        #root {
+            min-height: 100vh;
+        }
+        
+        /* Fallback loading screen */
+        .fallback-loader {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: rgba(255, 255, 255, 0.95);
+            color: #333;
+            text-align: center;
+        }
+        
+        .fallback-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #6A6FF5;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 2rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .fallback-text {
+            font-size: 1.2rem;
+            font-weight: 500;
+            color: #6A6FF5;
+            margin-bottom: 0.5rem;
+        }
+        
+        .fallback-subtext {
+            font-size: 1rem;
+            color: #666;
+            max-width: 400px;
+            line-height: 1.5;
+        }
+    </style>
 </head>
 <body>
-    <div class="container-fluid">
-        <!-- Header -->
-        <header class="py-3 mb-4 border-bottom">
-            <div class="d-flex align-items-center">
-                <span class="fs-4 fw-bold text-primary">Seismic Transaction Sender</span>
-                <div class="ms-auto d-flex align-items-center gap-3">
-                    <!-- Network Badge -->
-                    <span id="network-badge" class="badge bg-secondary">Seismic devnet</span>
-                    
-                    <!-- Connection Status -->
-                    <span id="connection-status" class="badge bg-secondary">Disconnected</span>
-                    
-                    <!-- Wallet Address -->
-                    <span id="wallet-address" class="d-none badge bg-dark"></span>
-                    
-                    <!-- Wallet Connection Button -->
-                    <button id="connect-wallet" class="btn btn-primary">
-                        <i class="bi bi-wallet2"></i> Connect Wallet
-                    </button>
-                    
-                    <!-- Disconnect Button (initially hidden) -->
-                    <button id="disconnect-wallet" class="btn btn-outline-danger d-none">
-                        <i class="bi bi-box-arrow-right"></i> Disconnect
-                    </button>
-                    
-                    <!-- Add Network Button -->
-                    <button id="add-network" class="btn btn-success">
-                        <i class="bi bi-plus-circle"></i> Add Network
-                    </button>
-                </div>
-            </div>
-        </header>
-
-        <!-- Main Content -->
-        <main class="row">
-            <!-- Left Panel: Transaction Form -->
-            <div class="col-lg-6">
-                <!-- Wallet Information Card -->
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">
-                            <i class="bi bi-person-circle"></i> Wallet Information
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label for="user-address" class="form-label">Your Address</label>
-                            <div class="input-group">
-                                <input type="text" class="form-control" id="user-address" readonly placeholder="Connect wallet to see address">
-                                <button class="btn btn-outline-secondary" type="button" id="copy-address" disabled>
-                                    <i class="bi bi-clipboard"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="user-balance" class="form-label">Balance (ETH)</label>
-                            <div class="input-group">
-                                <input type="text" class="form-control" id="user-balance" readonly placeholder="0.0">
-                                <button class="btn btn-outline-primary" type="button" id="refresh-balance" disabled>
-                                    <i class="bi bi-arrow-clockwise"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Transaction Form -->
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">
-                            <i class="bi bi-send"></i> Send Transaction
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <form id="transaction-form">
-                            <div class="mb-3">
-                                <label for="recipient-address" class="form-label">Recipient Address</label>
-                                <input type="text" class="form-control" id="recipient-address" 
-                                       placeholder="0x..." required>
-                                <div class="form-text">Enter the recipient's Ethereum address</div>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="amount" class="form-label">Amount (ETH)</label>
-                                <input type="number" class="form-control" id="amount" 
-                                       step="0.000000000000000001" min="0" placeholder="0.0" required>
-                                <div class="form-text">Amount to send in ETH</div>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="enable-encryption">
-                                    <label class="form-check-label" for="enable-encryption">
-                                        <i class="bi bi-shield-lock"></i> Enable Seismic Encryption
-                                    </label>
-                                </div>
-                                <div class="form-text">Use Seismic's privacy features for this transaction</div>
-                            </div>
-                            
-                            <div class="mb-3" id="encrypted-data-group" style="display: none;">
-                                <label for="encrypted-data" class="form-label">Encrypted Data</label>
-                                <textarea class="form-control" id="encrypted-data" rows="3" 
-                                          placeholder="Additional encrypted data..."></textarea>
-                            </div>
-                            
-                            <button type="submit" class="btn btn-primary w-100" disabled>
-                                <i class="bi bi-send"></i> Send Transaction
-                            </button>
-                        </form>
-                    </div>
-                </div>
-                
-                <!-- Encrypted Types Card -->
-                <div class="card mt-4">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">
-                            <i class="bi bi-lock"></i> Encrypted Types Demo
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label for="encrypted-type" class="form-label">Select Encrypted Type</label>
-                            <select class="form-select" id="encrypted-type">
-                                <option value="">Choose type...</option>
-                                <option value="suint8">suint8 - Encrypted 8-bit Integer</option>
-                                <option value="suint16">suint16 - Encrypted 16-bit Integer</option>
-                                <option value="suint32">suint32 - Encrypted 32-bit Integer</option>
-                                <option value="saddress">saddress - Encrypted Address</option>
-                                <option value="sbool">sbool - Encrypted Boolean</option>
-                            </select>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="encrypted-recipient-address" class="form-label">Contract Address</label>
-                            <input type="text" class="form-control" id="encrypted-recipient-address" 
-                                   placeholder="0x... (contract address for encrypted transaction)">
-                        </div>
-                        
-                        <!-- suint input group -->
-                        <div class="mb-3" id="suint-input-group" style="display: none;">
-                            <label for="suint-value" class="form-label">Integer Value</label>
-                            <input type="number" class="form-control" id="suint-value" min="0" placeholder="Enter integer value">
-                        </div>
-                        
-                        <!-- saddress input group -->
-                        <div class="mb-3" id="saddress-input-group" style="display: none;">
-                            <label for="saddress-value" class="form-label">Address Value</label>
-                            <input type="text" class="form-control" id="saddress-value" placeholder="0x...">
-                        </div>
-                        
-                        <!-- sbool input group -->
-                        <div class="mb-3" id="sbool-input-group" style="display: none;">
-                            <label class="form-label">Boolean Value</label>
-                            <div>
-                                <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="radio" name="sbool-value" id="sbool-true" value="true">
-                                    <label class="form-check-label" for="sbool-true">True</label>
-                                </div>
-                                <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="radio" name="sbool-value" id="sbool-false" value="false">
-                                    <label class="form-check-label" for="sbool-false">False</label>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="d-grid gap-2">
-                            <button type="button" class="btn btn-info" id="encrypt-data-btn" disabled>
-                                <i class="bi bi-shield-check"></i> Encrypt Data
-                            </button>
-                            <button type="button" class="btn btn-success" id="send-encrypted-tx-btn" disabled>
-                                <i class="bi bi-send-check"></i> Send Encrypted Transaction
-                            </button>
-                        </div>
-                        
-                        <div class="mt-3" id="encryption-result" style="display: none;">
-                            <div class="alert alert-info">
-                                <h6>Encryption Result:</h6>
-                                <code id="encrypted-output"></code>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Right Panel: Transaction History -->
-            <div class="col-lg-6">
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="card-title mb-0">
-                            <i class="bi bi-clock-history"></i> Transaction History
-                        </h5>
-                        <button class="btn btn-sm btn-outline-danger" id="clear-history">
-                            <i class="bi bi-trash"></i> Clear
-                        </button>
-                    </div>
-                    <div class="card-body">
-                        <div id="no-transactions" class="alert alert-info">
-                            <i class="bi bi-info-circle"></i> No transactions yet. Send your first transaction to see it here.
-                        </div>
-                        <div id="transaction-history" class="d-none">
-                            <div id="transaction-list"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <!-- Loading Overlay -->
-    <div id="loading-overlay" class="loading-overlay d-none">
-        <div class="loading-content">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-            <div id="loading-text" class="mt-3">Initializing...</div>
+    <noscript>
+        <div style="text-align: center; padding: 50px; background: white; color: #333;">
+            <h1>🌊 Seismic Game</h1>
+            <p>Для работы приложения необходимо включить JavaScript в вашем браузере.</p>
         </div>
-    </div>
-
-    <!-- Transaction Result Modal -->
-    <div class="modal fade" id="transaction-modal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Transaction Result</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div id="transaction-result"></div>
-                    <div class="mt-3">
-                        <a id="tx-explorer-link" href="#" target="_blank" class="btn btn-primary">
-                            <i class="bi bi-box-arrow-up-right"></i> View in Explorer
-                        </a>
-                    </div>
-                </div>
+    </noscript>
+    
+    <div id="root">
+        <!-- Fallback содержимое пока React не загрузился -->
+        <div class="fallback-loader">
+            <div class="fallback-spinner"></div>
+            <div class="fallback-text">🌊 Загрузка Seismic Game</div>
+            <div class="fallback-subtext">
+                Инициализация React приложения с Privy SDK...
             </div>
         </div>
     </div>
-
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- Suppress MetaMask warnings while maintaining real Privy functionality -->
-    <script>
-        // Эти строки подавляют предупреждения MetaMask о переопределении глобального провайдера
-        const originalWarn = console.warn;
-        console.warn = (...args) => {
-            const message = args.join(' ');
-            if (!message.includes('MetaMask encountered an error setting the global Ethereum provider') &&
-                !message.includes('deprecated global ethereum object') &&
-                !message.includes('ethereum.request') &&
-                !message.includes('ethereum._metamask')) {
-                originalWarn.apply(console, args);
-            }
-        };
-        
-        const originalError = console.error;
-        console.error = (...args) => {
-            const message = args.join(' ');
-            if (!message.includes('MetaMask encountered an error setting the global Ethereum provider') &&
-                !message.includes('deprecated global ethereum object')) {
-                originalError.apply(console, args);
-            }
-        };
-    </script>
-
-    <!-- Initialize Privy JS SDK Core -->
-    <script>
-        window.privySDKPromise = new Promise(async (resolve, reject) => {
-            try {
-                console.log('🚀 Initializing Privy JS SDK Core...');
-                
-                // Wait for Privy JS SDK Core to be available
-                let attempts = 0;
-                const maxAttempts = 100;
-                
-                const waitForPrivy = () => {
-                    attempts++;
-                    
-                    // Check for Privy JS SDK Core
-                    if (window.Privy && typeof window.Privy === 'function') {
-                        console.log('✅ Privy JS SDK Core loaded successfully');
-                        
-                        // Get configuration
-                        const privyConfig = window.seismicConfig?.privy || {
-                            appId: "cmbhhu8sr00mojr0l66siei2z"
-                        };
-                        
-                        // Create Privy instance
-                        const privy = new window.Privy({
-                            appId: privyConfig.appId,
-                            storage: {
-                                get: (key) => localStorage.getItem(key),
-                                put: (key, value) => localStorage.setItem(key, value),
-                                del: (key) => localStorage.removeItem(key),
-                                getKeys: () => Object.keys(localStorage)
-                            }
-                        });
-                        
-                        // Create SDK wrapper for compatibility
-                        window.PrivySDK = {
-                            _privy: privy,
-                            appId: privyConfig.appId,
-                            ready: true,
-                            authenticated: false,
-                            user: null,
-                            
-                            // Authentication methods using real Privy JS SDK Core
-                            login: async () => {
-                                console.log('🔑 Starting Privy email login...');
-                                try {
-                                    // For email login, we need to prompt for email first
-                                    const email = prompt('Enter your email for Privy login:');
-                                    if (!email) {
-                                        throw new Error('Email is required');
-                                    }
-                                    
-                                    // Send code to email
-                                    await privy.auth.email.sendCode(email);
-                                    console.log('📧 Code sent to email');
-                                    
-                                    // Prompt for code
-                                    const code = prompt('Enter the verification code sent to your email:');
-                                    if (!code) {
-                                        throw new Error('Verification code is required');
-                                    }
-                                    
-                                    // Verify code and login
-                                    const result = await privy.auth.email.loginWithCode(email, code);
-                                    
-                                    window.PrivySDK.authenticated = true;
-                                    window.PrivySDK.user = result.user;
-                                    window.privyUser = result.user;
-                                    
-                                    console.log('✅ User authenticated:', result.user);
-                                    return result.user;
-                                } catch (error) {
-                                    console.error('❌ Login failed:', error);
-                                    throw error;
-                                }
-                            },
-                            
-                            logout: async () => {
-                                console.log('🚪 Logging out from Privy...');
-                                try {
-                                    await privy.auth.logout();
-                                    window.PrivySDK.authenticated = false;
-                                    window.PrivySDK.user = null;
-                                    window.privyUser = null;
-                                    console.log('✅ User logged out');
-                                } catch (error) {
-                                    console.error('❌ Logout failed:', error);
-                                    throw error;
-                                }
-                            },
-                            
-                            getUser: () => window.PrivySDK.user,
-                            isAuthenticated: () => window.PrivySDK.authenticated,
-                            
-                            // Wallet methods
-                            connectWallet: async () => {
-                                if (!window.PrivySDK.authenticated) {
-                                    return await window.PrivySDK.login();
-                                }
-                                return window.PrivySDK.user;
-                            },
-                            
-                            // Event listeners
-                            onAuthStateChange: (callback) => {
-                                window.PrivySDK._authCallback = callback;
-                            },
-                            
-                            // Expose the raw Privy instance for advanced usage
-                            getRawPrivy: () => privy
-                        };
-                        
-                        console.log('✅ Privy JS SDK Core initialized successfully');
-                        resolve(window.PrivySDK);
-                        return;
-                    }
-                    
-                    if (attempts >= maxAttempts) {
-                        console.error('❌ Failed to load Privy JS SDK Core after', maxAttempts, 'attempts');
-                        reject(new Error('Privy JS SDK Core failed to load'));
-                        return;
-                    }
-                    
-                    setTimeout(waitForPrivy, 50);
-                };
-                
-                waitForPrivy();
-                
-            } catch (error) {
-                console.error('❌ Error initializing Privy JS SDK Core:', error);
-                reject(error);
-            }
-        });
-    </script>
-
-    <!-- Load wallet connector after Privy is ready -->
-    <script src="wallet-connector.js"></script>
-    
-    <!-- Load application logic after everything is ready -->
-    <script src="app.js"></script>
 </body>
 </html> 

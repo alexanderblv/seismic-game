@@ -1,435 +1,509 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Seismic Transaction Sender</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="style.css">
+    <title>Seismic Game - Privy React Auth</title>
+    <meta name="description" content="Блокчейн игра с Privy аутентификацией">
     
     <!-- Favicon -->
-    <link rel="shortcut icon" href="data:image/x-icon;base64,AAABAAEAEBAAAAEAIABoBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AVVVVB1VVVQdVVVUH////wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AVVVVQc8PGczOzxkM1VVVR////8A////AP///wD///8A////AP///8A////AP///wD///8A////AP///wD///8APD1mLT09nv89PZ7/PDxkLf///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8AVVVVB0w9Zi09PZ7/PT2e/zw8ZC1VVVUH////AP///wD///8A////AP///wD///8A////AP///wD///8A////AFVVVQM8PWYtPT2e/z09nv88PGQtVVVVB////wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8APD1mLT09nv89PZ7/PDxkLf///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AFVVVQc8PGczOzxkM1VVVQdVVVUHPDxkM1VVVQdVVVUHPDxkM1VVVQdVVVUHPDxkM1VVVQc8PGQzVVVVBlVVVQdVVVUHVVVVB1VVVQdVVVUHVVVVBzw8ZDM8PGQzVVVVB1VVVQc8PGQzVVVVB1VVVQc8PGQzVVVVH////wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A" type="image/x-icon">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌊</text></svg>">
     
-    <!-- Load React и ReactDOM -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- Load ethers.js v5 for compatibility -->
-    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <!-- Meta tags for security -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+    <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin-allow-popups">
     
-    <!-- Configuration -->
-    <script src="seismic-config.js"></script>
-    
-    <!-- Load Seismic SDK -->
-    <script src="seismic-sdk.js"></script>
-
-    <!-- Load Privy JS SDK Core via CDN -->
-    <script src="https://unpkg.com/@privy-io/js-sdk-core@latest/dist/index.umd.js"></script>
+    <style>
+        /* Critical CSS */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        
+        #root {
+            min-height: 100vh;
+        }
+        
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: rgba(255, 255, 255, 0.95);
+            color: #333;
+            text-align: center;
+        }
+        
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #6A6FF5;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 2rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-container h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #6A6FF5;
+            margin-bottom: 0.5rem;
+        }
+        
+        .loading-container p {
+            font-size: 1rem;
+            color: #666;
+            max-width: 400px;
+        }
+        
+        .app-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.1);
+        }
+        
+        .app-header {
+            background: linear-gradient(135deg, #6A6FF5, #4F46E5);
+            color: white;
+            text-align: center;
+            padding: 3rem 2rem;
+        }
+        
+        .app-header h1 {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+        
+        .app-header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .app-main {
+            flex: 1;
+            padding: 3rem 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+        
+        .auth-section {
+            text-align: center;
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            padding: 3rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .auth-section h2 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: #4F46E5;
+            font-weight: 600;
+        }
+        
+        .auth-section p {
+            font-size: 1.1rem;
+            color: #6b7280;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+        
+        .connect-button {
+            background: linear-gradient(135deg, #6A6FF5, #4F46E5);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(106, 111, 245, 0.3);
+        }
+        
+        .connect-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(106, 111, 245, 0.4);
+        }
+        
+        .user-section {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+        
+        .user-info {
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .user-info h2 {
+            font-size: 1.8rem;
+            margin-bottom: 1.5rem;
+            color: #4F46E5;
+            font-weight: 600;
+            text-align: center;
+        }
+        
+        .user-details {
+            background: #f8fafc;
+            padding: 1.5rem;
+            border-radius: 12px;
+        }
+        
+        .user-details p {
+            margin-bottom: 0.8rem;
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+        
+        .user-details strong {
+            color: #4F46E5;
+            font-weight: 600;
+        }
+        
+        .user-details code {
+            background: #e2e8f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+        }
+        
+        .actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        
+        .action-button {
+            padding: 1rem 1.5rem;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        
+        .game-button {
+            background: linear-gradient(135deg, #10B981, #059669);
+            color: white;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+        
+        .wallet-button {
+            background: linear-gradient(135deg, #F59E0B, #D97706);
+            color: white;
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+        }
+        
+        .logout-button {
+            background: linear-gradient(135deg, #EF4444, #DC2626);
+            color: white;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+        }
+        
+        .network-info {
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .network-info h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #4F46E5;
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        .network-details {
+            background: #f8fafc;
+            padding: 1.5rem;
+            border-radius: 12px;
+        }
+        
+        .app-footer {
+            background: #1f2937;
+            color: white;
+            text-align: center;
+            padding: 1.5rem;
+        }
+        
+        .error-message {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #c00;
+            padding: 1rem;
+            margin: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        @media (max-width: 768px) {
+            .app-container { margin: 0; }
+            .app-header { padding: 2rem 1rem; }
+            .app-header h1 { font-size: 2.5rem; }
+            .app-main { padding: 2rem 1rem; }
+            .auth-section { padding: 2rem; }
+            .actions { grid-template-columns: 1fr; }
+        }
+    </style>
 </head>
 <body>
-    <div class="container-fluid">
-        <!-- Header -->
-        <header class="py-3 mb-4 border-bottom">
-            <div class="d-flex align-items-center">
-                <span class="fs-4 fw-bold text-primary">Seismic Transaction Sender</span>
-                <div class="ms-auto d-flex align-items-center gap-3">
-                    <!-- Network Badge -->
-                    <span id="network-badge" class="badge bg-secondary">Seismic devnet</span>
-                    
-                    <!-- Connection Status -->
-                    <span id="connection-status" class="badge bg-secondary">Disconnected</span>
-                    
-                    <!-- Wallet Address -->
-                    <span id="wallet-address" class="d-none badge bg-dark"></span>
-                    
-                    <!-- Wallet Connection Button -->
-                    <button id="connect-wallet" class="btn btn-primary">
-                        <i class="bi bi-wallet2"></i> Connect Wallet
-                    </button>
-                    
-                    <!-- Disconnect Button (initially hidden) -->
-                    <button id="disconnect-wallet" class="btn btn-outline-danger d-none">
-                        <i class="bi bi-box-arrow-right"></i> Disconnect
-                    </button>
-                    
-                    <!-- Add Network Button -->
-                    <button id="add-network" class="btn btn-success">
-                        <i class="bi bi-plus-circle"></i> Add Network
-                    </button>
-                </div>
-            </div>
-        </header>
-
-        <!-- Main Content -->
-        <main class="row">
-            <!-- Left Panel: Transaction Form -->
-            <div class="col-lg-6">
-                <!-- Wallet Information Card -->
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">
-                            <i class="bi bi-person-circle"></i> Wallet Information
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label for="user-address" class="form-label">Your Address</label>
-                            <div class="input-group">
-                                <input type="text" class="form-control" id="user-address" readonly placeholder="Connect wallet to see address">
-                                <button class="btn btn-outline-secondary" type="button" id="copy-address" disabled>
-                                    <i class="bi bi-clipboard"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="user-balance" class="form-label">Balance (ETH)</label>
-                            <div class="input-group">
-                                <input type="text" class="form-control" id="user-balance" readonly placeholder="0.0">
-                                <button class="btn btn-outline-primary" type="button" id="refresh-balance" disabled>
-                                    <i class="bi bi-arrow-clockwise"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Transaction Form -->
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">
-                            <i class="bi bi-send"></i> Send Transaction
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <form id="transaction-form">
-                            <div class="mb-3">
-                                <label for="recipient-address" class="form-label">Recipient Address</label>
-                                <input type="text" class="form-control" id="recipient-address" 
-                                       placeholder="0x..." required>
-                                <div class="form-text">Enter the recipient's Ethereum address</div>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="amount" class="form-label">Amount (ETH)</label>
-                                <input type="number" class="form-control" id="amount" 
-                                       step="0.000000000000000001" min="0" placeholder="0.0" required>
-                                <div class="form-text">Amount to send in ETH</div>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="enable-encryption">
-                                    <label class="form-check-label" for="enable-encryption">
-                                        <i class="bi bi-shield-lock"></i> Enable Seismic Encryption
-                                    </label>
-                                </div>
-                                <div class="form-text">Use Seismic's privacy features for this transaction</div>
-                            </div>
-                            
-                            <div class="mb-3" id="encrypted-data-group" style="display: none;">
-                                <label for="encrypted-data" class="form-label">Encrypted Data</label>
-                                <textarea class="form-control" id="encrypted-data" rows="3" 
-                                          placeholder="Additional encrypted data..."></textarea>
-                            </div>
-                            
-                            <button type="submit" class="btn btn-primary w-100" disabled>
-                                <i class="bi bi-send"></i> Send Transaction
-                            </button>
-                        </form>
-                    </div>
-                </div>
-                
-                <!-- Encrypted Types Card -->
-                <div class="card mt-4">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">
-                            <i class="bi bi-lock"></i> Encrypted Types Demo
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label for="encrypted-type" class="form-label">Select Encrypted Type</label>
-                            <select class="form-select" id="encrypted-type">
-                                <option value="">Choose type...</option>
-                                <option value="suint8">suint8 - Encrypted 8-bit Integer</option>
-                                <option value="suint16">suint16 - Encrypted 16-bit Integer</option>
-                                <option value="suint32">suint32 - Encrypted 32-bit Integer</option>
-                                <option value="saddress">saddress - Encrypted Address</option>
-                                <option value="sbool">sbool - Encrypted Boolean</option>
-                            </select>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="encrypted-recipient-address" class="form-label">Contract Address</label>
-                            <input type="text" class="form-control" id="encrypted-recipient-address" 
-                                   placeholder="0x... (contract address for encrypted transaction)">
-                        </div>
-                        
-                        <!-- suint input group -->
-                        <div class="mb-3" id="suint-input-group" style="display: none;">
-                            <label for="suint-value" class="form-label">Integer Value</label>
-                            <input type="number" class="form-control" id="suint-value" min="0" placeholder="Enter integer value">
-                        </div>
-                        
-                        <!-- saddress input group -->
-                        <div class="mb-3" id="saddress-input-group" style="display: none;">
-                            <label for="saddress-value" class="form-label">Address Value</label>
-                            <input type="text" class="form-control" id="saddress-value" placeholder="0x...">
-                        </div>
-                        
-                        <!-- sbool input group -->
-                        <div class="mb-3" id="sbool-input-group" style="display: none;">
-                            <label class="form-label">Boolean Value</label>
-                            <div>
-                                <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="radio" name="sbool-value" id="sbool-true" value="true">
-                                    <label class="form-check-label" for="sbool-true">True</label>
-                                </div>
-                                <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="radio" name="sbool-value" id="sbool-false" value="false">
-                                    <label class="form-check-label" for="sbool-false">False</label>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="d-grid gap-2">
-                            <button type="button" class="btn btn-info" id="encrypt-data-btn" disabled>
-                                <i class="bi bi-shield-check"></i> Encrypt Data
-                            </button>
-                            <button type="button" class="btn btn-success" id="send-encrypted-tx-btn" disabled>
-                                <i class="bi bi-send-check"></i> Send Encrypted Transaction
-                            </button>
-                        </div>
-                        
-                        <div class="mt-3" id="encryption-result" style="display: none;">
-                            <div class="alert alert-info">
-                                <h6>Encryption Result:</h6>
-                                <code id="encrypted-output"></code>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Right Panel: Transaction History -->
-            <div class="col-lg-6">
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="card-title mb-0">
-                            <i class="bi bi-clock-history"></i> Transaction History
-                        </h5>
-                        <button class="btn btn-sm btn-outline-danger" id="clear-history">
-                            <i class="bi bi-trash"></i> Clear
-                        </button>
-                    </div>
-                    <div class="card-body">
-                        <div id="no-transactions" class="alert alert-info">
-                            <i class="bi bi-info-circle"></i> No transactions yet. Send your first transaction to see it here.
-                        </div>
-                        <div id="transaction-history" class="d-none">
-                            <div id="transaction-list"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <!-- Loading Overlay -->
-    <div id="loading-overlay" class="loading-overlay d-none">
-        <div class="loading-content">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-            <div id="loading-text" class="mt-3">Initializing...</div>
+    <noscript>
+        <div style="text-align: center; padding: 50px; background: white; color: #333;">
+            <h1>🌊 Seismic Game</h1>
+            <p>Для работы приложения необходимо включить JavaScript в вашем браузере.</p>
+        </div>
+    </noscript>
+    
+    <div id="root">
+        <div class="loading-container">
+            <div class="loading-spinner"></div>
+            <h2>🌊 Загрузка Seismic Game</h2>
+            <p>Инициализация React приложения с Privy SDK...</p>
         </div>
     </div>
 
-    <!-- Transaction Result Modal -->
-    <div class="modal fade" id="transaction-modal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Transaction Result</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div id="transaction-result"></div>
-                    <div class="mt-3">
-                        <a id="tx-explorer-link" href="#" target="_blank" class="btn btn-primary">
-                            <i class="bi bi-box-arrow-up-right"></i> View in Explorer
-                        </a>
+    <!-- React 18 -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel Standalone для JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Privy React Auth SDK -->
+    <script crossorigin src="https://unpkg.com/@privy-io/react-auth@1.69.0/dist/index.umd.js"></script>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const { PrivyProvider, usePrivy } = PrivyReactAuth;
+
+        // Конфигурация сети Seismic
+        const seismicNetwork = {
+            id: 5124,
+            name: 'Seismic devnet',
+            network: 'seismic',
+            nativeCurrency: {
+                decimals: 18,
+                name: 'Ether',
+                symbol: 'ETH',
+            },
+            rpcUrls: {
+                public: { http: ['https://node-2.seismicdev.net/rpc'] },
+                default: { http: ['https://node-2.seismicdev.net/rpc'] },
+            },
+            blockExplorers: {
+                default: { 
+                    name: 'Seismic Explorer', 
+                    url: 'https://explorer-2.seismicdev.net/' 
+                },
+            },
+        };
+
+        // Конфигурация Privy
+        const privyConfig = {
+            appearance: {
+                accentColor: '#6A6FF5',
+                theme: 'light',
+                showWalletLoginFirst: false,
+                logo: 'https://auth.privy.io/logos/privy-logo.png',
+            },
+            loginMethods: ['wallet', 'email'],
+            embeddedWallets: {
+                createOnLogin: 'users-without-wallets',
+                requireUserPasswordOnCreate: false,
+                showWalletUIs: true,
+            },
+            defaultChain: seismicNetwork,
+            supportedChains: [seismicNetwork],
+        };
+
+        // Основной контент приложения
+        function AppContent() {
+            const { ready, authenticated, user, login, logout } = usePrivy();
+
+            if (!ready) {
+                return (
+                    <div className="loading-container">
+                        <div className="loading-spinner"></div>
+                        <h2>🌊 Загрузка Seismic Game</h2>
+                        <p>Инициализация Privy React Auth SDK...</p>
                     </div>
+                );
+            }
+
+            return (
+                <div className="app-container">
+                    <header className="app-header">
+                        <h1>🌊 Seismic Game</h1>
+                        <p>Блокчейн приложение с Privy React Auth SDK</p>
+                    </header>
+
+                    <main className="app-main">
+                        {!authenticated ? (
+                            <div className="auth-section">
+                                <h2>Добро пожаловать!</h2>
+                                <p>Подключите кошелек для входа в игру</p>
+                                <button className="connect-button" onClick={login}>
+                                    🔐 Подключить кошелек
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="user-section">
+                                <div className="user-info">
+                                    <h2>✅ Успешно подключен!</h2>
+                                    <div className="user-details">
+                                        <p><strong>ID:</strong> {user?.id}</p>
+                                        {user?.wallet?.address && (
+                                            <p><strong>Кошелек:</strong> <code>{user.wallet.address}</code></p>
+                                        )}
+                                        {user?.email?.address && (
+                                            <p><strong>Email:</strong> {user.email.address}</p>
+                                        )}
+                                        <p><strong>Создан:</strong> {user?.createdAt ? new Date(user.createdAt).toLocaleString('ru-RU') : 'N/A'}</p>
+                                    </div>
+                                </div>
+
+                                <div className="actions">
+                                    <button 
+                                        className="action-button game-button"
+                                        onClick={() => alert('🎮 Игра скоро будет доступна!')}
+                                    >
+                                        🎮 Начать игру
+                                    </button>
+                                    
+                                    <button 
+                                        className="action-button wallet-button"
+                                        onClick={() => {
+                                            console.log('User:', user);
+                                            console.log('User wallets:', user?.linkedAccounts);
+                                            alert('📊 Информация о пользователе и кошельках в консоли');
+                                        }}
+                                    >
+                                        👛 Информация о кошельке
+                                    </button>
+                                    
+                                    <button 
+                                        className="action-button logout-button"
+                                        onClick={logout}
+                                    >
+                                        🚪 Выйти
+                                    </button>
+                                </div>
+
+                                <div className="network-info">
+                                    <h3>🌐 Информация о сети</h3>
+                                    <div className="network-details">
+                                        <p><strong>Сеть:</strong> {seismicNetwork.name}</p>
+                                        <p><strong>Chain ID:</strong> <code>{seismicNetwork.id}</code></p>
+                                        <p><strong>RPC:</strong> <a href={seismicNetwork.rpcUrls.default.http[0]} target="_blank" rel="noopener noreferrer">{seismicNetwork.rpcUrls.default.http[0]}</a></p>
+                                        <p><strong>Explorer:</strong> <a href={seismicNetwork.blockExplorers.default.url} target="_blank" rel="noopener noreferrer">Открыть explorer</a></p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </main>
+
+                    <footer className="app-footer">
+                        <p>© 2024 Seismic Game. Powered by Privy React Auth</p>
+                    </footer>
                 </div>
-            </div>
-        </div>
-    </div>
+            );
+        }
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- Suppress MetaMask warnings while maintaining real Privy functionality -->
-    <script>
-        // Эти строки подавляют предупреждения MetaMask о переопределении глобального провайдера
-        const originalWarn = console.warn;
-        console.warn = (...args) => {
-            const message = args.join(' ');
-            if (!message.includes('MetaMask encountered an error setting the global Ethereum provider') &&
-                !message.includes('deprecated global ethereum object') &&
-                !message.includes('ethereum.request') &&
-                !message.includes('ethereum._metamask')) {
-                originalWarn.apply(console, args);
+        // Главный компонент приложения с обработкой ошибок
+        function App() {
+            const [error, setError] = useState(null);
+
+            useEffect(() => {
+                // Проверяем доступность Privy
+                if (!window.PrivyReactAuth) {
+                    setError('Privy React Auth SDK не загружен');
+                    return;
+                }
+
+                console.log('✅ Privy React Auth SDK загружен успешно');
+                console.log('🚀 Инициализация Seismic Game с Privy React Auth...');
+            }, []);
+
+            if (error) {
+                return (
+                    <div className="app-container">
+                        <div className="error-message">
+                            <h2>❌ Ошибка загрузки</h2>
+                            <p>{error}</p>
+                            <button onClick={() => window.location.reload()}>
+                                🔄 Обновить страницу
+                            </button>
+                        </div>
+                    </div>
+                );
             }
-        };
-        
-        const originalError = console.error;
-        console.error = (...args) => {
-            const message = args.join(' ');
-            if (!message.includes('MetaMask encountered an error setting the global Ethereum provider') &&
-                !message.includes('deprecated global ethereum object')) {
-                originalError.apply(console, args);
-            }
-        };
+
+            return (
+                <PrivyProvider
+                    appId="cmbhhu8sr00mojr0l66siei2z"
+                    config={privyConfig}
+                >
+                    <AppContent />
+                </PrivyProvider>
+            );
+        }
+
+        // Инициализация приложения
+        function initializeApp() {
+            console.log('🚀 Запуск Seismic Game...');
+            
+            const root = ReactDOM.createRoot(document.getElementById('root'));
+            root.render(<App />);
+            
+            console.log('✅ Seismic Game успешно запущен с Privy React Auth SDK!');
+        }
+
+        // Запускаем приложение после загрузки всех зависимостей
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeApp);
+        } else {
+            initializeApp();
+        }
     </script>
-
-    <!-- Initialize Privy JS SDK Core -->
-    <script>
-        window.privySDKPromise = new Promise(async (resolve, reject) => {
-            try {
-                console.log('🚀 Initializing Privy JS SDK Core...');
-                
-                // Wait for Privy JS SDK Core to be available
-                let attempts = 0;
-                const maxAttempts = 100;
-                
-                const waitForPrivy = () => {
-                    attempts++;
-                    
-                    // Check for Privy JS SDK Core
-                    if (window.Privy && typeof window.Privy === 'function') {
-                        console.log('✅ Privy JS SDK Core loaded successfully');
-                        
-                        // Get configuration
-                        const privyConfig = window.seismicConfig?.privy || {
-                            appId: "cmbhhu8sr00mojr0l66siei2z"
-                        };
-                        
-                        // Create Privy instance
-                        const privy = new window.Privy({
-                            appId: privyConfig.appId,
-                            storage: {
-                                get: (key) => localStorage.getItem(key),
-                                put: (key, value) => localStorage.setItem(key, value),
-                                del: (key) => localStorage.removeItem(key),
-                                getKeys: () => Object.keys(localStorage)
-                            }
-                        });
-                        
-                        // Create SDK wrapper for compatibility
-                        window.PrivySDK = {
-                            _privy: privy,
-                            appId: privyConfig.appId,
-                            ready: true,
-                            authenticated: false,
-                            user: null,
-                            
-                            // Authentication methods using real Privy JS SDK Core
-                            login: async () => {
-                                console.log('🔑 Starting Privy email login...');
-                                try {
-                                    // For email login, we need to prompt for email first
-                                    const email = prompt('Enter your email for Privy login:');
-                                    if (!email) {
-                                        throw new Error('Email is required');
-                                    }
-                                    
-                                    // Send code to email
-                                    await privy.auth.email.sendCode(email);
-                                    console.log('📧 Code sent to email');
-                                    
-                                    // Prompt for code
-                                    const code = prompt('Enter the verification code sent to your email:');
-                                    if (!code) {
-                                        throw new Error('Verification code is required');
-                                    }
-                                    
-                                    // Verify code and login
-                                    const result = await privy.auth.email.loginWithCode(email, code);
-                                    
-                                    window.PrivySDK.authenticated = true;
-                                    window.PrivySDK.user = result.user;
-                                    window.privyUser = result.user;
-                                    
-                                    console.log('✅ User authenticated:', result.user);
-                                    return result.user;
-                                } catch (error) {
-                                    console.error('❌ Login failed:', error);
-                                    throw error;
-                                }
-                            },
-                            
-                            logout: async () => {
-                                console.log('🚪 Logging out from Privy...');
-                                try {
-                                    await privy.auth.logout();
-                                    window.PrivySDK.authenticated = false;
-                                    window.PrivySDK.user = null;
-                                    window.privyUser = null;
-                                    console.log('✅ User logged out');
-                                } catch (error) {
-                                    console.error('❌ Logout failed:', error);
-                                    throw error;
-                                }
-                            },
-                            
-                            getUser: () => window.PrivySDK.user,
-                            isAuthenticated: () => window.PrivySDK.authenticated,
-                            
-                            // Wallet methods
-                            connectWallet: async () => {
-                                if (!window.PrivySDK.authenticated) {
-                                    return await window.PrivySDK.login();
-                                }
-                                return window.PrivySDK.user;
-                            },
-                            
-                            // Event listeners
-                            onAuthStateChange: (callback) => {
-                                window.PrivySDK._authCallback = callback;
-                            },
-                            
-                            // Expose the raw Privy instance for advanced usage
-                            getRawPrivy: () => privy
-                        };
-                        
-                        console.log('✅ Privy JS SDK Core initialized successfully');
-                        resolve(window.PrivySDK);
-                        return;
-                    }
-                    
-                    if (attempts >= maxAttempts) {
-                        console.error('❌ Failed to load Privy JS SDK Core after', maxAttempts, 'attempts');
-                        reject(new Error('Privy JS SDK Core failed to load'));
-                        return;
-                    }
-                    
-                    setTimeout(waitForPrivy, 50);
-                };
-                
-                waitForPrivy();
-                
-            } catch (error) {
-                console.error('❌ Error initializing Privy JS SDK Core:', error);
-                reject(error);
-            }
-        });
-    </script>
-
-    <!-- Load wallet connector after Privy is ready -->
-    <script src="wallet-connector.js"></script>
-    
-    <!-- Load application logic after everything is ready -->
-    <script src="app.js"></script>
 </body>
 </html> 

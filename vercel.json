@@ -1,24 +1,12 @@
 {
   "rewrites": [
     {
-      "source": "/",
-      "destination": "/react-app.html"
-    },
-    {
-      "source": "/react-app",
-      "destination": "/react-app.html"
-    },
-    {
-      "source": "/old-index",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/(.*)\\.(js|css|json|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot)",
-      "destination": "/$1.$2"
+      "source": "/(.*\\.(js|css|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot))",
+      "destination": "/$1"
     },
     {
       "source": "/(.*)",
-      "destination": "/react-app.html"
+      "destination": "/index.html"
     }
   ],
   "headers": [

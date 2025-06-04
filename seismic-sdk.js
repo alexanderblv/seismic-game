@@ -25,6 +25,7 @@
                 
                 if (typeof ethers !== 'undefined') {
                     // Создаем провайдер для подключения к Seismic Devnet
+                    // For ethers v5, use ethers.providers.JsonRpcProvider
                     this.provider = new ethers.providers.JsonRpcProvider(this.config.network.rpcUrl);
                     
                     console.log("Seismic SDK инициализирован");
@@ -76,9 +77,9 @@
                 }
                 
                 // Если кошелек уже подключен, просто возвращаем его
-                if (this.wallet && window.WalletConnector && window.WalletConnector.isConnected()) {
+                if (this.wallet && window.walletConnector && window.walletConnector.isConnected()) {
                     // Проверяем, что аккаунт не сменился
-                    const currentAccount = window.WalletConnector.getSelectedAccount();
+                    const currentAccount = window.walletConnector.getSelectedAccount();
                     if (currentAccount && currentAccount.toLowerCase() === this.wallet.address.toLowerCase()) {
                         console.log("Используем существующее подключение кошелька:", this.wallet.address);
                         this.connectionInProgress = false;
@@ -86,28 +87,28 @@
                     }
                 }
                 
-                // Проверяем наличие WalletConnector
-                if (!window.WalletConnector) {
-                    console.error("WalletConnector не найден. Проверьте порядок загрузки скриптов.");
+                // Проверяем наличие walletConnector
+                if (!window.walletConnector) {
+                    console.error("walletConnector не найден. Проверьте порядок загрузки скриптов.");
                     this.connectionInProgress = false;
-                    throw new Error("WalletConnector не найден. Убедитесь, что wallet-connector.js подключен перед seismic-sdk.js");
+                    throw new Error("walletConnector не найден. Убедитесь, что wallet-connector.js подключен перед seismic-sdk.js");
                 }
                 
-                // Используем WalletConnector для подключения кошелька
-                console.log("Вызов WalletConnector.connect()...");
-                const result = await window.WalletConnector.connect();
+                // Используем walletConnector для подключения кошелька
+                console.log("Вызов walletConnector.connect()...");
+                const result = await window.walletConnector.connect();
                 
                 console.log("Результат подключения кошелька:", result);
                 
-                // Проверяем результат, но также проверяем, установлен ли аккаунт даже если result undefined
-                if ((!result || !result.success) && !window.WalletConnector.getSelectedAccount()) {
-                    const errorMessage = result && result.error ? result.error.message : "Неизвестная ошибка";
-                    console.error("Ошибка подключения через WalletConnector:", errorMessage);
-                    throw new Error(`Не удалось подключить кошелек через WalletConnector: ${errorMessage}`);
+                // Проверяем результат - walletConnector.connect() возвращает boolean
+                if (!result) {
+                    const errorMessage = window.walletConnector.getLastError() || "Неизвестная ошибка";
+                    console.error("Ошибка подключения через walletConnector:", errorMessage);
+                    throw new Error(`Не удалось подключить кошелек через walletConnector: ${errorMessage}`);
                 }
                 
                 // Получаем адрес кошелька
-                const address = window.WalletConnector.getSelectedAccount();
+                const address = window.walletConnector.getSelectedAccount();
                 
                 if (!address) {
                     console.error("Не удалось получить адрес аккаунта после успешного подключения");
@@ -115,7 +116,7 @@
                 }
                 
                 // Получаем провайдер
-                const provider = window.WalletConnector.getProvider();
+                const provider = window.walletConnector.getProvider();
                 if (!provider) {
                     console.error("Не удалось получить провайдер после успешного подключения");
                     throw new Error("Не удалось получить провайдер");
@@ -144,12 +145,12 @@
                     return this.wallet;
                 }
                 
-                // Используем переданный провайдер или пытаемся получить его из WalletConnector
+                // Используем переданный провайдер или пытаемся получить его из walletConnector
                 const walletProvider = externalProvider || 
                                      (window.walletConnector ? window.walletConnector.getProvider() : null);
                 
                 if (!walletProvider) {
-                    throw new Error("Провайдер кошелька не найден. Пожалуйста, подключите кошелек через Web3Modal.");
+                    throw new Error("Провайдер кошелька не найден. Пожалуйста, подключите кошелек через Privy.");
                 }
                 
                 // Подключаем провайдер к кошельку

@@ -11,11 +11,8 @@
     <!-- Favicon -->
     <link rel="shortcut icon" href="data:image/x-icon;base64,AAABAAEAEBAAAAEAIABoBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AVVVVB1VVVQdVVVUH////wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AVVVVQc8PGczOzxkM1VVVR////8A////AP///wD///8A////AP///8A////AP///wD///8A////AP///wD///8APD1mLT09nv89PZ7/PDxkLf///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8AVVVVB0w9Zi09PZ7/PT2e/zw8ZC1VVVUH////AP///wD///8A////AP///wD///8A////AP///wD///8A////AFVVVQM8PWYtPT2e/z09nv88PGQtVVVVB////wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8APD1mLT09nv89PZ7/PDxkLf///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AFVVVQc8PGczOzxkM1VVVQdVVVUHPDxkM1VVVQdVVVUHPDxkM1VVVQdVVVUHPDxkM1VVVQc8PGQzVVVVBlVVVQdVVVUHVVVVB1VVVQdVVVUHVVVVBzw8ZDM8PGQzVVVVB1VVVQc8PGQzVVVVB1VVVQc8PGQzVVVVH////wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A" type="image/x-icon">
     
-    <!-- Load ethers.js -->
-    <script src="https://cdn.jsdelivr.net/npm/ethers@6.9.0/dist/ethers.umd.min.js"></script>
-    
-    <!-- Load Privy SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/@privy-io/js-sdk@1.69.0/dist/index.umd.js"></script>
+    <!-- Load ethers.js v5 for compatibility -->
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
     
     <!-- Configuration -->
     <script src="seismic-config.js"></script>
@@ -261,6 +258,36 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Load Privy SDK with proper error handling -->
+    <script>
+        (function() {
+            // Load Privy SDK dynamically with error handling
+            const script = document.createElement('script');
+            script.src = 'https://auth.privy.io/js/1.69.0/privy.umd.js';
+            script.async = true;
+            script.onload = function() {
+                console.log('Privy SDK loaded successfully');
+                window.PrivySDK = window.Privy;
+            };
+            script.onerror = function(err) {
+                console.error('Failed to load Privy SDK:', err);
+                // Fallback to cdn.jsdelivr.net
+                const fallbackScript = document.createElement('script');
+                fallbackScript.src = 'https://cdn.jsdelivr.net/npm/@privy-io/js-sdk@1.69.0/dist/index.umd.js';
+                fallbackScript.async = true;
+                fallbackScript.onload = function() {
+                    console.log('Privy SDK loaded from fallback CDN');
+                    window.PrivySDK = window.Privy || window.PrivySDK;
+                };
+                fallbackScript.onerror = function(fallbackErr) {
+                    console.error('Failed to load Privy SDK from fallback:', fallbackErr);
+                };
+                document.head.appendChild(fallbackScript);
+            };
+            document.head.appendChild(script);
+        })();
+    </script>
     
     <!-- Seismic SDK -->
     <script src="seismic-sdk.js"></script>

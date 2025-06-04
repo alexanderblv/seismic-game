@@ -27,6 +27,20 @@
             try {
                 console.log("Initializing Privy wallet connector...");
                 
+                // Wait for Privy SDK to be available
+                if (!window.PrivySDK) {
+                    console.log("Waiting for Privy SDK...");
+                    let waitCount = 0;
+                    while (!window.PrivySDK && waitCount < 50) {
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        waitCount++;
+                    }
+                    
+                    if (!window.PrivySDK) {
+                        throw new Error("Privy SDK not available after waiting");
+                    }
+                }
+                
                 // Get Privy configuration
                 const privyConfig = window.seismicConfig?.privy || config.privy || {
                     appId: "cmbhhu8sr00mojr0l66siei2z",
@@ -45,10 +59,7 @@
                     }
                 };
 
-                // Wait for Privy SDK to be loaded
-                await this._ensurePrivyLoaded();
-
-                // Initialize Privy
+                // Initialize Privy with proper configuration
                 this.privy = new window.PrivySDK(privyConfig.appId, {
                     ...privyConfig.config,
                     onStateChange: (state) => {
@@ -56,19 +67,22 @@
                     }
                 });
 
-                await this.privy.initialize();
-
                 // Check if user is already authenticated
-                const authState = await this.privy.getAuthState();
-                if (authState && authState.authenticated) {
+                if (this.privy.authenticated) {
                     this.authenticated = true;
-                    this.user = authState.user;
-                    this.wallets = authState.wallets || [];
+                    this.user = this.privy.user;
                     
-                    if (this.wallets.length > 0) {
-                        this.selectedAccount = this.wallets[0].address;
-                        // Set up provider
-                        await this._setupProvider();
+                    // Get wallets from user
+                    if (this.user && this.user.linkedAccounts) {
+                        this.wallets = this.user.linkedAccounts.filter(account => 
+                            account.type === 'wallet' || account.type === 'smart_wallet'
+                        );
+                        
+                        if (this.wallets.length > 0) {
+                            this.selectedAccount = this.wallets[0].address;
+                            // Set up provider
+                            await this._setupProvider();
+                        }
                     }
                 }
 
@@ -83,48 +97,26 @@
         }
 
         /**
-         * Ensure Privy SDK is loaded
-         */
-        async _ensurePrivyLoaded() {
-            if (window.PrivySDK) {
-                console.log("Privy SDK already loaded");
-                return true;
-            }
-
-            console.log("Loading Privy SDK...");
-            
-            return new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = 'https://cdn.jsdelivr.net/npm/@privy-io/js-sdk@1.69.0/dist/index.umd.js';
-                script.async = true;
-                script.onload = () => {
-                    console.log("Privy SDK loaded successfully");
-                    resolve(true);
-                };
-                script.onerror = (err) => {
-                    console.error("Failed to load Privy SDK:", err);
-                    reject(new Error("Failed to load Privy SDK"));
-                };
-                document.head.appendChild(script);
-            });
-        }
-
-        /**
          * Handle Privy state changes
          */
         _handleStateChange(state) {
             console.log("Privy state changed:", state);
             
-            this.authenticated = state.authenticated;
-            this.user = state.user;
-            this.wallets = state.wallets || [];
+            this.authenticated = state.authenticated || this.privy.authenticated;
+            this.user = state.user || this.privy.user;
             
-            if (this.authenticated && this.wallets.length > 0) {
-                const wallet = this.wallets[0];
-                if (wallet.address !== this.selectedAccount) {
-                    this.selectedAccount = wallet.address;
-                    this._setupProvider();
-                    this._emitEvent('accountsChanged', { account: wallet.address });
+            if (this.authenticated && this.user && this.user.linkedAccounts) {
+                this.wallets = this.user.linkedAccounts.filter(account => 
+                    account.type === 'wallet' || account.type === 'smart_wallet'
+                );
+                
+                if (this.wallets.length > 0) {
+                    const wallet = this.wallets[0];
+                    if (wallet.address !== this.selectedAccount) {
+                        this.selectedAccount = wallet.address;
+                        this._setupProvider();
+                        this._emitEvent('accountsChanged', { account: wallet.address });
+                    }
                 }
             } else if (!this.authenticated) {
                 this.selectedAccount = null;
@@ -138,14 +130,15 @@
          */
         async _setupProvider() {
             try {
-                if (this.wallets.length > 0) {
-                    // Get the embedded wallet provider from Privy
+                if (this.wallets.length > 0 && this.privy) {
+                    // Get the wallet provider from Privy
                     const wallet = this.wallets[0];
-                    const walletProvider = await this.privy.getWalletProvider(wallet.id);
+                    const walletProvider = await this.privy.getEthereumProvider();
                     
                     if (walletProvider) {
                         this.provider = new ethers.providers.Web3Provider(walletProvider);
-                        this.chainId = await this.provider.getNetwork().then(n => n.chainId);
+                        const network = await this.provider.getNetwork();
+                        this.chainId = network.chainId;
                         console.log("Provider setup complete, chain ID:", this.chainId);
                     }
                 }
@@ -175,35 +168,42 @@
                 console.log("Starting Privy login...");
                 
                 // Start Privy login flow
-                const authResult = await this.privy.login();
+                await this.privy.login();
                 
-                if (authResult && authResult.authenticated) {
+                // After login, check authentication state
+                if (this.privy.authenticated) {
                     this.authenticated = true;
-                    this.user = authResult.user;
-                    this.wallets = authResult.wallets || [];
+                    this.user = this.privy.user;
                     
-                    if (this.wallets.length > 0) {
-                        this.selectedAccount = this.wallets[0].address;
-                        await this._setupProvider();
+                    // Get wallets from user
+                    if (this.user && this.user.linkedAccounts) {
+                        this.wallets = this.user.linkedAccounts.filter(account => 
+                            account.type === 'wallet' || account.type === 'smart_wallet'
+                        );
                         
-                        // Emit account changed event
-                        this._emitEvent('accountsChanged', { account: this.selectedAccount });
-                        
-                        console.log("Wallet connected successfully:", this.selectedAccount);
-                        return true;
-                    } else {
-                        // No wallets yet, but user is authenticated
-                        // Privy will create embedded wallet automatically
-                        console.log("User authenticated, waiting for wallet creation...");
-                        return true;
+                        if (this.wallets.length > 0) {
+                            this.selectedAccount = this.wallets[0].address;
+                            await this._setupProvider();
+                            
+                            // Emit account changed event
+                            this._emitEvent('accountsChanged', { account: this.selectedAccount });
+                            
+                            console.log("Wallet connected successfully:", this.selectedAccount);
+                            return true;
+                        } else {
+                            // No wallets yet, but user is authenticated
+                            // Privy will create embedded wallet automatically
+                            console.log("User authenticated, waiting for wallet creation...");
+                            return true;
+                        }
                     }
                 } else {
                     console.log("Login cancelled or failed");
                     return false;
                 }
             } catch (error) {
-                console.error("Connection failed:", error);
-                this.lastError = error.message || "Failed to connect wallet";
+                console.error("Error during Privy login:", error);
+                this.lastError = error.message || "Login failed";
                 return false;
             } finally {
                 this.isConnecting = false;
@@ -211,30 +211,32 @@
         }
 
         /**
-         * Disconnect wallet
+         * Disconnect from Privy
          */
         async disconnect() {
             try {
-                console.log("Disconnecting wallet...");
-                
-                if (this.privy && this.authenticated) {
+                console.log("Disconnecting from Privy...");
+
+                if (this.privy && this.privy.authenticated) {
                     await this.privy.logout();
                 }
-                
+
+                // Clear internal state
                 this.authenticated = false;
                 this.user = null;
                 this.wallets = [];
                 this.selectedAccount = null;
                 this.provider = null;
                 this.chainId = null;
-                
+
+                // Emit disconnection event
                 this._emitEvent('walletDisconnected', {});
-                
-                console.log("Wallet disconnected successfully");
+
+                console.log("Successfully disconnected from Privy");
                 return true;
             } catch (error) {
-                console.error("Failed to disconnect wallet:", error);
-                this.lastError = error.message || "Failed to disconnect wallet";
+                console.error("Error disconnecting from Privy:", error);
+                this.lastError = error.message || "Failed to disconnect";
                 return false;
             }
         }

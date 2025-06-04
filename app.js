@@ -226,6 +226,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
             
+            // Wait for Privy SDK to be available (with timeout)
+            let privyCheckCount = 0;
+            const maxPrivyChecks = 50; // 5 seconds max wait time
+            
+            while (!window.PrivySDK && privyCheckCount < maxPrivyChecks) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                privyCheckCount++;
+            }
+            
             // Check if Privy SDK is available
             const hasPrivySDK = !!window.PrivySDK;
             
@@ -240,8 +249,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 console.log('Wallet connector initialized');
             } else {
-                console.warn('Privy SDK not available');
-                showError('Privy SDK not loaded. Please refresh the page.');
+                console.warn('Privy SDK not available after waiting');
+                showError('Privy SDK failed to load. Please refresh the page.');
             }
             
         } catch (error) {

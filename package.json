@@ -5,25 +5,25 @@
   "scripts": {
     "start": "serve .",
     "dev": "serve .",
-    "test-privy": "echo 'Open test-privy-react.html in browser'"
+    "build": "echo 'Static site - no build needed'",
+    "test-privy": "echo 'Open react-app.html in browser'"
   },
   "dependencies": {
     "serve": "^14.0.0",
     "@privy-io/react-auth": "^1.69.0",
-    "ethers": "^6.9.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "typescript": "^5.0.0"
   },
-  "description": "Seismic blockchain application with Privy authentication",
-  "main": "index.html",
+  "description": "Seismic blockchain application with official Privy React Auth SDK",
+  "main": "react-app.html",
   "repository": {
     "type": "git",
     "url": "seismic-game"
   },
-  "keywords": ["blockchain", "seismic", "privy", "authentication"],
+  "keywords": ["blockchain", "seismic", "privy", "react", "authentication", "wallet"],
   "author": "Seismic Team",
   "license": "MIT"
 } 

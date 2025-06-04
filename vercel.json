@@ -9,12 +9,16 @@
   ],
   "routes": [
     {
+      "src": "/",
+      "dest": "/react-app.html"
+    },
+    {
       "src": "/react-app",
       "dest": "/react-app.html"
     },
     {
-      "src": "/",
-      "dest": "/react-app.html"
+      "src": "/old-index",
+      "dest": "/index.html"
     },
     {
       "src": "/(.*\\.(js|css|json|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot))",
@@ -40,6 +44,10 @@
         {
           "key": "X-XSS-Protection",
           "value": "1; mode=block"
+        },
+        {
+          "key": "Cross-Origin-Opener-Policy",
+          "value": "same-origin-allow-popups"
         }
       ]
     }

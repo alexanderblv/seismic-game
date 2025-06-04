@@ -12,7 +12,7 @@
     <!-- Preload React and ReactDOM -->
     <link rel="preload" href="https://unpkg.com/react@18/umd/react.production.min.js" as="script">
     <link rel="preload" href="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" as="script">
-    <link rel="preload" href="https://unpkg.com/@privy-io/react-auth@latest/dist/index.umd.js" as="script">
+    <link rel="preload" href="https://unpkg.com/@privy-io/react-auth@1.69.0/dist/index.umd.js" as="script">
     
     <!-- Font preload -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -71,6 +71,16 @@
             max-width: 400px;
             line-height: 1.5;
         }
+
+        .error-banner {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #c00;
+            padding: 10px;
+            margin: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -80,38 +90,119 @@
             <div class="spinner"></div>
             <div class="loader-text">🌊 Загрузка Seismic Game</div>
             <div class="loader-subtext">
-                Инициализация Privy React Auth SDK и подключение к блокчейну...
+                Инициализация официального Privy React Auth SDK...
             </div>
         </div>
     </div>
 
-    <!-- Configuration -->
-    <script src="seismic-config.js"></script>
+    <!-- Конфигурация загружается отдельно и изолированно -->
+    <script>
+        // Защищаем window.ethereum от переопределения MetaMask
+        if (typeof window.ethereum !== 'undefined') {
+            console.warn('🦊 MetaMask обнаружен - работаем через Privy для избежания конфликтов');
+        }
+        
+        // Конфигурация Privy - встроенная для избежания конфликтов
+        window.seismicConfig = {
+            network: {
+                name: "Seismic devnet",
+                symbol: "ETH", 
+                chainId: 5124,
+                rpcUrl: "https://node-2.seismicdev.net/rpc",
+                wsUrl: "wss://node-2.seismicdev.net/ws",
+                explorer: "https://explorer-2.seismicdev.net/",
+                faucet: "https://faucet-2.seismicdev.net/",
+                nativeCurrency: {
+                    name: "Ether",
+                    symbol: "ETH",
+                    decimals: 18
+                },
+                network: "seismic"
+            },
+            privy: {
+                appId: "cmbhhu8sr00mojr0l66siei2z",
+                config: {
+                    "appearance": {
+                        "accentColor": "#6A6FF5",
+                        "theme": "#FFFFFF",
+                        "showWalletLoginFirst": false,
+                        "logo": "https://auth.privy.io/logos/privy-logo.png",
+                        "walletChainType": "ethereum-and-solana",
+                        "walletList": [
+                            "detected_wallets",
+                            "metamask",
+                            "phantom"
+                        ]
+                    },
+                    "loginMethods": ["wallet"],
+                    "fundingMethodConfig": {
+                        "moonpay": {
+                            "useSandbox": true
+                        }
+                    },
+                    "embeddedWallets": {
+                        "requireUserPasswordOnCreate": false,
+                        "showWalletUIs": true,
+                        "ethereum": {
+                            "createOnLogin": "users-without-wallets"
+                        },
+                        "solana": {
+                            "createOnLogin": "users-without-wallets"
+                        }
+                    },
+                    "mfa": {
+                        "noPromptOnMfaRequired": false
+                    },
+                    "externalWallets": {
+                        "solana": {
+                            "connectors": {}
+                        }
+                    },
+                    "supportedChains": [5124],
+                    "defaultChain": 5124
+                }
+            }
+        };
+    </script>
     
     <!-- React Runtime -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     
-    <!-- Privy React Auth SDK -->
-    <script src="https://unpkg.com/@privy-io/react-auth@latest/dist/index.umd.js"></script>
-    
-    <!-- Ethers.js -->
-    <script src="https://cdn.jsdelivr.net/npm/ethers@6.9.0/dist/ethers.umd.min.js"></script>
+    <!-- Официальный Privy React Auth SDK с точной версией -->
+    <script src="https://unpkg.com/@privy-io/react-auth@1.69.0/dist/index.umd.js"></script>
 
-    <script type="text/babel">
-        const { useState, useEffect } = React;
-        const { PrivyProvider, usePrivy } = window.PrivyReactAuth;
-        
+    <script>
+        // Проверка загрузки зависимостей
+        function checkDependencies() {
+            const checks = [
+                { name: 'React', obj: window.React },
+                { name: 'ReactDOM', obj: window.ReactDOM },
+                { name: 'PrivyReactAuth', obj: window.PrivyReactAuth },
+                { name: 'seismicConfig', obj: window.seismicConfig }
+            ];
+            
+            let allLoaded = true;
+            checks.forEach(check => {
+                if (!check.obj) {
+                    console.error(`❌ ${check.name} не загружен`);
+                    allLoaded = false;
+                } else {
+                    console.log(`✅ ${check.name} загружен`);
+                }
+            });
+            
+            return allLoaded;
+        }
+
         // Main App Component
         function AppContent() {
-            const { ready, authenticated, user, login, logout, connectWallet } = usePrivy();
+            const { ready, authenticated, user, login, logout } = window.PrivyReactAuth.usePrivy();
 
             if (!ready) {
-                return (
-                    <div className="loading-container">
-                        <div className="loading-spinner"></div>
-                        <p>Загрузка Privy SDK...</p>
-                    </div>
+                return React.createElement('div', { className: 'loading-container' },
+                    React.createElement('div', { className: 'loading-spinner' }),
+                    React.createElement('p', null, '🔄 Инициализация Privy SDK...')
                 );
             }
 
@@ -119,7 +210,7 @@
                 // Header
                 React.createElement('header', { className: 'app-header' },
                     React.createElement('h1', null, '🌊 Seismic Game'),
-                    React.createElement('p', null, 'Блокчейн приложение с Privy аутентификацией')
+                    React.createElement('p', null, 'Официальная интеграция Privy React Auth SDK')
                 ),
                 
                 // Main Content
@@ -127,27 +218,30 @@
                     !authenticated ? 
                         // Auth Section
                         React.createElement('div', { className: 'auth-section' },
-                            React.createElement('h2', null, 'Подключитесь к приложению'),
-                            React.createElement('p', null, 'Используйте кошелек для входа в систему'),
+                            React.createElement('h2', null, 'Подключение к Seismic Network'),
+                            React.createElement('p', null, 'Используйте официальный Privy для безопасного подключения'),
                             React.createElement('button', {
                                 className: 'connect-button',
-                                onClick: login
-                            }, '🔐 Подключить кошелек')
+                                onClick: () => {
+                                    console.log('🔐 Инициализация подключения через Privy...');
+                                    login();
+                                }
+                            }, '🔐 Подключить через Privy')
                         )
                     :
                         // User Section
                         React.createElement('div', { className: 'user-section' },
                             // User Info
                             React.createElement('div', { className: 'user-info' },
-                                React.createElement('h2', null, '✅ Подключен!'),
+                                React.createElement('h2', null, '✅ Успешно подключен!'),
                                 React.createElement('div', { className: 'user-details' },
                                     React.createElement('p', null, 
-                                        React.createElement('strong', null, 'ID: '), 
-                                        user?.id
+                                        React.createElement('strong', null, 'Privy ID: '), 
+                                        user?.id || 'Загрузка...'
                                     ),
                                     user?.wallet?.address && React.createElement('p', null,
-                                        React.createElement('strong', null, 'Кошелек: '), 
-                                        user.wallet.address
+                                        React.createElement('strong', null, 'Адрес кошелька: '), 
+                                        React.createElement('code', null, user.wallet.address)
                                     ),
                                     user?.email?.address && React.createElement('p', null,
                                         React.createElement('strong', null, 'Email: '), 
@@ -156,6 +250,10 @@
                                     React.createElement('p', null,
                                         React.createElement('strong', null, 'Создан: '), 
                                         user?.createdAt ? new Date(user.createdAt).toLocaleString('ru-RU') : 'N/A'
+                                    ),
+                                    React.createElement('p', null,
+                                        React.createElement('strong', null, 'Связанные аккаунты: '), 
+                                        user?.linkedAccounts?.length || 0
                                     )
                                 )
                             ),
@@ -164,23 +262,43 @@
                             React.createElement('div', { className: 'actions' },
                                 React.createElement('button', {
                                     className: 'action-button game-button',
-                                    onClick: () => alert('Игра скоро будет доступна!')
+                                    onClick: () => {
+                                        console.log('🎮 Запуск игры...', { user, config: window.seismicConfig });
+                                        alert('🎮 Игра скоро будет доступна!\n\nИнтеграция Privy завершена успешно.');
+                                    }
                                 }, '🎮 Начать игру'),
                                 
                                 React.createElement('button', {
                                     className: 'action-button wallet-button',
-                                    onClick: () => console.log('User wallets:', user?.linkedAccounts)
-                                }, '👛 Управление кошельком'),
+                                    onClick: () => {
+                                        console.log('👛 Управление кошельком:', {
+                                            user: user,
+                                            wallets: user?.linkedAccounts,
+                                            embeddedWallet: user?.wallet
+                                        });
+                                        
+                                        const walletInfo = `
+🏦 Информация о кошельке:
+• Основной адрес: ${user?.wallet?.address || 'Не найден'}
+• Связанных аккаунтов: ${user?.linkedAccounts?.length || 0}
+• Тип кошелька: ${user?.wallet?.walletClientType || 'Неизвестно'}
+                                        `.trim();
+                                        alert(walletInfo);
+                                    }
+                                }, '👛 Информация о кошельке'),
                                 
                                 React.createElement('button', {
                                     className: 'action-button logout-button',
-                                    onClick: logout
+                                    onClick: () => {
+                                        console.log('🚪 Выход из системы...');
+                                        logout();
+                                    }
                                 }, '🚪 Выйти')
                             ),
                             
                             // Network Info
                             React.createElement('div', { className: 'network-info' },
-                                React.createElement('h3', null, '🌐 Информация о сети'),
+                                React.createElement('h3', null, '🌐 Информация о сети Seismic'),
                                 React.createElement('div', { className: 'network-details' },
                                     React.createElement('p', null,
                                         React.createElement('strong', null, 'Сеть: '), 
@@ -188,11 +306,11 @@
                                     ),
                                     React.createElement('p', null,
                                         React.createElement('strong', null, 'Chain ID: '), 
-                                        window.seismicConfig.network.chainId
+                                        React.createElement('code', null, window.seismicConfig.network.chainId)
                                     ),
                                     React.createElement('p', null,
                                         React.createElement('strong', null, 'RPC: '), 
-                                        window.seismicConfig.network.rpcUrl
+                                        React.createElement('code', null, window.seismicConfig.network.rpcUrl)
                                     ),
                                     React.createElement('p', null,
                                         React.createElement('strong', null, 'Explorer: '), 
@@ -200,7 +318,15 @@
                                             href: window.seismicConfig.network.explorer,
                                             target: '_blank',
                                             rel: 'noopener noreferrer'
-                                        }, 'Открыть explorer')
+                                        }, 'explorer-2.seismicdev.net')
+                                    ),
+                                    React.createElement('p', null,
+                                        React.createElement('strong', null, 'Faucet: '), 
+                                        React.createElement('a', {
+                                            href: window.seismicConfig.network.faucet,
+                                            target: '_blank',
+                                            rel: 'noopener noreferrer'
+                                        }, 'Получить тестовые токены')
                                     )
                                 )
                             )
@@ -209,22 +335,27 @@
                 
                 // Footer
                 React.createElement('footer', { className: 'app-footer' },
-                    React.createElement('p', null, '© 2024 Seismic Game. Powered by Privy')
+                    React.createElement('p', null, '© 2024 Seismic Game • Powered by '),
+                    React.createElement('a', { 
+                        href: 'https://docs.privy.io/welcome',
+                        target: '_blank',
+                        rel: 'noopener noreferrer',
+                        style: { color: '#6A6FF5', textDecoration: 'none' }
+                    }, 'Privy React Auth SDK')
                 )
             );
         }
 
         // Main App with Privy Provider
         function App() {
-            return React.createElement(PrivyProvider, {
+            return React.createElement(window.PrivyReactAuth.PrivyProvider, {
                 appId: window.seismicConfig.privy.appId,
                 config: window.seismicConfig.privy.config
             }, React.createElement(AppContent));
         }
 
-        // CSS Styles
+        // CSS Styles - встроенные для изоляции
         const styles = `
-            /* Подключаем основные стили */
             * {
                 margin: 0;
                 padding: 0;
@@ -373,6 +504,14 @@
                 font-weight: 600;
             }
 
+            .user-details code {
+                background: #e2e8f0;
+                padding: 2px 6px;
+                border-radius: 4px;
+                font-size: 0.9em;
+                font-family: 'Courier New', monospace;
+            }
+
             .actions {
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -465,6 +604,14 @@
                 text-decoration: underline;
             }
 
+            .network-details code {
+                background: #e2e8f0;
+                padding: 2px 6px;
+                border-radius: 4px;
+                font-size: 0.9em;
+                font-family: 'Courier New', monospace;
+            }
+
             .app-footer {
                 background: #1f2937;
                 color: white;
@@ -507,28 +654,50 @@
             }
         `;
 
-        // Inject styles
-        const styleSheet = document.createElement('style');
-        styleSheet.textContent = styles;
-        document.head.appendChild(styleSheet);
+        // Функция инициализации приложения
+        function initializeApp() {
+            console.log('🚀 Инициализация Seismic Game с Privy React Auth SDK...');
+            
+            // Проверяем загрузку зависимостей
+            if (!checkDependencies()) {
+                console.error('❌ Не все зависимости загружены');
+                document.getElementById('root').innerHTML = `
+                    <div class="error-banner">
+                        ❌ Ошибка загрузки зависимостей. Обновите страницу.
+                    </div>
+                `;
+                return;
+            }
 
-        // Wait for Privy to be available and render the app
-        function renderApp() {
-            if (window.PrivyReactAuth && window.seismicConfig) {
+            try {
+                // Inject styles
+                const styleSheet = document.createElement('style');
+                styleSheet.textContent = styles;
+                document.head.appendChild(styleSheet);
+
+                // Render React app
                 const container = document.getElementById('root');
-                const root = ReactDOM.createRoot(container);
+                const root = window.ReactDOM.createRoot(container);
                 root.render(React.createElement(App));
-            } else {
-                // Retry after a short delay
-                setTimeout(renderApp, 100);
+                
+                console.log('✅ Приложение успешно инициализировано с Privy React Auth SDK');
+                
+            } catch (error) {
+                console.error('❌ Ошибка инициализации приложения:', error);
+                document.getElementById('root').innerHTML = `
+                    <div class="error-banner">
+                        ❌ Ошибка инициализации: ${error.message}
+                    </div>
+                `;
             }
         }
 
-        // Start the app
-        document.addEventListener('DOMContentLoaded', renderApp);
+        // Ожидаем полной загрузки страницы
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeApp);
+        } else {
+            initializeApp();
+        }
     </script>
-
-    <!-- Babel for JSX transformation -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </body>
 </html> 

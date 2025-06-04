@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wallet Connector Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .warning { background-color: #fff3cd; color: #856404; }
+        button { padding: 10px 20px; margin: 5px; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <h1>Seismic Wallet Connector Test</h1>
+    
+    <div id="status" class="status warning">
+        Initializing...
+    </div>
+    
+    <div>
+        <button id="connect-btn" disabled>Connect Wallet</button>
+        <button id="disconnect-btn" disabled>Disconnect Wallet</button>
+    </div>
+    
+    <div id="info">
+        <p><strong>Account:</strong> <span id="account">Not connected</span></p>
+        <p><strong>Chain ID:</strong> <span id="chainId">Unknown</span></p>
+        <p><strong>Mode:</strong> <span id="mode">Unknown</span></p>
+    </div>
+
+    <!-- Load dependencies -->
+    <script src="https://cdn.ethers.io/lib/ethers-5.6.8.umd.min.js"></script>
+    <script src="seismic-config.js"></script>
+    
+    <!-- Load Privy SDK with error handling -->
+    <script>
+        (function() {
+            // Suppress MetaMask provider warnings
+            const originalError = console.error;
+            const originalWarn = console.warn;
+            
+            console.error = function(...args) {
+                if (typeof args[0] === 'string' && (
+                    args[0].includes('MetaMask encountered an error setting the global Ethereum provider') ||
+                    args[0].includes('Cannot set property ethereum') ||
+                    args[0].includes('which has only a getter')
+                )) {
+                    return;
+                }
+                originalError.apply(console, args);
+            };
+            
+            console.warn = function(...args) {
+                if (typeof args[0] === 'string' && (
+                    args[0].includes('MetaMask') ||
+                    args[0].includes('ethereum provider')
+                )) {
+                    return;
+                }
+                originalWarn.apply(console, args);
+            };
+
+            // Create a promise that resolves immediately with null (no Privy)
+            window.privySDKPromise = new Promise((resolve) => {
+                console.log('Test: Using fallback mode (no Privy SDK)');
+                setTimeout(() => {
+                    resolve(null);
+                }, 100);
+            });
+        })();
+    </script>
+    
+    <!-- Load wallet connector -->
+    <script src="wallet-connector.js"></script>
+    
+    <!-- Test script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const statusDiv = document.getElementById('status');
+            const connectBtn = document.getElementById('connect-btn');
+            const disconnectBtn = document.getElementById('disconnect-btn');
+            const accountSpan = document.getElementById('account');
+            const chainIdSpan = document.getElementById('chainId');
+            const modeSpan = document.getElementById('mode');
+            
+            function updateStatus(message, type = 'warning') {
+                statusDiv.className = `status ${type}`;
+                statusDiv.textContent = message;
+            }
+            
+            function updateInfo() {
+                const account = window.walletConnector.getSelectedAccount();
+                const chainId = window.walletConnector.getChainId();
+                const mode = window.walletConnector.fallbackMode ? 'Fallback (MetaMask)' : 'Privy';
+                
+                accountSpan.textContent = account || 'Not connected';
+                chainIdSpan.textContent = chainId || 'Unknown';
+                modeSpan.textContent = mode;
+                
+                connectBtn.disabled = window.walletConnector.isConnected();
+                disconnectBtn.disabled = !window.walletConnector.isConnected();
+            }
+            
+            // Initialize wallet connector
+            try {
+                updateStatus('Initializing wallet connector...');
+                await window.walletConnector.initialize();
+                
+                if (window.walletConnector.fallbackMode) {
+                    updateStatus('Wallet connector initialized in fallback mode', 'warning');
+                } else {
+                    updateStatus('Wallet connector initialized with Privy', 'success');
+                }
+                
+                connectBtn.disabled = false;
+                updateInfo();
+                
+            } catch (error) {
+                updateStatus(`Initialization failed: ${error.message}`, 'error');
+                console.error('Initialization error:', error);
+            }
+            
+            // Event listeners
+            connectBtn.addEventListener('click', async () => {
+                try {
+                    updateStatus('Connecting wallet...');
+                    const success = await window.walletConnector.connect();
+                    
+                    if (success) {
+                        updateStatus('Wallet connected successfully!', 'success');
+                    } else {
+                        updateStatus('Wallet connection failed', 'error');
+                    }
+                    updateInfo();
+                } catch (error) {
+                    updateStatus(`Connection error: ${error.message}`, 'error');
+                    console.error('Connection error:', error);
+                }
+            });
+            
+            disconnectBtn.addEventListener('click', async () => {
+                try {
+                    updateStatus('Disconnecting wallet...');
+                    await window.walletConnector.disconnect();
+                    updateStatus('Wallet disconnected', 'warning');
+                    updateInfo();
+                } catch (error) {
+                    updateStatus(`Disconnect error: ${error.message}`, 'error');
+                    console.error('Disconnect error:', error);
+                }
+            });
+            
+            // Listen for wallet events
+            document.addEventListener('wallet:accountsChanged', (event) => {
+                console.log('Account changed:', event.detail);
+                updateInfo();
+                updateStatus('Account changed', 'success');
+            });
+            
+            document.addEventListener('wallet:walletDisconnected', (event) => {
+                console.log('Wallet disconnected');
+                updateInfo();
+                updateStatus('Wallet disconnected', 'warning');
+            });
+        });
+    </script>
+</body>
+</html> 

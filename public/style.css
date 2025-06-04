@@ -1,0 +1,463 @@
+/* Стили для визуализации шифрования */
+.encryption-visualization {
+    width: 100%;
+    padding: 20px;
+    margin: 20px 0;
+    background-color: #f7f9fc;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    display: none;
+}
+
+.encryption-data {
+    width: 100%;
+    padding: 15px;
+    border-radius: 5px;
+    margin: 10px 0;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    transition: all 0.5s ease;
+    opacity: 0;
+}
+
+.encryption-arrow {
+    font-size: 24px;
+    margin: 10px 0;
+    color: #3a7bd5;
+    opacity: 0;
+    transition: all 0.5s ease;
+}
+
+.encryption-data.original {
+    background-color: #e0f7fa;
+    border-left: 4px solid #00acc1;
+    color: #006064;
+}
+
+.encryption-data.encrypted {
+    background-color: #e8f5e9;
+    border-left: 4px solid #43a047;
+    color: #1b5e20;
+}
+
+/* Анимация */
+.encryption-visualization.animate .encryption-data.original {
+    opacity: 1;
+    animation: slideIn 0.5s ease forwards;
+}
+
+.encryption-visualization.animate .encryption-arrow {
+    opacity: 1;
+    animation: fadeIn 0.5s ease 0.5s forwards;
+}
+
+.encryption-visualization.animate .encryption-data.encrypted {
+    opacity: 1;
+    animation: slideIn 0.5s ease 1s forwards;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* Сейсмические волны для анимации */
+.seismic-wave-circle {
+    position: absolute;
+    border: 2px solid rgba(74, 123, 255, 0.5);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    animation: none;
+}
+
+@keyframes seismicWave {
+    0% {
+        width: 10px;
+        height: 10px;
+        opacity: 0.7;
+    }
+    100% {
+        width: 200px;
+        height: 200px;
+        opacity: 0;
+    }
+}
+
+.seismic-data-point {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background-color: #4a7bff;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+    box-shadow: 0 0 8px #4a7bff;
+}
+
+@keyframes pulse {
+    0% {
+        transform: translate(-50%, -50%) scale(0.8);
+        opacity: 0.7;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1.2);
+        opacity: 1;
+    }
+}
+
+.seismic-connection-line {
+    position: absolute;
+    height: 2px;
+    background-color: rgba(74, 123, 255, 0.3);
+    transform-origin: left center;
+    z-index: 1;
+}
+
+@keyframes seismicPulse {
+    0% {
+        background-color: rgba(74, 123, 255, 0.1);
+    }
+    50% {
+        background-color: rgba(74, 123, 255, 0.6);
+    }
+    100% {
+        background-color: rgba(74, 123, 255, 0.1);
+    }
+}
+
+/* Main Styles for Seismic Transaction Interface */
+
+:root {
+    --primary-color: #3498db;
+    --primary-dark: #2980b9;
+    --secondary-color: #9b59b6;
+    --secondary-dark: #8e44ad;
+    --success-color: #2ecc71;
+    --danger-color: #e74c3c;
+    --light-color: #ecf0f1;
+    --dark-color: #2c3e50;
+    --text-color: #34495e;
+    --bg-light: #f5f7fa;
+    --bg-dark: #1a1a2e;
+}
+
+body {
+    background-color: var(--bg-light);
+    color: var(--text-color);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Header styles */
+header {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Card styles */
+.card {
+    border: none;
+    border-radius: 10px;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    font-weight: 600;
+    border-bottom: none;
+}
+
+/* Button styles */
+.btn {
+    border-radius: 6px;
+    font-weight: 500;
+    padding: 0.5rem 1.25rem;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-dark);
+    border-color: var(--primary-dark);
+}
+
+.btn-success {
+    background-color: var(--success-color);
+    border-color: var(--success-color);
+}
+
+.btn-success:hover {
+    filter: brightness(0.9);
+}
+
+/* Form styles */
+.form-control {
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    padding: 0.75rem 1rem;
+}
+
+.form-control:focus {
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+    border-color: var(--primary-color);
+}
+
+/* Badge styles */
+.badge {
+    padding: 0.5rem 0.75rem;
+    font-weight: 500;
+    border-radius: 6px;
+}
+
+/* Address display */
+.text-truncate {
+    max-width: 150px;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+/* Transaction history */
+.table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.table th {
+    font-weight: 600;
+    color: var(--dark-color);
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.transaction-status {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 5px;
+}
+
+.transaction-status.pending {
+    background-color: #f39c12;
+}
+
+.transaction-status.confirmed {
+    background-color: #2ecc71;
+}
+
+.transaction-status.failed {
+    background-color: #e74c3c;
+}
+
+/* Address format */
+.address-display {
+    font-family: monospace;
+    font-size: 0.875rem;
+}
+
+/* Animation for loading */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.pulse {
+    animation: pulse 1.5s infinite ease-in-out;
+}
+
+/* Transaction details */
+.tx-details {
+    background-color: #f8f9fa;
+    border-radius: 6px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.tx-details-label {
+    font-weight: bold;
+    color: var(--dark-color);
+}
+
+.tx-hash {
+    word-break: break-all;
+    font-family: monospace;
+    font-size: 0.875rem;
+}
+
+/* Footer styling */
+footer {
+    border-top: 1px solid rgba(0,0,0,0.1);
+}
+
+/* Encryption toggle switch */
+.form-switch .form-check-input {
+    width: 3em;
+    height: 1.5em;
+}
+
+.form-switch .form-check-input:checked {
+    background-color: var(--secondary-color);
+    border-color: var(--secondary-color);
+}
+
+/* Encrypted field indicator */
+.encrypted-field {
+    background-color: rgba(155, 89, 182, 0.1);
+    border-color: var(--secondary-color);
+}
+
+/* Network badge styles */
+#network-badge {
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+#network-badge.connected {
+    background-color: var(--success-color);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Loading animation */
+.loading-spinner {
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    border-left-color: var(--primary-color);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .card {
+        margin-bottom: 1.5rem;
+    }
+    
+    .btn {
+        padding: 0.4rem 1rem;
+    }
+    
+    h1 {
+        font-size: 1.5rem;
+    }
+    
+    .badge {
+        padding: 0.25rem 0.5rem;
+    }
+}
+
+/* Wallet Connector Button */
+.wallet-connect-button {
+    background-color: #3B71F7;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.2s;
+}
+
+.wallet-connect-button:hover {
+    background-color: #2D5ED9;
+}
+
+.wallet-connect-button:disabled {
+    background-color: #323139;
+    cursor: not-allowed;
+}
+
+.wallet-address {
+    display: flex;
+    align-items: center;
+    background-color: #23222A;
+    border-radius: 8px;
+    padding: 8px 16px;
+    cursor: pointer;
+}
+
+.wallet-address-text {
+    font-weight: 500;
+}
+
+.wallet-address-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    overflow: hidden;
+    margin-right: 8px;
+}
+
+/* Wallet Pending Message */
+.wallet-pending-message {
+    background-color: #FFB74D;
+    color: #5D4037;
+    padding: 12px 16px;
+    margin: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    text-align: center;
+    font-weight: 500;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    animation: pulse-warning 2s infinite;
+}
+
+@keyframes pulse-warning {
+    0% { opacity: 0.7; }
+    50% { opacity: 1; }
+    100% { opacity: 0.7; }
+} 

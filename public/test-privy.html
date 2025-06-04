@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Privy SDK</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        #log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 5px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Privy SDK Test</h1>
+    
+    <div id="status" class="status info">Initializing...</div>
+    
+    <div>
+        <button id="testPrivy" disabled>Test Privy Connection</button>
+        <button id="testWalletConnector" disabled>Test Wallet Connector</button>
+        <button id="clearLog">Clear Log</button>
+    </div>
+    
+    <div id="log"></div>
+
+    <!-- Load ethers.js v5 for compatibility -->
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    
+    <!-- Configuration -->
+    <script src="seismic-config.js"></script>
+
+    <!-- Load Privy SDK from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@privy-io/js-sdk@latest/dist/index.iife.js"></script>
+
+    <script>
+        const statusDiv = document.getElementById('status');
+        const logDiv = document.getElementById('log');
+        const testPrivyBtn = document.getElementById('testPrivy');
+        const testWalletConnectorBtn = document.getElementById('testWalletConnector');
+        const clearLogBtn = document.getElementById('clearLog');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+            logEntry.className = type;
+            logDiv.appendChild(logEntry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(`[${timestamp}] ${message}`);
+        }
+
+        function updateStatus(message, type = 'info') {
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+
+        async function initializeTest() {
+            try {
+                log('Starting Privy SDK test...');
+                
+                // Check if Privy is available
+                if (window.Privy) {
+                    log('✅ Privy SDK found on window.Privy', 'success');
+                    updateStatus('Privy SDK loaded successfully', 'success');
+                    testPrivyBtn.disabled = false;
+                } else {
+                    log('❌ Privy SDK not found on window.Privy', 'error');
+                    
+                    // Wait a bit for it to load
+                    log('Waiting for Privy SDK to load...');
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    
+                    if (window.Privy) {
+                        log('✅ Privy SDK loaded after waiting', 'success');
+                        updateStatus('Privy SDK loaded successfully (delayed)', 'success');
+                        testPrivyBtn.disabled = false;
+                    } else {
+                        log('❌ Privy SDK still not available after waiting', 'error');
+                        updateStatus('Failed to load Privy SDK', 'error');
+                    }
+                }
+
+                // Test ethers.js
+                if (window.ethers) {
+                    log('✅ Ethers.js available', 'success');
+                } else {
+                    log('❌ Ethers.js not available', 'error');
+                }
+
+                // Test seismic config
+                if (window.seismicConfig) {
+                    log('✅ Seismic config available', 'success');
+                } else {
+                    log('❌ Seismic config not available', 'error');
+                }
+
+            } catch (error) {
+                log(`❌ Error during initialization: ${error.message}`, 'error');
+                updateStatus('Initialization failed', 'error');
+            }
+        }
+
+        async function testPrivy() {
+            try {
+                log('Testing Privy SDK...');
+                
+                if (!window.Privy) {
+                    throw new Error('Privy SDK not available');
+                }
+
+                // Try to create a Privy instance
+                const config = window.seismicConfig?.privy || {
+                    appId: "cmbhhu8sr00mojr0l66siei2z",
+                    config: {
+                        loginMethods: ['email', 'wallet'],
+                        appearance: {
+                            theme: 'light'
+                        }
+                    }
+                };
+
+                log(`Creating Privy instance with appId: ${config.appId}`);
+                
+                // Test different ways to initialize Privy
+                let privyInstance = null;
+                
+                // Method 1: Direct constructor
+                if (typeof window.Privy === 'function') {
+                    try {
+                        privyInstance = new window.Privy(config.appId, config.config);
+                        log('✅ Privy instance created with constructor', 'success');
+                    } catch (error) {
+                        log(`❌ Constructor failed: ${error.message}`, 'error');
+                    }
+                }
+
+                // Method 2: Check for PrivyProvider
+                if (!privyInstance && window.Privy.PrivyProvider) {
+                    try {
+                        privyInstance = new window.Privy.PrivyProvider(config.appId, config.config);
+                        log('✅ Privy instance created with PrivyProvider', 'success');
+                    } catch (error) {
+                        log(`❌ PrivyProvider failed: ${error.message}`, 'error');
+                    }
+                }
+
+                // Method 3: Check for init function
+                if (!privyInstance && window.Privy.init) {
+                    try {
+                        privyInstance = await window.Privy.init(config.appId, config.config);
+                        log('✅ Privy instance created with init function', 'success');
+                    } catch (error) {
+                        log(`❌ Init function failed: ${error.message}`, 'error');
+                    }
+                }
+
+                if (privyInstance) {
+                    log('✅ Privy SDK test successful', 'success');
+                    updateStatus('Privy SDK test passed', 'success');
+                    testWalletConnectorBtn.disabled = false;
+                } else {
+                    throw new Error('No method to create Privy instance worked');
+                }
+
+            } catch (error) {
+                log(`❌ Privy test failed: ${error.message}`, 'error');
+                updateStatus('Privy SDK test failed', 'error');
+            }
+        }
+
+        async function testWalletConnector() {
+            try {
+                log('Loading wallet connector...');
+                
+                // Load wallet connector
+                const script = document.createElement('script');
+                script.src = 'wallet-connector.js';
+                document.head.appendChild(script);
+                
+                await new Promise((resolve, reject) => {
+                    script.onload = resolve;
+                    script.onerror = reject;
+                });
+
+                log('✅ Wallet connector script loaded', 'success');
+
+                if (window.walletConnector) {
+                    log('✅ Wallet connector instance available', 'success');
+                    
+                    // Test initialization
+                    log('Testing wallet connector initialization...');
+                    await window.walletConnector.initialize();
+                    log('✅ Wallet connector initialized successfully', 'success');
+                    updateStatus('Wallet connector test passed', 'success');
+                } else {
+                    throw new Error('Wallet connector not available');
+                }
+
+            } catch (error) {
+                log(`❌ Wallet connector test failed: ${error.message}`, 'error');
+                updateStatus('Wallet connector test failed', 'error');
+            }
+        }
+
+        // Event listeners
+        testPrivyBtn.addEventListener('click', testPrivy);
+        testWalletConnectorBtn.addEventListener('click', testWalletConnector);
+        clearLogBtn.addEventListener('click', () => {
+            logDiv.innerHTML = '';
+        });
+
+        // Start test
+        initializeTest();
+    </script>
+</body>
+</html> 

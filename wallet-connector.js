@@ -1,5 +1,5 @@
 /**
- * wallet-connector.js - REAL Privy JS SDK Core wallet connection implementation
+ * wallet-connector.js - REAL Privy SDK wallet connection implementation
  */
 
 (function() {
@@ -19,24 +19,25 @@
         }
 
         /**
-         * Initialize the Privy connector - REAL PRIVY JS SDK CORE ONLY
+         * Initialize the Privy connector - REAL PRIVY SDK ONLY
          */
         async initialize(config = {}) {
             if (this.initialized) return true;
 
             try {
-                console.log("Initializing REAL Privy JS SDK Core wallet connector...");
+                console.log("Initializing REAL Privy SDK wallet connector...");
                 console.log("⚠️ This application uses ONLY REAL Privy wallet connections!");
                 console.log("⚠️ MetaMask and other wallet extensions are NOT supported!");
                 
-                // Wait for REAL Privy JS SDK Core to be available
+                // Wait for REAL Privy SDK to be available
                 this.privy = await window.privySDKPromise;
                 
                 if (!this.privy) {
-                    throw new Error("REAL Privy JS SDK Core not available");
+                    throw new Error("REAL Privy SDK not available");
                 }
                 
-                console.log("✅ REAL Privy JS SDK Core initialized successfully");
+                console.log("✅ REAL Privy SDK initialized successfully");
+                console.log("Privy instance methods:", Object.getOwnPropertyNames(this.privy));
                 this.initialized = true;
                 
                 // Check if user is already authenticated
@@ -57,18 +58,22 @@
          */
         async _checkAuthState() {
             try {
-                // Get user from Privy JS SDK Core
-                const userResult = await this.privy.user.get();
-                if (userResult && userResult.user) {
-                    this.user = userResult.user;
-                    this.authenticated = true;
-                    console.log("👤 User already authenticated:", this.user);
-                    
-                    // Check for embedded wallet
-                    await this._setupWalletFromUser();
+                // Get user from Privy SDK
+                if (this.privy.user && typeof this.privy.user.get === 'function') {
+                    const userResult = await this.privy.user.get();
+                    if (userResult && userResult.user) {
+                        this.user = userResult.user;
+                        this.authenticated = true;
+                        console.log("👤 User already authenticated:", this.user);
+                        
+                        // Check for embedded wallet
+                        await this._setupWalletFromUser();
+                    }
+                } else {
+                    console.log("ℹ️ Privy user methods not available or different API structure");
                 }
             } catch (error) {
-                console.log("ℹ️ No existing authentication found");
+                console.log("ℹ️ No existing authentication found:", error.message);
             }
         }
 
@@ -85,10 +90,14 @@
                     this.selectedAccount = embeddedWallet.address;
                     this.wallets = [embeddedWallet];
                     
-                    // Get provider from Privy JS SDK Core
+                    // Get provider from Privy SDK
                     try {
-                        this.provider = await this.privy.embeddedWallet.getProvider(embeddedWallet);
-                        console.log("📱 Embedded wallet provider obtained:", this.selectedAccount);
+                        if (this.privy.embeddedWallet && typeof this.privy.embeddedWallet.getProvider === 'function') {
+                            this.provider = await this.privy.embeddedWallet.getProvider(embeddedWallet);
+                            console.log("📱 Embedded wallet provider obtained:", this.selectedAccount);
+                        } else {
+                            console.warn("⚠️ embeddedWallet.getProvider not available");
+                        }
                     } catch (providerError) {
                         console.warn("⚠️ Could not get wallet provider:", providerError);
                     }
@@ -129,7 +138,7 @@
         }
 
         /**
-         * Connect wallet through REAL Privy JS SDK Core
+         * Connect wallet through REAL Privy SDK
          */
         async connect() {
             if (this.isConnecting) {
@@ -141,7 +150,7 @@
                 this.isConnecting = true;
                 this.lastError = null;
 
-                console.log("🔗 Connecting wallet through REAL Privy JS SDK Core...");
+                console.log("🔗 Connecting wallet through REAL Privy SDK...");
                 console.log("✅ This application supports ONLY REAL Privy wallet connections!");
 
                 if (!this.initialized) {
@@ -160,7 +169,7 @@
         }
 
         /**
-         * Connect using REAL Privy JS SDK Core
+         * Connect using REAL Privy SDK
          */
         async _connectPrivy() {
             try {
@@ -170,17 +179,26 @@
                     throw new Error("Privy not initialized");
                 }
 
+                console.log("Available Privy methods:", Object.getOwnPropertyNames(this.privy));
+
                 // Check if already authenticated
-                const userResult = await this.privy.user.get();
-                if (userResult && userResult.user) {
-                    console.log("✅ User already authenticated, setting up wallet...");
-                    this.user = userResult.user;
-                    this.authenticated = true;
-                    await this._setupWalletFromUser();
-                    return true;
+                if (this.privy.user && typeof this.privy.user.get === 'function') {
+                    const userResult = await this.privy.user.get();
+                    if (userResult && userResult.user) {
+                        console.log("✅ User already authenticated, setting up wallet...");
+                        this.user = userResult.user;
+                        this.authenticated = true;
+                        await this._setupWalletFromUser();
+                        return true;
+                    }
                 }
 
-                // Try email login (simplest method for JS SDK Core)
+                // Check if auth methods are available
+                if (!this.privy.auth || !this.privy.auth.email) {
+                    throw new Error("Privy auth methods not available. Available methods: " + Object.getOwnPropertyNames(this.privy));
+                }
+
+                // Try email login (simplest method for SDK)
                 const email = prompt('Enter your email for Privy login:');
                 if (!email) {
                     throw new Error('Email is required for Privy login');
@@ -188,7 +206,7 @@
 
                 console.log("📧 Sending code to email:", email);
                 
-                // Send verification code using JS SDK Core
+                // Send verification code using SDK
                 await this.privy.auth.email.sendCode(email);
                 
                 const code = prompt('Enter the verification code sent to your email:');
@@ -198,7 +216,7 @@
 
                 console.log("🔐 Verifying email code...");
                 
-                // Login with code using JS SDK Core
+                // Login with code using SDK
                 const { user, is_new_user } = await this.privy.auth.email.loginWithCode(email, code);
                 
                 if (!user) {
@@ -212,7 +230,7 @@
                 // Check if user has embedded wallet
                 let embeddedWallet = this._getUserEmbeddedWallet(user);
                 
-                if (!embeddedWallet) {
+                if (!embeddedWallet && this.privy.embeddedWallet && typeof this.privy.embeddedWallet.create === 'function') {
                     console.log("🔧 Creating embedded wallet...");
                     const walletResult = await this.privy.embeddedWallet.create();
                     
@@ -228,12 +246,14 @@
                     
                     // Get provider
                     try {
-                        this.provider = await this.privy.embeddedWallet.getProvider(embeddedWallet);
+                        if (this.privy.embeddedWallet && typeof this.privy.embeddedWallet.getProvider === 'function') {
+                            this.provider = await this.privy.embeddedWallet.getProvider(embeddedWallet);
+                        }
                     } catch (providerError) {
                         console.warn("⚠️ Could not get wallet provider:", providerError);
                     }
                     
-                    console.log("✅ Wallet connected successfully via REAL Privy JS SDK Core:", this.selectedAccount);
+                    console.log("✅ Wallet connected successfully via REAL Privy SDK:", this.selectedAccount);
                     
                     // Emit success event
                     this._emitEvent('connected', {
@@ -423,6 +443,6 @@
 
     // Create and attach wallet connector to window
     window.walletConnector = new PrivyWalletConnector();
-    console.log("REAL Privy JS SDK Core wallet connector created and attached to window.walletConnector");
+    console.log("REAL Privy SDK wallet connector created and attached to window.walletConnector");
 
 })(); 

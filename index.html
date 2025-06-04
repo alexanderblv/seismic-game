@@ -291,14 +291,16 @@
         })();
     </script>
     
-    <!-- Privy JS SDK Core - Direct CDN -->
-    <script src="https://unpkg.com/@privy-io/js-sdk-core@latest/dist/index.umd.js"></script>
+    <!-- Try multiple CDN sources for Privy -->
+    <script src="https://cdn.jsdelivr.net/npm/@privy-io/js-sdk-core@latest/dist/index.js"></script>
+    <script src="https://unpkg.com/@privy-io/js-sdk-core@latest/dist/index.js"></script>
+    <script src="https://unpkg.com/@privy-io/js-sdk-core@latest/lib/index.js"></script>
     
-    <!-- Initialize Privy JS SDK Core -->
+    <!-- Initialize Privy SDK -->
     <script>
         window.privySDKPromise = new Promise(async (resolve, reject) => {
             try {
-                console.log('🚀 Initializing REAL Privy JS SDK Core...');
+                console.log('🚀 Initializing REAL Privy SDK...');
                 
                 // Wait for Privy SDK to be available from CDN
                 let attempts = 0;
@@ -307,9 +309,28 @@
                 const waitForPrivy = () => {
                     attempts++;
                     
-                    // Check for the global Privy constructor from JS SDK Core
-                    if (window.PrivyJSSDKCore && typeof window.PrivyJSSDKCore.default === 'function') {
-                        console.log('✅ REAL Privy JS SDK Core loaded successfully');
+                    console.log(`Attempt ${attempts}: Checking for Privy SDK...`);
+                    console.log('Available globals:', Object.keys(window).filter(key => key.toLowerCase().includes('privy')));
+                    
+                    // Check multiple possible global names
+                    let PrivyConstructor = null;
+                    
+                    if (window.Privy && typeof window.Privy === 'function') {
+                        PrivyConstructor = window.Privy;
+                        console.log('✅ Found window.Privy');
+                    } else if (window.PrivyJSSDKCore && typeof window.PrivyJSSDKCore.default === 'function') {
+                        PrivyConstructor = window.PrivyJSSDKCore.default;
+                        console.log('✅ Found window.PrivyJSSDKCore.default');
+                    } else if (window.PrivyJSSDKCore && typeof window.PrivyJSSDKCore === 'function') {
+                        PrivyConstructor = window.PrivyJSSDKCore;
+                        console.log('✅ Found window.PrivyJSSDKCore');
+                    } else if (window.PrivySDK && typeof window.PrivySDK === 'function') {
+                        PrivyConstructor = window.PrivySDK;
+                        console.log('✅ Found window.PrivySDK');
+                    }
+                    
+                    if (PrivyConstructor) {
+                        console.log('✅ REAL Privy SDK loaded successfully');
                         
                         // Initialize Privy with real configuration
                         const privyConfig = {
@@ -341,20 +362,21 @@
                         };
                         
                         try {
-                            // Create REAL Privy instance using JS SDK Core
-                            window.PrivySDK = new window.PrivyJSSDKCore.default(privyConfig);
-                            console.log('✅ REAL Privy JS SDK Core instance created successfully');
+                            // Create REAL Privy instance
+                            window.PrivySDK = new PrivyConstructor(privyConfig);
+                            console.log('✅ REAL Privy SDK instance created successfully');
                             resolve(window.PrivySDK);
                         } catch (error) {
-                            console.error('❌ Failed to create Privy JS SDK Core instance:', error);
+                            console.error('❌ Failed to create Privy SDK instance:', error);
                             reject(error);
                         }
                         return;
                     }
                     
                     if (attempts >= maxAttempts) {
-                        console.error('❌ Failed to load REAL Privy JS SDK Core after', maxAttempts, 'attempts');
-                        reject(new Error('Privy JS SDK Core failed to load'));
+                        console.error('❌ Failed to load REAL Privy SDK after', maxAttempts, 'attempts');
+                        console.error('Available window properties:', Object.keys(window).filter(key => key.toLowerCase().includes('privy')));
+                        reject(new Error('Privy SDK failed to load'));
                         return;
                     }
                     
@@ -364,7 +386,7 @@
                 waitForPrivy();
                 
             } catch (error) {
-                console.error('❌ Error initializing Privy JS SDK Core:', error);
+                console.error('❌ Error initializing Privy SDK:', error);
                 reject(error);
             }
         });

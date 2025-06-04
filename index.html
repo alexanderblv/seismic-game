@@ -291,11 +291,14 @@
         })();
     </script>
     
-    <!-- Initialize Real Privy JS Core SDK -->
+    <!-- Privy JS SDK Core - Direct CDN -->
+    <script src="https://unpkg.com/@privy-io/js-sdk-core@latest/dist/index.umd.js"></script>
+    
+    <!-- Initialize Privy JS SDK Core -->
     <script>
         window.privySDKPromise = new Promise(async (resolve, reject) => {
             try {
-                console.log('🚀 Initializing REAL Privy JS Core SDK...');
+                console.log('🚀 Initializing REAL Privy JS SDK Core...');
                 
                 // Wait for Privy SDK to be available from CDN
                 let attempts = 0;
@@ -304,14 +307,31 @@
                 const waitForPrivy = () => {
                     attempts++;
                     
-                    // Check for the global Privy constructor from JS Core SDK
-                    if (window.Privy && typeof window.Privy === 'function') {
-                        console.log('✅ REAL Privy JS Core SDK loaded successfully');
+                    // Check for the global Privy constructor from JS SDK Core
+                    if (window.PrivyJSSDKCore && typeof window.PrivyJSSDKCore.default === 'function') {
+                        console.log('✅ REAL Privy JS SDK Core loaded successfully');
                         
                         // Initialize Privy with real configuration
-                        const privyConfig = window.seismicConfig?.privy || {
+                        const privyConfig = {
                             appId: "cmbhhu8sr00mojr0l66siei2z",
-                            supportedChains: [5124], // Seismic devnet
+                            supportedChains: [
+                                {
+                                    id: 5124,
+                                    name: 'Seismic DevNet',
+                                    nativeCurrency: {
+                                        name: 'Ethereum',
+                                        symbol: 'ETH',
+                                        decimals: 18
+                                    },
+                                    rpcUrls: {
+                                        default: { http: ['https://seismic-devnet.rpc.sepolia.io'] },
+                                        public: { http: ['https://seismic-devnet.rpc.sepolia.io'] }
+                                    },
+                                    blockExplorers: {
+                                        default: { name: 'Seismic Explorer', url: 'https://seismic-devnet.explorer.sepolia.io' }
+                                    }
+                                }
+                            ],
                             storage: {
                                 get: (key) => localStorage.getItem(key),
                                 put: (key, value) => localStorage.setItem(key, value),
@@ -321,20 +341,20 @@
                         };
                         
                         try {
-                            // Create REAL Privy instance
-                            window.PrivySDK = new window.Privy(privyConfig);
-                            console.log('✅ REAL Privy instance created successfully');
+                            // Create REAL Privy instance using JS SDK Core
+                            window.PrivySDK = new window.PrivyJSSDKCore.default(privyConfig);
+                            console.log('✅ REAL Privy JS SDK Core instance created successfully');
                             resolve(window.PrivySDK);
                         } catch (error) {
-                            console.error('❌ Failed to create Privy instance:', error);
+                            console.error('❌ Failed to create Privy JS SDK Core instance:', error);
                             reject(error);
                         }
                         return;
                     }
                     
                     if (attempts >= maxAttempts) {
-                        console.error('❌ Failed to load REAL Privy SDK after', maxAttempts, 'attempts');
-                        reject(new Error('Privy SDK failed to load'));
+                        console.error('❌ Failed to load REAL Privy JS SDK Core after', maxAttempts, 'attempts');
+                        reject(new Error('Privy JS SDK Core failed to load'));
                         return;
                     }
                     
@@ -344,7 +364,7 @@
                 waitForPrivy();
                 
             } catch (error) {
-                console.error('❌ Error initializing Privy SDK:', error);
+                console.error('❌ Error initializing Privy JS SDK Core:', error);
                 reject(error);
             }
         });

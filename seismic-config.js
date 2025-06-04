@@ -33,23 +33,50 @@ const seismicConfig = {
         enableZKP: true // Zero-Knowledge Proofs
     },
     
-    // Настройки для Privy
+    // Настройки для Privy с новой конфигурацией
     privy: {
         appId: "cmbhhu8sr00mojr0l66siei2z",
-        appSecret: "2jkthX9UFUeR1966VtWGh91z22e6R9Bjn46e4FCqeNGFXC9HNwt8XpqfiNS6aGba43NMotscpSSFyWAmDTZ9SwqJ",
         config: {
-            loginMethods: ['email', 'wallet', 'sms', 'google', 'github'],
-            appearance: {
-                theme: 'light',
-                accentColor: '#3B82F6',
-                logo: 'https://avatars.githubusercontent.com/u/91174481'
+            "appearance": {
+                "accentColor": "#6A6FF5",
+                "theme": "#FFFFFF",
+                "showWalletLoginFirst": false,
+                "logo": "https://auth.privy.io/logos/privy-logo.png",
+                "walletChainType": "ethereum-and-solana",
+                "walletList": [
+                    "detected_wallets",
+                    "metamask",
+                    "phantom"
+                ]
             },
-            embeddedWallets: {
-                createOnLogin: 'users-without-wallets',
-                requireUserPasswordOnCreate: false
+            "loginMethods": [
+                "wallet"
+            ],
+            "fundingMethodConfig": {
+                "moonpay": {
+                    "useSandbox": true
+                }
             },
-            supportedChains: [5124], // Seismic devnet chain ID
-            defaultChain: 5124
+            "embeddedWallets": {
+                "requireUserPasswordOnCreate": false,
+                "showWalletUIs": true,
+                "ethereum": {
+                    "createOnLogin": "users-without-wallets"
+                },
+                "solana": {
+                    "createOnLogin": "users-without-wallets"
+                }
+            },
+            "mfa": {
+                "noPromptOnMfaRequired": false
+            },
+            "externalWallets": {
+                "solana": {
+                    "connectors": {}
+                }
+            },
+            "supportedChains": [5124], // Seismic devnet chain ID
+            "defaultChain": 5124
         }
     }
 };

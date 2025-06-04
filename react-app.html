@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seismic Game - Privy React Auth</title>
+    <meta name="description" content="Блокчейн игра с Privy аутентификацией">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌊</text></svg>">
+    
+    <!-- Preload React and ReactDOM -->
+    <link rel="preload" href="https://unpkg.com/react@18/umd/react.production.min.js" as="script">
+    <link rel="preload" href="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" as="script">
+    <link rel="preload" href="https://unpkg.com/@privy-io/react-auth@latest/dist/index.umd.js" as="script">
+    
+    <!-- Font preload -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Critical CSS for initial loading */
+        body {
+            margin: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        #root {
+            min-height: 100vh;
+        }
+        
+        .initial-loader {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: rgba(255, 255, 255, 0.95);
+            color: #333;
+        }
+        
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #6A6FF5;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 2rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loader-text {
+            font-size: 1.2rem;
+            font-weight: 500;
+            color: #6A6FF5;
+            margin-bottom: 0.5rem;
+        }
+        
+        .loader-subtext {
+            font-size: 1rem;
+            color: #666;
+            text-align: center;
+            max-width: 400px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <!-- Fallback loading UI -->
+        <div class="initial-loader">
+            <div class="spinner"></div>
+            <div class="loader-text">🌊 Загрузка Seismic Game</div>
+            <div class="loader-subtext">
+                Инициализация Privy React Auth SDK и подключение к блокчейну...
+            </div>
+        </div>
+    </div>
+
+    <!-- Configuration -->
+    <script src="seismic-config.js"></script>
+    
+    <!-- React Runtime -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Privy React Auth SDK -->
+    <script src="https://unpkg.com/@privy-io/react-auth@latest/dist/index.umd.js"></script>
+    
+    <!-- Ethers.js -->
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.9.0/dist/ethers.umd.min.js"></script>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const { PrivyProvider, usePrivy } = window.PrivyReactAuth;
+        
+        // Main App Component
+        function AppContent() {
+            const { ready, authenticated, user, login, logout, connectWallet } = usePrivy();
+
+            if (!ready) {
+                return (
+                    <div className="loading-container">
+                        <div className="loading-spinner"></div>
+                        <p>Загрузка Privy SDK...</p>
+                    </div>
+                );
+            }
+
+            return React.createElement('div', { className: 'app-container' },
+                // Header
+                React.createElement('header', { className: 'app-header' },
+                    React.createElement('h1', null, '🌊 Seismic Game'),
+                    React.createElement('p', null, 'Блокчейн приложение с Privy аутентификацией')
+                ),
+                
+                // Main Content
+                React.createElement('main', { className: 'app-main' },
+                    !authenticated ? 
+                        // Auth Section
+                        React.createElement('div', { className: 'auth-section' },
+                            React.createElement('h2', null, 'Подключитесь к приложению'),
+                            React.createElement('p', null, 'Используйте кошелек для входа в систему'),
+                            React.createElement('button', {
+                                className: 'connect-button',
+                                onClick: login
+                            }, '🔐 Подключить кошелек')
+                        )
+                    :
+                        // User Section
+                        React.createElement('div', { className: 'user-section' },
+                            // User Info
+                            React.createElement('div', { className: 'user-info' },
+                                React.createElement('h2', null, '✅ Подключен!'),
+                                React.createElement('div', { className: 'user-details' },
+                                    React.createElement('p', null, 
+                                        React.createElement('strong', null, 'ID: '), 
+                                        user?.id
+                                    ),
+                                    user?.wallet?.address && React.createElement('p', null,
+                                        React.createElement('strong', null, 'Кошелек: '), 
+                                        user.wallet.address
+                                    ),
+                                    user?.email?.address && React.createElement('p', null,
+                                        React.createElement('strong', null, 'Email: '), 
+                                        user.email.address
+                                    ),
+                                    React.createElement('p', null,
+                                        React.createElement('strong', null, 'Создан: '), 
+                                        user?.createdAt ? new Date(user.createdAt).toLocaleString('ru-RU') : 'N/A'
+                                    )
+                                )
+                            ),
+                            
+                            // Actions
+                            React.createElement('div', { className: 'actions' },
+                                React.createElement('button', {
+                                    className: 'action-button game-button',
+                                    onClick: () => alert('Игра скоро будет доступна!')
+                                }, '🎮 Начать игру'),
+                                
+                                React.createElement('button', {
+                                    className: 'action-button wallet-button',
+                                    onClick: () => console.log('User wallets:', user?.linkedAccounts)
+                                }, '👛 Управление кошельком'),
+                                
+                                React.createElement('button', {
+                                    className: 'action-button logout-button',
+                                    onClick: logout
+                                }, '🚪 Выйти')
+                            ),
+                            
+                            // Network Info
+                            React.createElement('div', { className: 'network-info' },
+                                React.createElement('h3', null, '🌐 Информация о сети'),
+                                React.createElement('div', { className: 'network-details' },
+                                    React.createElement('p', null,
+                                        React.createElement('strong', null, 'Сеть: '), 
+                                        window.seismicConfig.network.name
+                                    ),
+                                    React.createElement('p', null,
+                                        React.createElement('strong', null, 'Chain ID: '), 
+                                        window.seismicConfig.network.chainId
+                                    ),
+                                    React.createElement('p', null,
+                                        React.createElement('strong', null, 'RPC: '), 
+                                        window.seismicConfig.network.rpcUrl
+                                    ),
+                                    React.createElement('p', null,
+                                        React.createElement('strong', null, 'Explorer: '), 
+                                        React.createElement('a', {
+                                            href: window.seismicConfig.network.explorer,
+                                            target: '_blank',
+                                            rel: 'noopener noreferrer'
+                                        }, 'Открыть explorer')
+                                    )
+                                )
+                            )
+                        )
+                ),
+                
+                // Footer
+                React.createElement('footer', { className: 'app-footer' },
+                    React.createElement('p', null, '© 2024 Seismic Game. Powered by Privy')
+                )
+            );
+        }
+
+        // Main App with Privy Provider
+        function App() {
+            return React.createElement(PrivyProvider, {
+                appId: window.seismicConfig.privy.appId,
+                config: window.seismicConfig.privy.config
+            }, React.createElement(AppContent));
+        }
+
+        // CSS Styles
+        const styles = `
+            /* Подключаем основные стили */
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                color: #333;
+            }
+
+            #root {
+                min-height: 100vh;
+            }
+
+            .app-container {
+                max-width: 1200px;
+                margin: 0 auto;
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+                background: rgba(255, 255, 255, 0.95);
+                box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            }
+
+            .app-header {
+                background: linear-gradient(135deg, #6A6FF5, #4F46E5);
+                color: white;
+                padding: 2rem;
+                text-align: center;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            }
+
+            .app-header h1 {
+                font-size: 2.5rem;
+                margin-bottom: 0.5rem;
+                font-weight: 700;
+            }
+
+            .app-header p {
+                font-size: 1.1rem;
+                opacity: 0.9;
+            }
+
+            .app-main {
+                flex: 1;
+                padding: 2rem;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .loading-container {
+                text-align: center;
+                padding: 3rem;
+            }
+
+            .loading-spinner {
+                width: 50px;
+                height: 50px;
+                border: 4px solid #f3f3f3;
+                border-top: 4px solid #6A6FF5;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+                margin: 0 auto 1rem;
+            }
+
+            .auth-section {
+                text-align: center;
+                max-width: 500px;
+                padding: 3rem;
+                background: white;
+                border-radius: 20px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            }
+
+            .auth-section h2 {
+                font-size: 2rem;
+                margin-bottom: 1rem;
+                color: #333;
+            }
+
+            .auth-section p {
+                font-size: 1.1rem;
+                color: #666;
+                margin-bottom: 2rem;
+            }
+
+            .connect-button {
+                background: linear-gradient(135deg, #6A6FF5, #4F46E5);
+                color: white;
+                border: none;
+                padding: 1rem 2rem;
+                font-size: 1.1rem;
+                font-weight: 600;
+                border-radius: 12px;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                box-shadow: 0 4px 15px rgba(106, 111, 245, 0.3);
+            }
+
+            .connect-button:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 20px rgba(106, 111, 245, 0.4);
+            }
+
+            .user-section {
+                width: 100%;
+                max-width: 800px;
+            }
+
+            .user-info {
+                background: white;
+                padding: 2rem;
+                border-radius: 20px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+                margin-bottom: 2rem;
+                text-align: center;
+            }
+
+            .user-info h2 {
+                font-size: 2rem;
+                margin-bottom: 1.5rem;
+                color: #4F46E5;
+            }
+
+            .user-details {
+                text-align: left;
+                background: #f8fafc;
+                padding: 1.5rem;
+                border-radius: 12px;
+                margin-top: 1rem;
+            }
+
+            .user-details p {
+                margin-bottom: 0.5rem;
+                font-size: 1rem;
+                line-height: 1.5;
+            }
+
+            .user-details strong {
+                color: #4F46E5;
+                font-weight: 600;
+            }
+
+            .actions {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 1rem;
+                margin-bottom: 2rem;
+            }
+
+            .action-button {
+                padding: 1rem 1.5rem;
+                border: none;
+                border-radius: 12px;
+                font-size: 1rem;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                text-align: center;
+            }
+
+            .game-button {
+                background: linear-gradient(135deg, #10B981, #059669);
+                color: white;
+                box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+            }
+
+            .game-button:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+            }
+
+            .wallet-button {
+                background: linear-gradient(135deg, #F59E0B, #D97706);
+                color: white;
+                box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+            }
+
+            .wallet-button:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
+            }
+
+            .logout-button {
+                background: linear-gradient(135deg, #EF4444, #DC2626);
+                color: white;
+                box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+            }
+
+            .logout-button:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+            }
+
+            .network-info {
+                background: white;
+                padding: 2rem;
+                border-radius: 20px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            }
+
+            .network-info h3 {
+                font-size: 1.5rem;
+                margin-bottom: 1rem;
+                color: #4F46E5;
+                text-align: center;
+            }
+
+            .network-details {
+                background: #f8fafc;
+                padding: 1.5rem;
+                border-radius: 12px;
+            }
+
+            .network-details p {
+                margin-bottom: 0.5rem;
+                font-size: 1rem;
+                line-height: 1.5;
+            }
+
+            .network-details strong {
+                color: #4F46E5;
+                font-weight: 600;
+            }
+
+            .network-details a {
+                color: #6A6FF5;
+                text-decoration: none;
+                font-weight: 500;
+            }
+
+            .network-details a:hover {
+                text-decoration: underline;
+            }
+
+            .app-footer {
+                background: #1f2937;
+                color: white;
+                text-align: center;
+                padding: 1.5rem;
+                margin-top: auto;
+            }
+
+            @media (max-width: 768px) {
+                .app-container {
+                    margin: 0;
+                    border-radius: 0;
+                }
+                
+                .app-header {
+                    padding: 1.5rem;
+                }
+                
+                .app-header h1 {
+                    font-size: 2rem;
+                }
+                
+                .app-main {
+                    padding: 1.5rem;
+                }
+                
+                .auth-section {
+                    padding: 2rem;
+                    margin: 0 1rem;
+                }
+                
+                .actions {
+                    grid-template-columns: 1fr;
+                }
+                
+                .user-info,
+                .network-info {
+                    padding: 1.5rem;
+                }
+            }
+        `;
+
+        // Inject styles
+        const styleSheet = document.createElement('style');
+        styleSheet.textContent = styles;
+        document.head.appendChild(styleSheet);
+
+        // Wait for Privy to be available and render the app
+        function renderApp() {
+            if (window.PrivyReactAuth && window.seismicConfig) {
+                const container = document.getElementById('root');
+                const root = ReactDOM.createRoot(container);
+                root.render(React.createElement(App));
+            } else {
+                // Retry after a short delay
+                setTimeout(renderApp, 100);
+            }
+        }
+
+        // Start the app
+        document.addEventListener('DOMContentLoaded', renderApp);
+    </script>
+
+    <!-- Babel for JSX transformation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</body>
+</html> 

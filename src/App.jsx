@@ -12,7 +12,7 @@ function AppContent() {
         return (
             <div className="loading-container">
                 <div className="loading-spinner"></div>
-                <p>Загрузка Privy SDK...</p>
+                <p>Инициализация Privy React Auth SDK...</p>
             </div>
         );
     }
@@ -21,14 +21,14 @@ function AppContent() {
         <div className="app-container">
             <header className="app-header">
                 <h1>🌊 Seismic Game</h1>
-                <p>Блокчейн приложение с Privy аутентификацией</p>
+                <p>Блокчейн приложение с Privy React Auth SDK</p>
             </header>
 
             <main className="app-main">
                 {!authenticated ? (
                     <div className="auth-section">
-                        <h2>Подключитесь к приложению</h2>
-                        <p>Используйте кошелек для входа в систему</p>
+                        <h2>Добро пожаловать!</h2>
+                        <p>Подключите кошелек для входа в игру</p>
                         <button 
                             className="connect-button"
                             onClick={login}
@@ -39,11 +39,11 @@ function AppContent() {
                 ) : (
                     <div className="user-section">
                         <div className="user-info">
-                            <h2>✅ Подключен!</h2>
+                            <h2>✅ Успешно подключен!</h2>
                             <div className="user-details">
                                 <p><strong>ID:</strong> {user?.id}</p>
                                 {user?.wallet?.address && (
-                                    <p><strong>Кошелек:</strong> {user.wallet.address}</p>
+                                    <p><strong>Кошелек:</strong> <code>{user.wallet.address}</code></p>
                                 )}
                                 {user?.email?.address && (
                                     <p><strong>Email:</strong> {user.email.address}</p>
@@ -56,8 +56,7 @@ function AppContent() {
                             <button 
                                 className="action-button game-button"
                                 onClick={() => {
-                                    // Здесь будет логика игры
-                                    alert('Игра скоро будет доступна!');
+                                    alert('🎮 Игра скоро будет доступна!');
                                 }}
                             >
                                 🎮 Начать игру
@@ -66,11 +65,11 @@ function AppContent() {
                             <button 
                                 className="action-button wallet-button"
                                 onClick={() => {
-                                    // Показать информацию о кошельке
                                     console.log('User wallets:', user?.linkedAccounts);
+                                    alert('📊 Информация о кошельке в консоли');
                                 }}
                             >
-                                👛 Управление кошельком
+                                👛 Информация о кошельке
                             </button>
                             
                             <button 
@@ -85,8 +84,8 @@ function AppContent() {
                             <h3>🌐 Информация о сети</h3>
                             <div className="network-details">
                                 <p><strong>Сеть:</strong> {seismicConfig.network.name}</p>
-                                <p><strong>Chain ID:</strong> {seismicConfig.network.chainId}</p>
-                                <p><strong>RPC:</strong> {seismicConfig.network.rpcUrl}</p>
+                                <p><strong>Chain ID:</strong> <code>{seismicConfig.network.chainId}</code></p>
+                                <p><strong>RPC:</strong> <a href={seismicConfig.network.rpcUrl} target="_blank" rel="noopener noreferrer">{seismicConfig.network.rpcUrl}</a></p>
                                 <p><strong>Explorer:</strong> <a href={seismicConfig.network.explorer} target="_blank" rel="noopener noreferrer">Открыть explorer</a></p>
                             </div>
                         </div>
@@ -95,7 +94,7 @@ function AppContent() {
             </main>
 
             <footer className="app-footer">
-                <p>&copy; 2024 Seismic Game. Powered by Privy</p>
+                <p>&copy; 2024 Seismic Game. Powered by Privy React Auth</p>
             </footer>
         </div>
     );

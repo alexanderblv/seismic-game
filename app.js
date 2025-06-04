@@ -231,25 +231,29 @@ document.addEventListener('DOMContentLoaded', () => {
                     window.addEventListener('load', resolve);
                 }
             });
-            
-            // Wait for Privy SDK to be available using the promise
-            loadingText.textContent = 'Loading Privy SDK...';
+
+            // Initialize wallet connector first (it will handle Privy loading internally)
+            loadingText.textContent = 'Initializing wallet connector...';
             
             try {
-                await window.privySDKPromise;
-                console.log('Privy SDK is available');
-                
-                // Initialize wallet connector
                 await window.walletConnector.initialize();
+                console.log('Wallet connector initialized successfully');
                 
                 // Set up event listeners
                 setupWalletListeners();
                 
-                console.log('Wallet connector initialized');
-            } catch (privyError) {
-                console.error('Privy SDK failed to load:', privyError);
-                showError('Privy SDK failed to load. Some wallet features may not be available.');
-                // Continue without Privy - fallback to basic wallet connection if possible
+                // Check if using fallback mode
+                if (window.walletConnector.fallbackMode) {
+                    console.log('Running in fallback mode (without Privy)');
+                    showSuccess('Wallet connector initialized in compatibility mode');
+                } else {
+                    console.log('Running with Privy SDK');
+                }
+                
+            } catch (connectorError) {
+                console.error('Wallet connector failed to initialize:', connectorError);
+                showError('Wallet connector failed to initialize. Some features may not work correctly.');
+                // Continue anyway - the app can still function with basic features
             }
             
         } catch (error) {

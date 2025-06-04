@@ -16,6 +16,7 @@
             this.authenticated = false;
             this.user = null;
             this.wallets = [];
+            this.fallbackMode = false;
         }
 
         /**
@@ -27,71 +28,165 @@
             try {
                 console.log("Initializing Privy wallet connector...");
                 
-                // Wait for Privy SDK to be available
-                if (!window.PrivySDK) {
-                    console.log("Waiting for Privy SDK...");
-                    let waitCount = 0;
-                    while (!window.PrivySDK && waitCount < 50) {
-                        await new Promise(resolve => setTimeout(resolve, 100));
-                        waitCount++;
+                // Wait for Privy SDK check (but expect it to resolve with null)
+                console.log("Checking for Privy SDK availability...");
+                try {
+                    const privySDK = await window.privySDKPromise;
+                    
+                    if (!privySDK) {
+                        console.log("Privy SDK not available, using fallback mode");
+                        this.fallbackMode = true;
+                        return this._initializeFallback();
                     }
                     
-                    if (!window.PrivySDK) {
-                        throw new Error("Privy SDK not available after waiting");
-                    }
+                    // If we somehow got a Privy SDK, try to use it
+                    window.PrivySDK = privySDK;
+                    console.log("Privy SDK available, attempting to initialize");
+                } catch (privyError) {
+                    console.warn("Privy SDK promise failed:", privyError);
+                    this.fallbackMode = true;
+                    return this._initializeFallback();
                 }
                 
-                // Get Privy configuration
-                const privyConfig = window.seismicConfig?.privy || config.privy || {
-                    appId: "cmbhhu8sr00mojr0l66siei2z",
-                    config: {
-                        loginMethods: ['email', 'wallet', 'sms', 'google', 'github'],
-                        appearance: {
-                            theme: 'light',
-                            accentColor: '#3B82F6',
-                        },
-                        embeddedWallets: {
-                            createOnLogin: 'users-without-wallets',
-                            requireUserPasswordOnCreate: false
-                        },
-                        supportedChains: [5124],
-                        defaultChain: 5124
-                    }
-                };
+                // Check if Privy SDK is actually available and usable
+                if (!window.PrivySDK && !window.Privy) {
+                    console.log("No Privy SDK found, using fallback mode");
+                    this.fallbackMode = true;
+                    return this._initializeFallback();
+                }
+                
+                // At this point, try to initialize with Privy
+                try {
+                    await this._initializePrivy(config);
+                    console.log("Privy wallet connector initialized successfully");
+                    return true;
+                } catch (privyInitError) {
+                    console.warn("Privy initialization failed, falling back:", privyInitError);
+                    this.fallbackMode = true;
+                    return this._initializeFallback();
+                }
+                
+            } catch (error) {
+                console.error("Failed to initialize wallet connector:", error);
+                this.lastError = error.message || "Failed to initialize wallet connector";
+                
+                // Always try fallback mode as a last resort
+                this.fallbackMode = true;
+                return this._initializeFallback();
+            }
+        }
 
-                // Initialize Privy with proper configuration
-                this.privy = new window.PrivySDK(privyConfig.appId, {
+        /**
+         * Initialize with Privy SDK
+         */
+        async _initializePrivy(config = {}) {
+            // Get Privy configuration
+            const privyConfig = window.seismicConfig?.privy || config.privy || {
+                appId: "cmbhhu8sr00mojr0l66siei2z",
+                config: {
+                    loginMethods: ['email', 'wallet', 'sms', 'google', 'github'],
+                    appearance: {
+                        theme: 'light',
+                        accentColor: '#3B82F6',
+                    },
+                    embeddedWallets: {
+                        createOnLogin: 'users-without-wallets',
+                        requireUserPasswordOnCreate: false
+                    },
+                    supportedChains: [5124],
+                    defaultChain: 5124
+                }
+            };
+
+            // Try to initialize Privy with error handling
+            const PrivyClass = window.PrivySDK.PrivyProvider || window.PrivySDK || window.Privy;
+            
+            if (typeof PrivyClass === 'function') {
+                this.privy = new PrivyClass(privyConfig.appId, {
                     ...privyConfig.config,
                     onStateChange: (state) => {
                         this._handleStateChange(state);
                     }
                 });
+            } else if (PrivyClass && typeof PrivyClass.init === 'function') {
+                // Alternative initialization method
+                this.privy = await PrivyClass.init(privyConfig.appId, privyConfig.config);
+            } else {
+                throw new Error("Privy SDK constructor not found");
+            }
 
-                // Check if user is already authenticated
-                if (this.privy.authenticated) {
-                    this.authenticated = true;
-                    this.user = this.privy.user;
+            // Check if user is already authenticated
+            if (this.privy && this.privy.authenticated) {
+                this.authenticated = true;
+                this.user = this.privy.user;
+                
+                // Get wallets from user
+                if (this.user && this.user.linkedAccounts) {
+                    this.wallets = this.user.linkedAccounts.filter(account => 
+                        account.type === 'wallet' || account.type === 'smart_wallet'
+                    );
                     
-                    // Get wallets from user
-                    if (this.user && this.user.linkedAccounts) {
-                        this.wallets = this.user.linkedAccounts.filter(account => 
-                            account.type === 'wallet' || account.type === 'smart_wallet'
-                        );
-                        
-                        if (this.wallets.length > 0) {
-                            this.selectedAccount = this.wallets[0].address;
-                            // Set up provider
-                            await this._setupProvider();
-                        }
+                    if (this.wallets.length > 0) {
+                        this.selectedAccount = this.wallets[0].address;
+                        // Set up provider
+                        await this._setupProvider();
                     }
                 }
+            }
 
-                this.initialized = true;
-                console.log("Privy wallet connector initialized successfully");
-                return true;
+            this.initialized = true;
+        }
+
+        /**
+         * Initialize fallback mode without Privy
+         */
+        async _initializeFallback() {
+            try {
+                console.log("Initializing fallback wallet connector (without Privy)...");
+                
+                // Check if MetaMask or other wallet is available
+                if (typeof window.ethereum !== 'undefined') {
+                    this.provider = new ethers.providers.Web3Provider(window.ethereum);
+                    
+                    // Check if already connected
+                    try {
+                        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                        if (accounts && accounts.length > 0) {
+                            this.selectedAccount = accounts[0];
+                            const network = await this.provider.getNetwork();
+                            this.chainId = network.chainId;
+                            this.authenticated = true;
+                        }
+                    } catch (e) {
+                        console.log("No existing connection found");
+                    }
+                    
+                    // Set up event listeners for wallet events
+                    window.ethereum.on('accountsChanged', (accounts) => {
+                        if (accounts.length > 0) {
+                            this.selectedAccount = accounts[0];
+                            this._emitEvent('accountsChanged', { account: accounts[0] });
+                        } else {
+                            this.selectedAccount = null;
+                            this.authenticated = false;
+                            this._emitEvent('walletDisconnected', {});
+                        }
+                    });
+                    
+                    window.ethereum.on('chainChanged', (chainId) => {
+                        this.chainId = parseInt(chainId, 16);
+                        this._emitEvent('networkChanged', { chainId: this.chainId });
+                    });
+                    
+                    this.initialized = true;
+                    console.log("Fallback wallet connector initialized");
+                    return true;
+                } else {
+                    throw new Error("No wallet provider available");
+                }
             } catch (error) {
-                console.error("Failed to initialize Privy wallet connector:", error);
-                this.lastError = error.message || "Failed to initialize Privy wallet connector";
+                console.error("Fallback initialization failed:", error);
+                this.lastError = "No wallet provider available";
                 return false;
             }
         }
@@ -148,7 +243,7 @@
         }
 
         /**
-         * Connect wallet using Privy
+         * Connect wallet using Privy or fallback mode
          */
         async connect() {
             if (this.isConnecting) {
@@ -165,8 +260,31 @@
                 this.isConnecting = true;
                 this.lastError = null;
 
-                console.log("Starting Privy login...");
-                
+                if (this.fallbackMode) {
+                    console.log("Starting fallback wallet connection...");
+                    return await this._connectFallback();
+                } else {
+                    console.log("Starting Privy login...");
+                    return await this._connectPrivy();
+                }
+            } catch (error) {
+                console.error("Error during wallet connection:", error);
+                this.lastError = error.message || "Connection failed";
+                return false;
+            } finally {
+                this.isConnecting = false;
+            }
+        }
+
+        /**
+         * Connect using Privy
+         */
+        async _connectPrivy() {
+            try {
+                if (!this.privy) {
+                    throw new Error("Privy not initialized");
+                }
+
                 // Start Privy login flow
                 await this.privy.login();
                 
@@ -188,7 +306,7 @@
                             // Emit account changed event
                             this._emitEvent('accountsChanged', { account: this.selectedAccount });
                             
-                            console.log("Wallet connected successfully:", this.selectedAccount);
+                            console.log("Wallet connected successfully via Privy:", this.selectedAccount);
                             return true;
                         } else {
                             // No wallets yet, but user is authenticated
@@ -198,26 +316,72 @@
                         }
                     }
                 } else {
-                    console.log("Login cancelled or failed");
+                    console.log("Privy login cancelled or failed");
                     return false;
                 }
             } catch (error) {
                 console.error("Error during Privy login:", error);
-                this.lastError = error.message || "Login failed";
-                return false;
-            } finally {
-                this.isConnecting = false;
+                throw error;
             }
         }
 
         /**
-         * Disconnect from Privy
+         * Connect using fallback mode (MetaMask/injected wallet)
+         */
+        async _connectFallback() {
+            try {
+                if (!window.ethereum) {
+                    throw new Error("No wallet provider found. Please install MetaMask or another wallet.");
+                }
+
+                console.log("Requesting wallet connection...");
+                
+                // Request account access
+                const accounts = await window.ethereum.request({ 
+                    method: 'eth_requestAccounts' 
+                });
+                
+                if (accounts && accounts.length > 0) {
+                    this.selectedAccount = accounts[0];
+                    this.authenticated = true;
+                    
+                    // Update provider and chain info
+                    this.provider = new ethers.providers.Web3Provider(window.ethereum);
+                    const network = await this.provider.getNetwork();
+                    this.chainId = network.chainId;
+                    
+                    // Emit account changed event
+                    this._emitEvent('accountsChanged', { account: this.selectedAccount });
+                    
+                    console.log("Wallet connected successfully via fallback:", this.selectedAccount);
+                    return true;
+                } else {
+                    throw new Error("No accounts returned from wallet");
+                }
+            } catch (error) {
+                if (error.code === 4001) {
+                    throw new Error("User rejected the connection request");
+                } else if (error.code === -32002) {
+                    throw new Error("Connection request already pending. Please check your wallet.");
+                } else {
+                    throw error;
+                }
+            }
+        }
+
+        /**
+         * Disconnect from wallet (Privy or fallback)
          */
         async disconnect() {
             try {
-                console.log("Disconnecting from Privy...");
+                console.log("Disconnecting from wallet...");
 
-                if (this.privy && this.privy.authenticated) {
+                if (this.fallbackMode) {
+                    // For fallback mode, we can't really "disconnect" from MetaMask
+                    // We just clear our internal state
+                    console.log("Clearing fallback connection state...");
+                } else if (this.privy && this.privy.authenticated) {
+                    console.log("Logging out from Privy...");
                     await this.privy.logout();
                 }
 
@@ -232,10 +396,10 @@
                 // Emit disconnection event
                 this._emitEvent('walletDisconnected', {});
 
-                console.log("Successfully disconnected from Privy");
+                console.log("Successfully disconnected from wallet");
                 return true;
             } catch (error) {
-                console.error("Error disconnecting from Privy:", error);
+                console.error("Error disconnecting from wallet:", error);
                 this.lastError = error.message || "Failed to disconnect";
                 return false;
             }

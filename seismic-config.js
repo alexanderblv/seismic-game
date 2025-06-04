@@ -33,14 +33,24 @@ const seismicConfig = {
         enableZKP: true // Zero-Knowledge Proofs
     },
     
-    // Настройки для Web3Modal и WalletConnect
-    walletConnect: {
-        projectId: "a85ac05209955cfd18fbe7c0fd018f23", // Заменить на актуальный projectId от cloud.walletconnect.com
-        infuraId: "9aa3d95b3bc440fa88ea12eaa4456161", // Public Infura ID for WalletConnect v1
-        name: "Seismic Transaction Sender",
-        description: "Приложение для отправки транзакций в сети Seismic",
-        url: "https://seismic.systems",
-        icons: ["https://avatars.githubusercontent.com/u/91174481"]
+    // Настройки для Privy
+    privy: {
+        appId: "cmbhhu8sr00mojr0l66siei2z",
+        appSecret: "2jkthX9UFUeR1966VtWGh91z22e6R9Bjn46e4FCqeNGFXC9HNwt8XpqfiNS6aGba43NMotscpSSFyWAmDTZ9SwqJ",
+        config: {
+            loginMethods: ['email', 'wallet', 'sms', 'google', 'github'],
+            appearance: {
+                theme: 'light',
+                accentColor: '#3B82F6',
+                logo: 'https://avatars.githubusercontent.com/u/91174481'
+            },
+            embeddedWallets: {
+                createOnLogin: 'users-without-wallets',
+                requireUserPasswordOnCreate: false
+            },
+            supportedChains: [5124], // Seismic devnet chain ID
+            defaultChain: 5124
+        }
     }
 };
 

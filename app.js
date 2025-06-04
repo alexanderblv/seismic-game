@@ -236,24 +236,19 @@ document.addEventListener('DOMContentLoaded', () => {
             loadingText.textContent = 'Initializing wallet connector...';
             
             try {
+                console.log('Initializing wallet connector...');
                 await window.walletConnector.initialize();
                 console.log('Wallet connector initialized successfully');
                 
                 // Set up event listeners
                 setupWalletListeners();
                 
-                // Check if using fallback mode
-                if (window.walletConnector.fallbackMode) {
-                    console.log('Running in fallback mode (without Privy)');
-                    showSuccess('Wallet connector initialized in compatibility mode');
-                } else {
-                    console.log('Running with Privy SDK');
-                }
+                console.log('Running with Privy SDK');
                 
             } catch (connectorError) {
                 console.error('Wallet connector failed to initialize:', connectorError);
-                showError('Wallet connector failed to initialize. Some features may not work correctly.');
-                // Continue anyway - the app can still function with basic features
+                showError('Privy wallet connector failed to initialize. Please refresh the page.');
+                throw connectorError; // Stop initialization if Privy fails
             }
             
         } catch (error) {
@@ -275,7 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
             walletConnectInitiated = true;
             connectWalletBtn.disabled = true;
             loadingOverlay.classList.remove('d-none');
-            loadingText.textContent = 'Connecting wallet...';
+            loadingText.textContent = 'Checking wallet connection...';
 
             console.log('Starting wallet connection...');
 
@@ -292,13 +287,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('Error connecting wallet:', error);
-            let errorMessage = 'Failed to connect wallet. Please try again.';
+            let errorMessage = 'This application supports ONLY Privy wallet connections.';
             
             if (error.message) {
-                if (error.message.includes('User rejected') || error.message.includes('cancelled')) {
+                if (error.message.includes('Only Privy wallet connections are supported')) {
+                    errorMessage = 'This application uses only Privy for wallet connections. MetaMask and other extensions are not supported. Please contact support for assistance.';
+                } else if (error.message.includes('Privy integration is in development')) {
+                    errorMessage = 'Privy wallet integration is currently in development. Please contact support for wallet connection options.';
+                } else if (error.message.includes('User rejected') || error.message.includes('cancelled')) {
                     errorMessage = 'Connection cancelled. Please try again when ready.';
-                } else if (error.message.includes('No wallet')) {
-                    errorMessage = 'No wallet detected. Please install a wallet or use Privy\'s embedded wallet.';
                 }
             }
             

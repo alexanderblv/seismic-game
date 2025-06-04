@@ -289,44 +289,71 @@
                 originalWarn.apply(console, args);
             };
 
-            let privySDKLoaded = false;
-            
-            // Create a promise that resolves when Privy SDK is loaded or fails
+            // Initialize Privy Promise - it will be available after script loads
             window.privySDKPromise = new Promise((resolve, reject) => {
-                // Since js-sdk-core is not for general use, we'll just resolve immediately
-                // and let the wallet connector handle fallback to MetaMask
-                console.log('Skipping Privy SDK loading - using fallback mode');
-                setTimeout(() => {
-                    resolve(null); // Resolve with null to indicate no Privy
-                }, 100);
-            });
-            
-            // Enhanced ethereum provider conflict management
-            if (typeof window.ethereum !== 'undefined') {
-                console.log('Ethereum provider detected, managing conflicts...');
-                
-                // Store the original provider
-                window._originalEthereum = window.ethereum;
-                
-                // Create a more flexible provider property
-                let currentProvider = window.ethereum;
-                
-                Object.defineProperty(window, 'ethereum', {
-                    get: function() {
-                        return currentProvider;
-                    },
-                    set: function(value) {
-                        if (value && value !== currentProvider) {
-                            console.log('Ethereum provider being updated');
-                            currentProvider = value;
+                // Create a simple Privy wrapper for vanilla JS
+                const createPrivyWrapper = () => {
+                    if (!window.PrivySDK) {
+                        reject(new Error('Privy SDK not found'));
+                        return;
+                    }
+
+                    // Create a simple wrapper that mimics what wallet-connector expects
+                    const privyWrapper = {
+                        createPrivyProvider: (appId, config) => {
+                            // For now, return a mock that will trigger proper error handling
+                            return {
+                                login: () => {
+                                    throw new Error('Privy login not available - please use embedded wallets');
+                                },
+                                logout: () => {
+                                    console.log('Privy logout called');
+                                },
+                                authenticated: false,
+                                user: null,
+                                getEthereumProvider: () => {
+                                    throw new Error('Privy Ethereum provider not available');
+                                }
+                            };
                         }
-                        // Don't throw errors for attempts to set ethereum
-                    },
-                    configurable: true,
-                    enumerable: true
-                });
-            }
+                    };
+                    
+                    resolve(privyWrapper);
+                };
+
+                // Check if PrivySDK is already loaded
+                if (window.PrivySDK) {
+                    createPrivyWrapper();
+                } else {
+                    // Wait for it to load
+                    let attempts = 0;
+                    const maxAttempts = 50;
+                    
+                    const checkForPrivy = () => {
+                        attempts++;
+                        if (window.PrivySDK) {
+                            createPrivyWrapper();
+                        } else if (attempts >= maxAttempts) {
+                            reject(new Error('Privy SDK failed to load after waiting'));
+                        } else {
+                            setTimeout(checkForPrivy, 100);
+                        }
+                    };
+                    
+                    setTimeout(checkForPrivy, 100);
+                }
+            });
         })();
+    </script>
+    
+    <!-- For now, we'll create a simple stub until we can implement proper Privy -->
+    <script>
+        // Simple Privy SDK stub - this would be replaced with actual Privy implementation
+        window.PrivySDK = {
+            version: '1.0.0-stub',
+            initialized: true
+        };
+        console.log('Privy SDK stub loaded');
     </script>
     
     <!-- Seismic SDK -->

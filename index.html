@@ -23,6 +23,9 @@
     
     <!-- Load Seismic SDK -->
     <script src="seismic-sdk.js"></script>
+
+    <!-- Load Privy JS SDK Core via CDN -->
+    <script src="https://unpkg.com/@privy-io/js-sdk-core@latest/dist/index.umd.js"></script>
 </head>
 <body>
     <div class="container-fluid">
@@ -290,93 +293,134 @@
         };
     </script>
 
-    <!-- Initialize Privy - Simple Direct Approach -->
+    <!-- Initialize Privy JS SDK Core -->
     <script>
         window.privySDKPromise = new Promise(async (resolve, reject) => {
             try {
-                console.log('🚀 Initializing Privy SDK (Direct approach)...');
+                console.log('🚀 Initializing Privy JS SDK Core...');
                 
-                // Get configuration
-                const privyConfig = window.seismicConfig?.privy || {
-                    appId: "cmbhhu8sr00mojr0l66siei2z",
-                    config: {
-                        loginMethods: ['email', 'wallet'],
-                        appearance: {
-                            theme: 'light',
-                            accentColor: '#3B82F6'
-                        },
-                        embeddedWallets: {
-                            createOnLogin: 'users-without-wallets'
-                        },
-                        supportedChains: [5124],
-                        defaultChain: 5124
-                    }
-                };
+                // Wait for Privy JS SDK Core to be available
+                let attempts = 0;
+                const maxAttempts = 100;
                 
-                // Create a simple Privy SDK mock for now
-                // This will be replaced with actual Privy implementation later
-                window.PrivySDK = {
-                    appId: privyConfig.appId,
-                    config: privyConfig.config,
-                    ready: true,
-                    authenticated: false,
-                    user: null,
+                const waitForPrivy = () => {
+                    attempts++;
                     
-                    // Basic authentication methods
-                    login: async () => {
-                        console.log('🔑 Attempting Privy login...');
-                        return new Promise((resolve, reject) => {
-                            // Mock login implementation
-                            setTimeout(() => {
-                                const mockUser = {
-                                    id: 'user-' + Date.now(),
-                                    email: { address: 'user@example.com' },
-                                    wallet: { 
-                                        address: '0x' + Math.random().toString(16).substr(2, 40).padStart(40, '0'),
-                                        chainType: 'ethereum'
-                                    }
-                                };
-                                
-                                window.PrivySDK.authenticated = true;
-                                window.PrivySDK.user = mockUser;
-                                window.privyUser = mockUser;
-                                
-                                console.log('✅ User authenticated:', mockUser);
-                                resolve(mockUser);
-                            }, 1000);
+                    // Check for Privy JS SDK Core
+                    if (window.Privy && typeof window.Privy === 'function') {
+                        console.log('✅ Privy JS SDK Core loaded successfully');
+                        
+                        // Get configuration
+                        const privyConfig = window.seismicConfig?.privy || {
+                            appId: "cmbhhu8sr00mojr0l66siei2z"
+                        };
+                        
+                        // Create Privy instance
+                        const privy = new window.Privy({
+                            appId: privyConfig.appId,
+                            storage: {
+                                get: (key) => localStorage.getItem(key),
+                                put: (key, value) => localStorage.setItem(key, value),
+                                del: (key) => localStorage.removeItem(key),
+                                getKeys: () => Object.keys(localStorage)
+                            }
                         });
-                    },
-                    
-                    logout: async () => {
-                        console.log('🚪 Attempting Privy logout...');
-                        window.PrivySDK.authenticated = false;
-                        window.PrivySDK.user = null;
-                        window.privyUser = null;
-                        console.log('✅ User logged out');
-                    },
-                    
-                    getUser: () => window.PrivySDK.user,
-                    isAuthenticated: () => window.PrivySDK.authenticated,
-                    
-                    // Wallet methods
-                    connectWallet: async () => {
-                        if (!window.PrivySDK.authenticated) {
-                            return await window.PrivySDK.login();
-                        }
-                        return window.PrivySDK.user;
-                    },
-                    
-                    // Event listeners
-                    onAuthStateChange: (callback) => {
-                        window.PrivySDK._authCallback = callback;
+                        
+                        // Create SDK wrapper for compatibility
+                        window.PrivySDK = {
+                            _privy: privy,
+                            appId: privyConfig.appId,
+                            ready: true,
+                            authenticated: false,
+                            user: null,
+                            
+                            // Authentication methods using real Privy JS SDK Core
+                            login: async () => {
+                                console.log('🔑 Starting Privy email login...');
+                                try {
+                                    // For email login, we need to prompt for email first
+                                    const email = prompt('Enter your email for Privy login:');
+                                    if (!email) {
+                                        throw new Error('Email is required');
+                                    }
+                                    
+                                    // Send code to email
+                                    await privy.auth.email.sendCode(email);
+                                    console.log('📧 Code sent to email');
+                                    
+                                    // Prompt for code
+                                    const code = prompt('Enter the verification code sent to your email:');
+                                    if (!code) {
+                                        throw new Error('Verification code is required');
+                                    }
+                                    
+                                    // Verify code and login
+                                    const result = await privy.auth.email.loginWithCode(email, code);
+                                    
+                                    window.PrivySDK.authenticated = true;
+                                    window.PrivySDK.user = result.user;
+                                    window.privyUser = result.user;
+                                    
+                                    console.log('✅ User authenticated:', result.user);
+                                    return result.user;
+                                } catch (error) {
+                                    console.error('❌ Login failed:', error);
+                                    throw error;
+                                }
+                            },
+                            
+                            logout: async () => {
+                                console.log('🚪 Logging out from Privy...');
+                                try {
+                                    await privy.auth.logout();
+                                    window.PrivySDK.authenticated = false;
+                                    window.PrivySDK.user = null;
+                                    window.privyUser = null;
+                                    console.log('✅ User logged out');
+                                } catch (error) {
+                                    console.error('❌ Logout failed:', error);
+                                    throw error;
+                                }
+                            },
+                            
+                            getUser: () => window.PrivySDK.user,
+                            isAuthenticated: () => window.PrivySDK.authenticated,
+                            
+                            // Wallet methods
+                            connectWallet: async () => {
+                                if (!window.PrivySDK.authenticated) {
+                                    return await window.PrivySDK.login();
+                                }
+                                return window.PrivySDK.user;
+                            },
+                            
+                            // Event listeners
+                            onAuthStateChange: (callback) => {
+                                window.PrivySDK._authCallback = callback;
+                            },
+                            
+                            // Expose the raw Privy instance for advanced usage
+                            getRawPrivy: () => privy
+                        };
+                        
+                        console.log('✅ Privy JS SDK Core initialized successfully');
+                        resolve(window.PrivySDK);
+                        return;
                     }
+                    
+                    if (attempts >= maxAttempts) {
+                        console.error('❌ Failed to load Privy JS SDK Core after', maxAttempts, 'attempts');
+                        reject(new Error('Privy JS SDK Core failed to load'));
+                        return;
+                    }
+                    
+                    setTimeout(waitForPrivy, 50);
                 };
                 
-                console.log('✅ Privy SDK initialized successfully (Direct approach)');
-                resolve(window.PrivySDK);
+                waitForPrivy();
                 
             } catch (error) {
-                console.error('❌ Error initializing Privy SDK:', error);
+                console.error('❌ Error initializing Privy JS SDK Core:', error);
                 reject(error);
             }
         });

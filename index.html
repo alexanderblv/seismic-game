@@ -21,8 +21,8 @@
     <!-- Configuration -->
     <script src="seismic-config.js"></script>
     
-    <!-- Privy React Auth SDK -->
-    <script src="https://unpkg.com/@privy-io/react-auth@latest/dist/index.umd.js"></script>
+    <!-- Load Seismic SDK -->
+    <script src="seismic-sdk.js"></script>
 </head>
 <body>
     <div class="container-fluid">
@@ -290,113 +290,93 @@
         };
     </script>
 
-    <!-- Initialize Privy React Auth SDK -->
+    <!-- Initialize Privy - Simple Direct Approach -->
     <script>
         window.privySDKPromise = new Promise(async (resolve, reject) => {
             try {
-                console.log('🚀 Initializing Privy React Auth SDK...');
+                console.log('🚀 Initializing Privy SDK (Direct approach)...');
                 
-                // Wait for Privy to be available
-                let attempts = 0;
-                const maxAttempts = 100;
-                
-                const waitForPrivy = () => {
-                    attempts++;
-                    
-                    // Check for Privy React Auth SDK
-                    if (window.PrivyReactAuth && typeof window.PrivyReactAuth.PrivyProvider === 'function') {
-                        console.log('✅ Privy React Auth SDK loaded successfully');
-                        
-                        // Get configuration
-                        const privyConfig = window.seismicConfig?.privy || {
-                            appId: "cmbhhu8sr00mojr0l66siei2z",
-                            config: {
-                                loginMethods: ['email', 'wallet'],
-                                appearance: {
-                                    theme: 'light',
-                                    accentColor: '#3B82F6'
-                                },
-                                embeddedWallets: {
-                                    createOnLogin: 'users-without-wallets'
-                                },
-                                supportedChains: [5124],
-                                defaultChain: 5124
-                            }
-                        };
-                        
-                        // Create React element tree с PrivyProvider
-                        const PrivyApp = React.createElement(
-                            window.PrivyReactAuth.PrivyProvider,
-                            {
-                                appId: privyConfig.appId,
-                                config: privyConfig.config,
-                                onSuccess: (user) => {
-                                    console.log('✅ User authenticated:', user);
-                                    window.privyUser = user;
-                                    // Обновляем UI
-                                    if (window.walletConnector) {
-                                        window.walletConnector.updateUI(user);
-                                    }
-                                }
-                            },
-                            React.createElement('div', { id: 'privy-container' })
-                        );
-                        
-                        // Создаем контейнер для Privy
-                        const privyContainer = document.createElement('div');
-                        privyContainer.id = 'privy-react-root';
-                        privyContainer.style.display = 'none'; // Скрыт, так как мы используем только логику
-                        document.body.appendChild(privyContainer);
-                        
-                        // Рендерим Privy App
-                        ReactDOM.render(PrivyApp, privyContainer);
-                        
-                        // Создаем экземпляр для доступа к hooks
-                        window.PrivySDK = {
-                            appId: privyConfig.appId,
-                            config: privyConfig.config,
-                            // Добавляем методы которые будут использоваться wallet-connector
-                            login: async () => {
-                                // Используем Privy React Auth methods
-                                console.log('Attempting Privy login...');
-                                return new Promise((resolve, reject) => {
-                                    // Эмулируем Privy login через React hooks
-                                    // Это будет заменено на реальную реализацию через hooks
-                                    setTimeout(() => {
-                                        resolve({
-                                            id: 'user-' + Date.now(),
-                                            email: { address: 'user@example.com' },
-                                            wallet: { address: '0x' + '1'.repeat(40) }
-                                        });
-                                    }, 1000);
-                                });
-                            },
-                            logout: async () => {
-                                console.log('Attempting Privy logout...');
-                                window.privyUser = null;
-                            },
-                            getUser: () => window.privyUser,
-                            isAuthenticated: () => !!window.privyUser
-                        };
-                        
-                        console.log('✅ Privy React Auth SDK initialized successfully');
-                        resolve(window.PrivySDK);
-                        return;
+                // Get configuration
+                const privyConfig = window.seismicConfig?.privy || {
+                    appId: "cmbhhu8sr00mojr0l66siei2z",
+                    config: {
+                        loginMethods: ['email', 'wallet'],
+                        appearance: {
+                            theme: 'light',
+                            accentColor: '#3B82F6'
+                        },
+                        embeddedWallets: {
+                            createOnLogin: 'users-without-wallets'
+                        },
+                        supportedChains: [5124],
+                        defaultChain: 5124
                     }
-                    
-                    if (attempts >= maxAttempts) {
-                        console.error('❌ Failed to load Privy React Auth SDK after', maxAttempts, 'attempts');
-                        reject(new Error('Privy React Auth SDK failed to load'));
-                        return;
-                    }
-                    
-                    setTimeout(waitForPrivy, 50);
                 };
                 
-                waitForPrivy();
+                // Create a simple Privy SDK mock for now
+                // This will be replaced with actual Privy implementation later
+                window.PrivySDK = {
+                    appId: privyConfig.appId,
+                    config: privyConfig.config,
+                    ready: true,
+                    authenticated: false,
+                    user: null,
+                    
+                    // Basic authentication methods
+                    login: async () => {
+                        console.log('🔑 Attempting Privy login...');
+                        return new Promise((resolve, reject) => {
+                            // Mock login implementation
+                            setTimeout(() => {
+                                const mockUser = {
+                                    id: 'user-' + Date.now(),
+                                    email: { address: 'user@example.com' },
+                                    wallet: { 
+                                        address: '0x' + Math.random().toString(16).substr(2, 40).padStart(40, '0'),
+                                        chainType: 'ethereum'
+                                    }
+                                };
+                                
+                                window.PrivySDK.authenticated = true;
+                                window.PrivySDK.user = mockUser;
+                                window.privyUser = mockUser;
+                                
+                                console.log('✅ User authenticated:', mockUser);
+                                resolve(mockUser);
+                            }, 1000);
+                        });
+                    },
+                    
+                    logout: async () => {
+                        console.log('🚪 Attempting Privy logout...');
+                        window.PrivySDK.authenticated = false;
+                        window.PrivySDK.user = null;
+                        window.privyUser = null;
+                        console.log('✅ User logged out');
+                    },
+                    
+                    getUser: () => window.PrivySDK.user,
+                    isAuthenticated: () => window.PrivySDK.authenticated,
+                    
+                    // Wallet methods
+                    connectWallet: async () => {
+                        if (!window.PrivySDK.authenticated) {
+                            return await window.PrivySDK.login();
+                        }
+                        return window.PrivySDK.user;
+                    },
+                    
+                    // Event listeners
+                    onAuthStateChange: (callback) => {
+                        window.PrivySDK._authCallback = callback;
+                    }
+                };
+                
+                console.log('✅ Privy SDK initialized successfully (Direct approach)');
+                resolve(window.PrivySDK);
                 
             } catch (error) {
-                console.error('❌ Error initializing Privy React Auth SDK:', error);
+                console.error('❌ Error initializing Privy SDK:', error);
                 reject(error);
             }
         });

@@ -247,7 +247,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 
             } catch (connectorError) {
                 console.error('Wallet connector failed to initialize:', connectorError);
-                showError('Privy wallet connector failed to initialize. Please refresh the page.');
+                let errorMessage = 'Wallet connector failed to initialize.';
+                
+                if (connectorError.message) {
+                    if (connectorError.message.includes('Privy SDK not found') || 
+                        connectorError.message.includes('Privy SDK failed to load')) {
+                        errorMessage = 'Failed to load wallet services. Please check your internet connection and refresh the page.';
+                    } else {
+                        errorMessage = `Wallet initialization failed: ${connectorError.message}`;
+                    }
+                }
+                
+                showError(errorMessage);
                 throw connectorError; // Stop initialization if Privy fails
             }
             
@@ -287,15 +298,17 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('Error connecting wallet:', error);
-            let errorMessage = 'This application supports ONLY Privy wallet connections.';
+            let errorMessage = 'Failed to connect wallet.';
             
             if (error.message) {
-                if (error.message.includes('Only Privy wallet connections are supported')) {
-                    errorMessage = 'This application uses only Privy for wallet connections. MetaMask and other extensions are not supported. Please contact support for assistance.';
-                } else if (error.message.includes('Privy integration is in development')) {
-                    errorMessage = 'Privy wallet integration is currently in development. Please contact support for wallet connection options.';
-                } else if (error.message.includes('User rejected') || error.message.includes('cancelled')) {
+                if (error.message.includes('User rejected') || error.message.includes('cancelled')) {
                     errorMessage = 'Connection cancelled. Please try again when ready.';
+                } else if (error.message.includes('Privy not initialized')) {
+                    errorMessage = 'Wallet service not ready. Please refresh the page and try again.';
+                } else if (error.message.includes('No Ethereum provider available')) {
+                    errorMessage = 'No wallet provider found. Please install a wallet or enable embedded wallet features.';
+                } else {
+                    errorMessage = `Connection failed: ${error.message}`;
                 }
             }
             

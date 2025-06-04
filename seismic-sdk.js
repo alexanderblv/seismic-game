@@ -23,10 +23,11 @@
                     return true; // Если уже инициализирован, просто возвращаем true
                 }
                 
-                if (typeof ethers !== 'undefined') {
+                // Check if ethers is available and properly loaded
+                if (typeof window.ethers !== 'undefined' && window.ethers.providers) {
                     // Создаем провайдер для подключения к Seismic Devnet
                     // For ethers v5, use ethers.providers.JsonRpcProvider
-                    this.provider = new ethers.providers.JsonRpcProvider(this.config.network.rpcUrl);
+                    this.provider = new window.ethers.providers.JsonRpcProvider(this.config.network.rpcUrl);
                     
                     console.log("Seismic SDK инициализирован");
                     this.isInitialized = true;
@@ -38,12 +39,16 @@
                     this.isInitialized = true;
                     return true;
                 } else {
-                    console.error("Для работы SDK необходим ethers.js или web3.js");
-                    return false;
+                    const errorMsg = "Для работы SDK необходим ethers.js или web3.js. Ethers available: " + 
+                                   (typeof window.ethers !== 'undefined') + 
+                                   ", providers available: " + 
+                                   (typeof window.ethers !== 'undefined' && window.ethers.providers ? 'true' : 'false');
+                    console.error(errorMsg);
+                    throw new Error(errorMsg);
                 }
             } catch (error) {
                 console.error("Ошибка инициализации Seismic SDK:", error);
-                return false;
+                throw error;
             }
         }
         
@@ -154,7 +159,7 @@
                 }
                 
                 // Подключаем провайдер к кошельку
-                this.provider = new ethers.providers.Web3Provider(walletProvider);
+                this.provider = new window.ethers.providers.Web3Provider(walletProvider);
                 
                 // Проверяем, что пользователь подключен к нужной сети
                 const network = await this.provider.getNetwork();
@@ -166,7 +171,7 @@
                         });
                         
                         // Обновляем провайдер после переключения
-                        this.provider = new ethers.providers.Web3Provider(walletProvider);
+                        this.provider = new window.ethers.providers.Web3Provider(walletProvider);
                     } catch (switchError) {
                         // Если сеть не добавлена, предлагаем добавить
                         if (switchError.code === 4902) {
@@ -186,7 +191,7 @@
                             });
                             
                             // Обновляем провайдер после добавления сети
-                            this.provider = new ethers.providers.Web3Provider(walletProvider);
+                            this.provider = new window.ethers.providers.Web3Provider(walletProvider);
                         } else {
                             throw switchError;
                         }
@@ -286,8 +291,8 @@
                 // Создаем транзакцию - без поля data для обычного адреса
                 const tx = {
                     to: recipientAddress,
-                    value: data.value || ethers.utils.parseEther("0.0001"), // Отправляем минимальное количество эфира
-                    gasLimit: ethers.utils.hexlify(100000) // Устанавливаем лимит газа для транзакции
+                    value: data.value || window.ethers.utils.parseEther("0.0001"), // Отправляем минимальное количество эфира
+                    gasLimit: window.ethers.utils.hexlify(100000) // Устанавливаем лимит газа для транзакции
                 };
                 
                 // Сохраняем данные в консоль для демонстрации (в реальном приложении они были бы в data)
@@ -325,7 +330,7 @@
                 }
                 
                 const balance = await this.provider.getBalance(address);
-                console.log("Баланс:", ethers.utils.formatEther(balance), "ETH");
+                console.log("Баланс:", window.ethers.utils.formatEther(balance), "ETH");
                 
                 return balance;
             } catch (error) {
@@ -350,7 +355,7 @@
             
             // Создаем новый базовый provider
             if (this.config.network && this.config.network.rpcUrl) {
-                this.provider = new ethers.providers.JsonRpcProvider(this.config.network.rpcUrl);
+                this.provider = new window.ethers.providers.JsonRpcProvider(this.config.network.rpcUrl);
             }
             
             console.log("Кошелек отключен");

@@ -259,33 +259,66 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Load Privy SDK with proper error handling -->
+    <!-- Load Privy SDK with proper error handling and ensure it's available -->
     <script>
         (function() {
-            // Load Privy SDK dynamically with error handling
-            const script = document.createElement('script');
-            script.src = 'https://auth.privy.io/js/1.69.0/privy.umd.js';
-            script.async = true;
-            script.onload = function() {
-                console.log('Privy SDK loaded successfully');
-                window.PrivySDK = window.Privy;
+            // Suppress MetaMask provider warnings
+            const originalError = console.error;
+            console.error = function(...args) {
+                if (typeof args[0] === 'string' && args[0].includes('MetaMask encountered an error setting the global Ethereum provider')) {
+                    // Suppress MetaMask provider conflict error
+                    return;
+                }
+                originalError.apply(console, args);
             };
-            script.onerror = function(err) {
-                console.error('Failed to load Privy SDK:', err);
-                // Fallback to cdn.jsdelivr.net
-                const fallbackScript = document.createElement('script');
-                fallbackScript.src = 'https://cdn.jsdelivr.net/npm/@privy-io/js-sdk@1.69.0/dist/index.umd.js';
-                fallbackScript.async = true;
-                fallbackScript.onload = function() {
-                    console.log('Privy SDK loaded from fallback CDN');
-                    window.PrivySDK = window.Privy || window.PrivySDK;
+
+            let privySDKLoaded = false;
+            
+            // Create a promise that resolves when Privy SDK is loaded
+            window.privySDKPromise = new Promise((resolve, reject) => {
+                // Load Privy SDK dynamically with error handling
+                const script = document.createElement('script');
+                script.src = 'https://auth.privy.io/js/1.69.0/privy.umd.js';
+                script.async = true;
+                
+                script.onload = function() {
+                    console.log('Privy SDK loaded successfully');
+                    window.PrivySDK = window.Privy;
+                    privySDKLoaded = true;
+                    resolve(window.PrivySDK);
                 };
-                fallbackScript.onerror = function(fallbackErr) {
-                    console.error('Failed to load Privy SDK from fallback:', fallbackErr);
+                
+                script.onerror = function(err) {
+                    console.warn('Failed to load Privy SDK from primary source, trying fallback:', err);
+                    // Fallback to cdn.jsdelivr.net
+                    const fallbackScript = document.createElement('script');
+                    fallbackScript.src = 'https://cdn.jsdelivr.net/npm/@privy-io/js-sdk@1.69.0/dist/index.umd.js';
+                    fallbackScript.async = true;
+                    
+                    fallbackScript.onload = function() {
+                        console.log('Privy SDK loaded from fallback CDN');
+                        window.PrivySDK = window.Privy || window.PrivySDK;
+                        privySDKLoaded = true;
+                        resolve(window.PrivySDK);
+                    };
+                    
+                    fallbackScript.onerror = function(fallbackErr) {
+                        console.error('Failed to load Privy SDK from fallback:', fallbackErr);
+                        reject(new Error('Failed to load Privy SDK from all sources'));
+                    };
+                    
+                    document.head.appendChild(fallbackScript);
                 };
-                document.head.appendChild(fallbackScript);
-            };
-            document.head.appendChild(script);
+                
+                document.head.appendChild(script);
+                
+                // Set a timeout as backup
+                setTimeout(() => {
+                    if (!privySDKLoaded) {
+                        reject(new Error('Privy SDK loading timeout'));
+                    }
+                }, 10000); // 10 second timeout
+            });
         })();
     </script>
     

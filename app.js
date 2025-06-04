@@ -208,6 +208,12 @@ document.addEventListener('DOMContentLoaded', () => {
             loadingOverlay.classList.remove('d-none');
             loadingText.textContent = 'Initializing SDK...';
             
+            // Wait for ethers to be available
+            if (typeof window.ethers === 'undefined') {
+                console.error('Ethers.js is not available');
+                throw new Error('Ethers.js is required but not loaded');
+            }
+            
             // Initialize the Seismic SDK
             await seismic.initialize({
                 network: seismicConfig.network,
@@ -226,19 +232,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
             
-            // Wait for Privy SDK to be available (with timeout)
-            let privyCheckCount = 0;
-            const maxPrivyChecks = 50; // 5 seconds max wait time
+            // Wait for Privy SDK to be available using the promise
+            loadingText.textContent = 'Loading Privy SDK...';
             
-            while (!window.PrivySDK && privyCheckCount < maxPrivyChecks) {
-                await new Promise(resolve => setTimeout(resolve, 100));
-                privyCheckCount++;
-            }
-            
-            // Check if Privy SDK is available
-            const hasPrivySDK = !!window.PrivySDK;
-            
-            if (hasPrivySDK) {
+            try {
+                await window.privySDKPromise;
                 console.log('Privy SDK is available');
                 
                 // Initialize wallet connector
@@ -248,9 +246,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 setupWalletListeners();
                 
                 console.log('Wallet connector initialized');
-            } else {
-                console.warn('Privy SDK not available after waiting');
-                showError('Privy SDK failed to load. Please refresh the page.');
+            } catch (privyError) {
+                console.error('Privy SDK failed to load:', privyError);
+                showError('Privy SDK failed to load. Some wallet features may not be available.');
+                // Continue without Privy - fallback to basic wallet connection if possible
             }
             
         } catch (error) {
@@ -414,7 +413,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if (!ethers.utils.isAddress(recipient)) {
+        if (!window.ethers.utils.isAddress(recipient)) {
             showError('Please enter a valid Ethereum address.');
             recipientAddressInput.focus();
             return;
@@ -435,8 +434,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // Prepare transaction data
             const txData = {
                 to: recipient,
-                value: ethers.utils.parseEther(amount.toString()),
-                data: encryptedData || '0x'
+                value: window.ethers.utils.parseEther(amount.toString()),
+                data: enableEncryption ? encryptedData : null
             };
 
             let tx, receipt;
@@ -641,7 +640,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } else if (selectedType === 'saddress') {
                 value = saddressValue.value.trim();
-                if (!ethers.utils.isAddress(value)) {
+                if (!window.ethers.utils.isAddress(value)) {
                     showError('Please enter a valid Ethereum address.');
                     return;
                 }
@@ -684,7 +683,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if (!ethers.utils.isAddress(recipientAddress)) {
+        if (!window.ethers.utils.isAddress(recipientAddress)) {
             showError('Please enter a valid contract address.');
             return;
         }
@@ -707,7 +706,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const txData = {
                 to: recipientAddress,
-                value: ethers.utils.parseEther('0'), // No ETH value for data transaction
+                value: window.ethers.utils.parseEther('0'), // No ETH value for data transaction
                 data: currentEncryptedData
             };
 

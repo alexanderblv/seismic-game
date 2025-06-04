@@ -33,29 +33,23 @@ const seismicConfig = {
         enableZKP: true // Zero-Knowledge Proofs
     },
     
-    // Настройки для Privy - ТОЛЬКО ПУБЛИЧНЫЕ ПАРАМЕТРЫ
-    privyAppId: "cmbhhu8sr00mojr0l66siei2z",
-    
-    // Конфигурация Privy для реального продакшен использования
-    privyConfig: {
-        appearance: {
-            theme: 'dark',
-            accentColor: '#6366f1',
-            logo: 'https://avatars.githubusercontent.com/u/91174481'
-        },
-        loginMethods: ['wallet', 'email'],
-        embeddedWallets: {
-            createOnLogin: 'users-without-wallets',
-            requireUserPasswordOnCreate: false
-        },
-        supportedChains: [5124], // Seismic devnet chain ID
-        defaultChain: 5124,
-        // Продакшен настройки
-        modalSize: 'compact',
-        fundingMethodConfig: {
-            moonpay: {
-                useSandbox: false // Для продакшена
-            }
+    // Настройки для Privy
+    privy: {
+        appId: "cmbhhu8sr00mojr0l66siei2z",
+        appSecret: "2jkthX9UFUeR1966VtWGh91z22e6R9Bjn46e4FCqeNGFXC9HNwt8XpqfiNS6aGba43NMotscpSSFyWAmDTZ9SwqJ",
+        config: {
+            loginMethods: ['email', 'wallet', 'sms', 'google', 'github'],
+            appearance: {
+                theme: 'light',
+                accentColor: '#3B82F6',
+                logo: 'https://avatars.githubusercontent.com/u/91174481'
+            },
+            embeddedWallets: {
+                createOnLogin: 'users-without-wallets',
+                requireUserPasswordOnCreate: false
+            },
+            supportedChains: [5124], // Seismic devnet chain ID
+            defaultChain: 5124
         }
     }
 };

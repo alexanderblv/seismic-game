@@ -69,75 +69,162 @@
                 }
             };
 
+            console.log("🔧 Initializing Privy with config:", privyConfig.appId);
+
             // Try to initialize Privy with error handling
             const PrivyClass = window.PrivySDK?.PrivyProvider || window.PrivySDK || window.Privy?.PrivyProvider || window.Privy;
             
             if (PrivyClass && typeof PrivyClass === 'function') {
                 try {
+                    console.log("🏗️ Creating Privy provider instance...");
                     this.privy = new PrivyClass(privyConfig.appId, {
                         ...privyConfig.config,
                         onStateChange: (state) => {
                             this._handleStateChange(state);
                         }
                     });
-                    console.log("Privy provider created successfully");
+                    console.log("✅ Privy provider created successfully");
                 } catch (error) {
-                    console.warn("Failed to create Privy provider with constructor:", error);
+                    console.warn("⚠️ Failed to create Privy provider with constructor:", error);
                     // Fallback to alternative initialization if available
                     if (PrivyClass.init && typeof PrivyClass.init === 'function') {
+                        console.log("🔄 Trying alternative initialization method...");
                         this.privy = await PrivyClass.init(privyConfig.appId, privyConfig.config);
+                        console.log("✅ Privy initialized with .init() method");
                     } else {
                         throw new Error("Unable to initialize Privy with available methods");
                     }
                 }
             } else if (PrivyClass && typeof PrivyClass.init === 'function') {
                 // Alternative initialization method
+                console.log("🔄 Using .init() method for Privy initialization...");
                 this.privy = await PrivyClass.init(privyConfig.appId, privyConfig.config);
+                console.log("✅ Privy initialized with .init() method");
             } else {
-                console.warn("Privy SDK not fully available, creating minimal compatibility layer");
-                // Create a minimal compatibility layer for development
+                console.warn("⚠️ Privy SDK not fully available, creating enhanced compatibility layer");
+                
+                // Create an enhanced compatibility layer for development
                 this.privy = {
+                    version: '2.0.0-compatibility-layer',
+                    appId: privyConfig.appId,
+                    config: privyConfig.config,
                     authenticated: false,
                     user: null,
+                    isReady: true,
+                    
                     login: async () => {
-                        console.log("Privy login called - would show login dialog");
-                        // For now, simulate successful login
+                        console.log("🔐 Privy compatibility layer: Login dialog");
+                        
+                        // Show user-friendly login simulation
+                        const shouldProceed = confirm(
+                            'Privy Wallet Connection\n\n' +
+                            'You are in development mode.\n' +
+                            'Click OK to simulate wallet connection, or Cancel to abort.'
+                        );
+                        
+                        if (!shouldProceed) {
+                            throw new Error('Login cancelled by user');
+                        }
+                        
+                        // Simulate successful login
                         this.authenticated = true;
                         this.user = {
-                            id: 'test-user',
+                            id: 'dev-user-' + Date.now(),
                             linkedAccounts: [{
                                 type: 'wallet',
-                                address: '0x1234567890123456789012345678901234567890'
+                                address: '0x' + Math.random().toString(16).substr(2, 40).padStart(40, '0')
                             }]
                         };
-                        this._handleStateChange({
-                            authenticated: true,
-                            user: this.user
-                        });
+                        
+                        console.log("✅ Privy compatibility layer: Login successful!", this.user);
+                        
+                        // Trigger state change
+                        setTimeout(() => {
+                            this._handleStateChange({
+                                authenticated: true,
+                                user: this.user
+                            });
+                        }, 100);
+                        
                         return this.user;
                     },
+                    
                     logout: async () => {
-                        console.log("Privy logout called");
+                        console.log("🚪 Privy compatibility layer: Logout");
                         this.authenticated = false;
                         this.user = null;
-                        this._handleStateChange({
-                            authenticated: false,
-                            user: null
-                        });
+                        
+                        setTimeout(() => {
+                            this._handleStateChange({
+                                authenticated: false,
+                                user: null
+                            });
+                        }, 100);
                     },
+                    
                     getEthereumProvider: async () => {
-                        console.log("Getting Ethereum provider from Privy");
-                        // Return window.ethereum if available, or throw error
+                        console.log("🌐 Privy compatibility layer: Getting Ethereum provider");
+                        
+                        // Try to return MetaMask provider if available
                         if (window.ethereum) {
+                            console.log("📱 Using existing Ethereum provider (MetaMask/etc)");
                             return window.ethereum;
                         }
-                        throw new Error("No Ethereum provider available");
+                        
+                        // Create enhanced provider stub
+                        const providerStub = {
+                            isMetaMask: false,
+                            isPrivy: true,
+                            chainId: '0x1404', // Seismic devnet
+                            
+                            request: async (params) => {
+                                console.log('🔧 Provider stub request:', params);
+                                
+                                switch (params.method) {
+                                    case 'eth_requestAccounts':
+                                        return [this.user?.linkedAccounts?.[0]?.address || '0x0'];
+                                    case 'eth_accounts':
+                                        return [this.user?.linkedAccounts?.[0]?.address || '0x0'];
+                                    case 'eth_chainId':
+                                        return '0x1404'; // Seismic devnet
+                                    case 'net_version':
+                                        return '5124';
+                                    case 'eth_getBalance':
+                                        return '0x1bc16d674ec80000'; // 2 ETH in wei
+                                    default:
+                                        console.warn(`Provider stub: Method ${params.method} not implemented`);
+                                        throw new Error(`Provider stub: Method ${params.method} not implemented`);
+                                }
+                            },
+                            
+                            on: (event, handler) => {
+                                console.log('🎧 Provider stub: Listening to', event);
+                                // Store listeners for potential future use
+                                if (!this._listeners) this._listeners = {};
+                                if (!this._listeners[event]) this._listeners[event] = [];
+                                this._listeners[event].push(handler);
+                            },
+                            
+                            removeListener: (event, handler) => {
+                                console.log('🎧 Provider stub: Removing listener for', event);
+                                if (this._listeners && this._listeners[event]) {
+                                    const index = this._listeners[event].indexOf(handler);
+                                    if (index > -1) {
+                                        this._listeners[event].splice(index, 1);
+                                    }
+                                }
+                            }
+                        };
+                        
+                        console.log("⚡ Created enhanced provider stub");
+                        return providerStub;
                     }
                 };
             }
 
             // Check if user is already authenticated
             if (this.privy && this.privy.authenticated) {
+                console.log("👤 User already authenticated");
                 this.authenticated = true;
                 this.user = this.privy.user;
                 
@@ -149,6 +236,7 @@
                     
                     if (this.wallets.length > 0) {
                         this.selectedAccount = this.wallets[0].address;
+                        console.log("📱 Pre-existing wallet found:", this.selectedAccount);
                         // Set up provider
                         await this._setupProvider();
                     }
@@ -156,6 +244,7 @@
             }
 
             this.initialized = true;
+            console.log("✅ Privy wallet connector initialization completed");
         }
 
         /**
@@ -261,6 +350,8 @@
                     throw new Error("Privy not initialized");
                 }
 
+                console.log("🚀 Starting Privy connection flow...");
+
                 // Start Privy login flow
                 const loginResult = await this.privy.login();
                 
@@ -277,14 +368,25 @@
                         
                         if (this.wallets.length > 0) {
                             this.selectedAccount = this.wallets[0].address;
+                            console.log("📱 Selected wallet address:", this.selectedAccount);
+                            
                             // Set up provider
                             await this._setupProvider();
+                            
+                            console.log("✅ Wallet connected successfully via Privy:", this.selectedAccount);
+                            this._emitEvent('accountsChanged', { account: this.selectedAccount });
+                            return true;
+                        } else {
+                            console.log("ℹ️ No wallets found, creating embedded wallet...");
+                            // If no wallets exist, create one
+                            await this._createEmbeddedWallet();
+                            return true;
                         }
+                    } else {
+                        console.log("ℹ️ No linked accounts found, creating embedded wallet...");
+                        await this._createEmbeddedWallet();
+                        return true;
                     }
-                    
-                    console.log("Wallet connected successfully via Privy:", this.selectedAccount);
-                    this._emitEvent('accountsChanged', { account: this.selectedAccount });
-                    return true;
                 } else {
                     // Privy will create embedded wallet automatically
                     console.log("Privy authentication in progress...");
@@ -301,7 +403,75 @@
                 }
             } catch (error) {
                 console.error("Error during Privy login:", error);
-                this.lastError = error.message || "Privy login failed";
+                
+                // Handle specific error cases
+                if (error.message.includes('cancelled')) {
+                    console.log("🚫 User cancelled login");
+                    this.lastError = "Login was cancelled";
+                    return false;
+                } else {
+                    this.lastError = error.message || "Privy login failed";
+                    throw error;
+                }
+            }
+        }
+
+        /**
+         * Create embedded wallet for users without one
+         */
+        async _createEmbeddedWallet() {
+            try {
+                console.log("🏗️ Creating embedded wallet...");
+                
+                // For stub/development mode, create a mock wallet
+                if (this.privy.version && this.privy.version.includes('stub')) {
+                    const mockAddress = '0x' + Math.random().toString(16).substr(2, 40).padStart(40, '0');
+                    
+                    // Update user with new wallet
+                    if (!this.user.linkedAccounts) {
+                        this.user.linkedAccounts = [];
+                    }
+                    
+                    this.user.linkedAccounts.push({
+                        type: 'wallet',
+                        address: mockAddress
+                    });
+                    
+                    this.selectedAccount = mockAddress;
+                    this.wallets = [{ type: 'wallet', address: mockAddress }];
+                    
+                    // Set up provider
+                    await this._setupProvider();
+                    
+                    console.log("✅ Mock embedded wallet created:", mockAddress);
+                    this._emitEvent('accountsChanged', { account: this.selectedAccount });
+                    return true;
+                }
+                
+                // For real Privy SDK, use embedded wallet creation
+                if (this.privy.embeddedWallet && this.privy.embeddedWallet.create) {
+                    const wallet = await this.privy.embeddedWallet.create();
+                    
+                    if (wallet && wallet.address) {
+                        this.selectedAccount = wallet.address;
+                        this.wallets.push({
+                            type: 'wallet',
+                            address: wallet.address
+                        });
+                        
+                        await this._setupProvider();
+                        
+                        console.log("✅ Embedded wallet created:", wallet.address);
+                        this._emitEvent('accountsChanged', { account: this.selectedAccount });
+                        return true;
+                    }
+                }
+                
+                throw new Error("Failed to create embedded wallet");
+                
+            } catch (error) {
+                console.error("Failed to create embedded wallet:", error);
+                this.lastError = error.message || "Failed to create embedded wallet";
                 throw error;
             }
         }

@@ -259,8 +259,210 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Load Privy SDK from CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@privy-io/js-sdk@latest/dist/index.iife.js"></script>
+    <!-- React and ReactDOM for Privy -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Privy React Auth SDK -->
+    <script src="https://unpkg.com/@privy-io/react-auth@latest/dist/index.umd.js"></script>
+    
+    <!-- MetaMask conflict prevention -->
+    <script>
+        // Prevent MetaMask errors
+        (function() {
+            // Suppress MetaMask provider errors
+            const originalError = console.error;
+            const originalWarn = console.warn;
+            
+            console.error = function(...args) {
+                if (typeof args[0] === 'string' && (
+                    args[0].includes('MetaMask encountered an error setting the global Ethereum provider') ||
+                    args[0].includes('Cannot set property ethereum') ||
+                    args[0].includes('which has only a getter')
+                )) {
+                    return; // Suppress MetaMask provider conflict errors
+                }
+                originalError.apply(console, args);
+            };
+            
+            console.warn = function(...args) {
+                if (typeof args[0] === 'string' && (
+                    args[0].includes('MetaMask') ||
+                    args[0].includes('ethereum provider')
+                )) {
+                    return; // Suppress MetaMask warnings
+                }
+                originalWarn.apply(console, args);
+            };
+        })();
+    </script>
+    
+    <!-- Initialize Privy SDK Promise -->
+    <script>
+        window.privySDKPromise = new Promise(async (resolve, reject) => {
+            try {
+                // Wait for Privy React Auth to be available
+                let attempts = 0;
+                const maxAttempts = 300; // Increased timeout for React loading
+                
+                const waitForPrivy = () => {
+                    attempts++;
+                    
+                    // Check for Privy React Auth in global scope
+                    if (window.PrivyReactAuth) {
+                        console.log('✅ Privy React Auth SDK loaded successfully');
+                        window.PrivySDK = window.PrivyReactAuth;
+                        resolve(window.PrivyReactAuth);
+                        return;
+                    }
+                    
+                    if (attempts >= maxAttempts) {
+                        console.warn('⚠️ Privy SDK timeout, creating enhanced stub');
+                        // Create enhanced stub for development
+                        window.PrivySDK = createPrivyStub();
+                        resolve(window.PrivySDK);
+                        return;
+                    }
+                    
+                    setTimeout(waitForPrivy, 20);
+                };
+                
+                function createPrivyStub() {
+                    console.log('🔧 Creating Privy development stub with enhanced features');
+                    
+                    return {
+                        version: '2.0.0-development-stub',
+                        PrivyProvider: function(appId, config = {}) {
+                            console.log('🏗️ Privy stub provider created with appId:', appId);
+                            
+                            this.appId = appId;
+                            this.config = config;
+                            this.authenticated = false;
+                            this.user = null;
+                            this.isReady = true;
+                            
+                            // Enhanced login simulation
+                            this.login = async () => {
+                                console.log('🔐 Privy stub: Starting login flow...');
+                                
+                                // Show user-friendly login simulation
+                                const shouldProceed = confirm(
+                                    'Privy Login Simulation\n\n' +
+                                    'This is a development environment.\n' +
+                                    'Click OK to simulate successful login, or Cancel to abort.'
+                                );
+                                
+                                if (!shouldProceed) {
+                                    throw new Error('Login cancelled by user');
+                                }
+                                
+                                // Simulate login success
+                                this.authenticated = true;
+                                this.user = {
+                                    id: 'dev-user-' + Date.now(),
+                                    linkedAccounts: [{
+                                        type: 'wallet',
+                                        address: '0x' + Math.random().toString(16).substr(2, 40).padStart(40, '0')
+                                    }]
+                                };
+                                
+                                console.log('✅ Privy stub: Login successful!', this.user);
+                                
+                                // Call state change callback
+                                if (this.config.onStateChange) {
+                                    setTimeout(() => {
+                                        this.config.onStateChange({
+                                            authenticated: true,
+                                            user: this.user
+                                        });
+                                    }, 100);
+                                }
+                                
+                                return this.user;
+                            };
+                            
+                            this.logout = async () => {
+                                console.log('🚪 Privy stub: Logging out...');
+                                this.authenticated = false;
+                                this.user = null;
+                                
+                                if (this.config.onStateChange) {
+                                    setTimeout(() => {
+                                        this.config.onStateChange({
+                                            authenticated: false,
+                                            user: null
+                                        });
+                                    }, 100);
+                                }
+                                
+                                console.log('✅ Privy stub: Logout completed');
+                            };
+                            
+                            this.getEthereumProvider = async () => {
+                                console.log('🌐 Privy stub: Getting Ethereum provider...');
+                                
+                                // Try to return MetaMask provider if available
+                                if (window.ethereum) {
+                                    console.log('📱 Using MetaMask provider');
+                                    return window.ethereum;
+                                }
+                                
+                                // Create a minimal provider stub for testing
+                                const stubProvider = {
+                                    isMetaMask: false,
+                                    isPrivy: true,
+                                    request: async (params) => {
+                                        console.log('🔧 Stub provider request:', params);
+                                        
+                                        switch (params.method) {
+                                            case 'eth_requestAccounts':
+                                                return [this.user?.linkedAccounts?.[0]?.address || '0x0'];
+                                            case 'eth_accounts':
+                                                return [this.user?.linkedAccounts?.[0]?.address || '0x0'];
+                                            case 'eth_chainId':
+                                                return '0x1404'; // Seismic devnet
+                                            case 'net_version':
+                                                return '5124';
+                                            default:
+                                                throw new Error(`Stub provider: Method ${params.method} not implemented`);
+                                        }
+                                    },
+                                    on: (event, handler) => {
+                                        console.log('🎧 Stub provider: Listening to', event);
+                                    },
+                                    removeListener: (event, handler) => {
+                                        console.log('🎧 Stub provider: Removing listener for', event);
+                                    }
+                                };
+                                
+                                console.log('⚡ Created stub Ethereum provider');
+                                return stubProvider;
+                            };
+                            
+                            // Set initial state
+                            setTimeout(() => {
+                                if (this.config.onStateChange) {
+                                    this.config.onStateChange({
+                                        authenticated: this.authenticated,
+                                        user: this.user,
+                                        isReady: true
+                                    });
+                                }
+                            }, 100);
+                        }
+                    };
+                }
+                
+                // Start checking
+                waitForPrivy();
+                
+            } catch (error) {
+                console.error('Error initializing Privy SDK:', error);
+                window.PrivySDK = createPrivyStub();
+                resolve(window.PrivySDK);
+            }
+        });
+    </script>
     
     <!-- Load Privy SDK with proper error handling and ensure it's available -->
     <script>
@@ -323,7 +525,7 @@
             });
         })();
     </script>
-    
+
     <!-- Seismic SDK -->
     <script src="seismic-sdk.js"></script>
     

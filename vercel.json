@@ -13,8 +13,8 @@
       "destination": "/index.html"
     },
     {
-      "source": "/(.*\\.(js|css|json|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot))",
-      "destination": "/$1"
+      "source": "/(.*)\\.(js|css|json|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot)",
+      "destination": "/$1.$2"
     },
     {
       "source": "/(.*)",

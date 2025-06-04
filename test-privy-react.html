@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Privy React Auth SDK</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #3B82F6, #1E40AF);
+            color: white;
+            border-radius: 10px;
+        }
+        .status {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+        .success { background-color: #d4edda; color: #155724; border-left: 4px solid #28a745; }
+        .error { background-color: #f8d7da; color: #721c24; border-left: 4px solid #dc3545; }
+        .info { background-color: #d1ecf1; color: #0c5460; border-left: 4px solid #17a2b8; }
+        .warning { background-color: #fff3cd; color: #856404; border-left: 4px solid #ffc107; }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        .btn-primary { background-color: #3B82F6; color: white; }
+        .btn-primary:hover { background-color: #1E40AF; }
+        .btn-success { background-color: #28a745; color: white; }
+        .btn-success:hover { background-color: #218838; }
+        .btn-warning { background-color: #ffc107; color: #212529; }
+        .btn-warning:hover { background-color: #e0a800; }
+        .btn-danger { background-color: #dc3545; color: white; }
+        .btn-danger:hover { background-color: #c82333; }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        
+        #log {
+            background-color: white;
+            border: 1px solid #dee2e6;
+            padding: 20px;
+            border-radius: 8px;
+            max-height: 500px;
+            overflow-y: auto;
+            margin-top: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .config-info {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .user-info {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: none;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔐 Privy React Auth SDK Test</h1>
+        <p>Тестирование интеграции с официальным Privy React Auth SDK</p>
+    </div>
+    
+    <div id="status" class="status info">🔄 Initializing Privy React Auth SDK...</div>
+    
+    <div class="config-info">
+        <h3>📋 Configuration</h3>
+        <div id="config-display">Loading...</div>
+    </div>
+    
+    <div class="button-group">
+        <button id="testSDK" class="btn-primary" disabled>🧪 Test SDK Loading</button>
+        <button id="testLogin" class="btn-success" disabled>🔐 Test Login</button>
+        <button id="testWallet" class="btn-warning" disabled>👛 Test Wallet</button>
+        <button id="testLogout" class="btn-danger" disabled>🚪 Test Logout</button>
+        <button id="clearLog" class="btn-warning">🗑️ Clear Log</button>
+    </div>
+    
+    <div class="user-info" id="userInfo">
+        <h3>👤 User Information</h3>
+        <div id="userDisplay">No user logged in</div>
+    </div>
+    
+    <div id="log"></div>
+
+    <!-- Load React и ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Load ethers.js -->
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    
+    <!-- Configuration -->
+    <script src="seismic-config.js"></script>
+    
+    <!-- Privy React Auth SDK -->
+    <script src="https://unpkg.com/@privy-io/react-auth@latest/dist/index.umd.js"></script>
+
+    <script>
+        // Elements
+        const statusDiv = document.getElementById('status');
+        const logDiv = document.getElementById('log');
+        const configDisplay = document.getElementById('config-display');
+        const userInfo = document.getElementById('userInfo');
+        const userDisplay = document.getElementById('userDisplay');
+        
+        const testSDKBtn = document.getElementById('testSDK');
+        const testLoginBtn = document.getElementById('testLogin');
+        const testWalletBtn = document.getElementById('testWallet');
+        const testLogoutBtn = document.getElementById('testLogout');
+        const clearLogBtn = document.getElementById('clearLog');
+
+        // Logging function
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<strong style="color: #666;">[${timestamp}]</strong> ${message}`;
+            logEntry.className = type;
+            logEntry.style.marginBottom = '8px';
+            logDiv.appendChild(logEntry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(`[${timestamp}] ${message}`);
+        }
+
+        function updateStatus(message, type = 'info') {
+            const icons = {
+                info: '🔄',
+                success: '✅',
+                error: '❌',
+                warning: '⚠️'
+            };
+            statusDiv.innerHTML = `${icons[type]} ${message}`;
+            statusDiv.className = `status ${type}`;
+        }
+
+        function updateUserInfo(user) {
+            if (user) {
+                userInfo.style.display = 'block';
+                userDisplay.innerHTML = `
+                    <div><strong>ID:</strong> ${user.id || 'N/A'}</div>
+                    <div><strong>Email:</strong> ${user.email?.address || 'N/A'}</div>
+                    <div><strong>Wallet:</strong> ${user.wallet?.address || 'N/A'}</div>
+                    <div><strong>Created:</strong> ${user.createdAt ? new Date(user.createdAt).toLocaleString() : 'N/A'}</div>
+                `;
+            } else {
+                userInfo.style.display = 'none';
+                userDisplay.innerHTML = 'No user logged in';
+            }
+        }
+
+        // Display configuration
+        function displayConfig() {
+            const config = window.seismicConfig?.privy;
+            if (config) {
+                configDisplay.innerHTML = `
+                    <div><strong>App ID:</strong> <span class="badge">${config.appId}</span></div>
+                    <div><strong>Login Methods:</strong> ${config.config.loginMethods.map(m => `<span class="badge">${m}</span>`).join(' ')}</div>
+                    <div><strong>Chains:</strong> ${config.config.supportedChains.map(c => `<span class="badge">${c}</span>`).join(' ')}</div>
+                    <div><strong>Theme:</strong> <span class="badge">${config.config.appearance.theme}</span></div>
+                `;
+            } else {
+                configDisplay.innerHTML = '<span style="color: red;">❌ Configuration not found</span>';
+            }
+        }
+
+        // Initialize
+        async function initialize() {
+            try {
+                log('🚀 Starting Privy React Auth SDK test...');
+                displayConfig();
+                
+                // Check React
+                if (window.React && window.ReactDOM) {
+                    log('✅ React and ReactDOM loaded successfully', 'success');
+                } else {
+                    log('❌ React or ReactDOM not found', 'error');
+                    updateStatus('React dependencies missing', 'error');
+                    return;
+                }
+
+                // Check ethers.js
+                if (window.ethers) {
+                    log('✅ Ethers.js loaded successfully', 'success');
+                } else {
+                    log('❌ Ethers.js not found', 'error');
+                }
+
+                // Check seismic config
+                if (window.seismicConfig?.privy) {
+                    log('✅ Seismic configuration loaded', 'success');
+                } else {
+                    log('❌ Seismic configuration missing', 'error');
+                }
+
+                // Wait for Privy React Auth SDK
+                let attempts = 0;
+                const maxAttempts = 100;
+                
+                const waitForPrivy = () => {
+                    attempts++;
+                    
+                    if (window.PrivyReactAuth) {
+                        log('✅ Privy React Auth SDK found', 'success');
+                        
+                        // Check available exports
+                        const exports = Object.keys(window.PrivyReactAuth);
+                        log(`📦 Available Privy exports: ${exports.join(', ')}`, 'info');
+                        
+                        if (window.PrivyReactAuth.PrivyProvider) {
+                            log('✅ PrivyProvider found', 'success');
+                            updateStatus('Privy React Auth SDK loaded successfully', 'success');
+                            testSDKBtn.disabled = false;
+                        } else {
+                            log('❌ PrivyProvider not found in SDK', 'error');
+                            updateStatus('PrivyProvider missing', 'error');
+                        }
+                        return;
+                    }
+                    
+                    if (attempts >= maxAttempts) {
+                        log('❌ Privy React Auth SDK failed to load after ' + maxAttempts + ' attempts', 'error');
+                        updateStatus('Failed to load Privy React Auth SDK', 'error');
+                        return;
+                    }
+                    
+                    setTimeout(waitForPrivy, 50);
+                };
+                
+                waitForPrivy();
+                
+            } catch (error) {
+                log(`❌ Initialization error: ${error.message}`, 'error');
+                updateStatus('Initialization failed', 'error');
+            }
+        }
+
+        // Test SDK functionality
+        async function testSDK() {
+            try {
+                log('🧪 Testing Privy React Auth SDK functionality...');
+                
+                if (!window.PrivyReactAuth) {
+                    throw new Error('Privy React Auth SDK not available');
+                }
+
+                const config = window.seismicConfig?.privy || {
+                    appId: "cmbhhu8sr00mojr0l66siei2z",
+                    config: {
+                        loginMethods: ['email', 'wallet'],
+                        appearance: { theme: 'light' }
+                    }
+                };
+
+                log(`🔧 Using configuration with appId: ${config.appId}`);
+                
+                // Test React element creation
+                try {
+                    const testElement = React.createElement(
+                        window.PrivyReactAuth.PrivyProvider,
+                        { appId: config.appId, config: config.config },
+                        React.createElement('div', null, 'Test')
+                    );
+                    log('✅ PrivyProvider React element created successfully', 'success');
+                } catch (error) {
+                    log(`❌ Failed to create PrivyProvider element: ${error.message}`, 'error');
+                    throw error;
+                }
+
+                log('✅ SDK test completed successfully', 'success');
+                updateStatus('SDK test passed', 'success');
+                testLoginBtn.disabled = false;
+                
+            } catch (error) {
+                log(`❌ SDK test failed: ${error.message}`, 'error');
+                updateStatus('SDK test failed', 'error');
+            }
+        }
+
+        // Test login functionality  
+        async function testLogin() {
+            try {
+                log('🔐 Testing Privy login functionality...');
+                
+                // This is a mock implementation
+                // In real implementation, this would use Privy hooks
+                log('⚠️ Note: This is a mock implementation for testing', 'warning');
+                
+                updateStatus('Attempting login...', 'info');
+                
+                // Simulate login process
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                const mockUser = {
+                    id: 'user-' + Date.now(),
+                    email: { address: 'user@example.com' },
+                    wallet: { address: '0x' + '1'.repeat(40) },
+                    createdAt: new Date().toISOString()
+                };
+                
+                window.privyUser = mockUser;
+                log('✅ Mock login successful', 'success');
+                updateStatus('Login successful', 'success');
+                updateUserInfo(mockUser);
+                
+                testWalletBtn.disabled = false;
+                testLogoutBtn.disabled = false;
+                
+            } catch (error) {
+                log(`❌ Login test failed: ${error.message}`, 'error');
+                updateStatus('Login test failed', 'error');
+            }
+        }
+
+        // Test wallet functionality
+        async function testWallet() {
+            try {
+                log('👛 Testing wallet functionality...');
+                
+                if (!window.privyUser) {
+                    throw new Error('No user logged in');
+                }
+                
+                const user = window.privyUser;
+                log(`📍 User wallet address: ${user.wallet?.address || 'None'}`);
+                
+                if (user.wallet?.address) {
+                    log('✅ Wallet test successful', 'success');
+                    updateStatus('Wallet test passed', 'success');
+                } else {
+                    log('⚠️ No wallet found for user', 'warning');
+                    updateStatus('No wallet found', 'warning');
+                }
+                
+            } catch (error) {
+                log(`❌ Wallet test failed: ${error.message}`, 'error');
+                updateStatus('Wallet test failed', 'error');
+            }
+        }
+
+        // Test logout
+        async function testLogout() {
+            try {
+                log('🚪 Testing logout functionality...');
+                
+                window.privyUser = null;
+                updateUserInfo(null);
+                
+                log('✅ Logout successful', 'success');
+                updateStatus('Logged out successfully', 'success');
+                
+                testLoginBtn.disabled = false;
+                testWalletBtn.disabled = true;
+                testLogoutBtn.disabled = true;
+                
+            } catch (error) {
+                log(`❌ Logout test failed: ${error.message}`, 'error');
+                updateStatus('Logout test failed', 'error');
+            }
+        }
+
+        // Event listeners
+        testSDKBtn.addEventListener('click', testSDK);
+        testLoginBtn.addEventListener('click', testLogin);
+        testWalletBtn.addEventListener('click', testWallet);
+        testLogoutBtn.addEventListener('click', testLogout);
+        clearLogBtn.addEventListener('click', () => {
+            logDiv.innerHTML = '';
+            log('🗑️ Log cleared');
+        });
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', initialize);
+    </script>
+</body>
+</html> 

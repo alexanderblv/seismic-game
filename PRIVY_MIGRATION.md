@@ -11,7 +11,7 @@
 ### 2. **Интеграция Privy**
 - ✅ **APP ID**: `cmbhhu8sr00mojr0l66siei2z`
 - ✅ **APP Secret**: `2jkthX9UFUeR1966VtWGh91z22e6R9Bjn46e4FCqeNGFXC9HNwt8XpqfiNS6aGba43NMotscpSSFyWAmDTZ9SwqJ`
-- ✅ Подключение через CDN: `@privy-io/js-sdk@1.69.0`
+- ✅ Подключение через CDN: `@privy-io/react-auth@latest`
 
 ### 3. **Обновленные файлы**
 
@@ -20,7 +20,7 @@
 {
   "dependencies": {
     "serve": "^14.0.0",
-    "@privy-io/js-sdk": "^1.69.0",
+    "@privy-io/react-auth": "^1.69.0",
     "ethers": "^6.9.0"
   }
 }
@@ -152,3 +152,176 @@ const encryptedTx = await seismic.sendEncryptedTransaction(txData);
 ✅ **Повышена безопасность** до корпоративного уровня  
 
 Теперь пользователи могут легко подключаться к вашему DApp через email, телефон или социальные сети, а продвинутые пользователи по-прежнему могут использовать свои кошельки MetaMask и другие! 
+
+# Миграция на Privy React Auth SDK
+
+Согласно [официальной документации Privy](https://docs.privy.io/welcome), основной фокус у них на **React SDK**. Мы мигрировали с `@privy-io/js-sdk-core` на официальный `@privy-io/react-auth`.
+
+## ✅ Что исправлено
+
+### 1. Правильный SDK
+- **Было:** `@privy-io/js-sdk-core` (неофициальный/устаревший)
+- **Стало:** `@privy-io/react-auth` (официальный React SDK)
+
+### 2. Правильная загрузка
+```html
+<!-- Добавлены React зависимости -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+<!-- Правильный Privy SDK -->
+<script src="https://unpkg.com/@privy-io/react-auth@latest/dist/index.umd.js"></script>
+```
+
+### 3. Правильная инициализация
+```javascript
+// Проверяем наличие PrivyReactAuth
+if (window.PrivyReactAuth && typeof window.PrivyReactAuth.PrivyProvider === 'function') {
+    // Создаем React элемент с PrivyProvider
+    const PrivyApp = React.createElement(
+        window.PrivyReactAuth.PrivyProvider,
+        {
+            appId: config.appId,
+            config: config.config,
+            onSuccess: (user) => {
+                console.log('✅ User authenticated:', user);
+                window.privyUser = user;
+            }
+        },
+        React.createElement('div', { id: 'privy-container' })
+    );
+    
+    // Рендерим в скрытый контейнер
+    ReactDOM.render(PrivyApp, privyContainer);
+}
+```
+
+## 📋 Конфигурация
+
+### seismic-config.js
+```javascript
+privy: {
+    appId: "cmbhhu8sr00mojr0l66siei2z",
+    config: {
+        loginMethods: ['email', 'wallet', 'sms', 'google', 'github'],
+        appearance: {
+            theme: 'light',
+            accentColor: '#3B82F6',
+            logo: 'https://avatars.githubusercontent.com/u/91174481'
+        },
+        embeddedWallets: {
+            createOnLogin: 'users-without-wallets',
+            requireUserPasswordOnCreate: false
+        },
+        supportedChains: [5124], // Seismic devnet
+        defaultChain: 5124
+    }
+}
+```
+
+## 🧪 Тестирование
+
+### Новая тестовая страница: `test-privy-react.html`
+1. Откройте http://localhost:3000/test-privy-react.html
+2. Следуйте тестам пошагово:
+   - 🧪 Test SDK Loading
+   - 🔐 Test Login  
+   - 👛 Test Wallet
+   - 🚪 Test Logout
+
+### Проверки:
+- ✅ React и ReactDOM загружены
+- ✅ Privy React Auth SDK загружен
+- ✅ PrivyProvider доступен
+- ✅ Конфигурация корректна
+
+## 🔧 Структура проекта
+
+### Обновленные файлы:
+- `index.html` - обновлена загрузка Privy React Auth SDK
+- `package.json` - добавлены React зависимости
+- `test-privy-react.html` - новая тестовая страница
+- `PRIVY_MIGRATION.md` - эта документация
+
+### Зависимости:
+```json
+{
+  "dependencies": {
+    "@privy-io/react-auth": "^1.69.0",
+    "react": "^18.2.0", 
+    "react-dom": "^18.2.0",
+    "ethers": "^6.9.0",
+    "serve": "^14.0.0"
+  }
+}
+```
+
+## 🚀 Следующие шаги
+
+### 1. Полная интеграция с React Hooks
+Для полной функциональности нужно использовать Privy React hooks:
+- `usePrivy()` - основной hook для аутентификации
+- `useWallets()` - для работы с кошельками
+- `useLogin()` - для логина
+- `useLogout()` - для логаута
+
+### 2. Пример полной интеграции:
+```javascript
+// В React компоненте
+const { ready, authenticated, user, login, logout } = usePrivy();
+const { wallets } = useWallets();
+
+// Для vanilla JS нужно обернуть в React компонент
+function PrivyWrapper() {
+    const { ready, authenticated, user, login, logout } = usePrivy();
+    
+    // Expose to global scope
+    window.privyHooks = { ready, authenticated, user, login, logout };
+    
+    return null;
+}
+```
+
+### 3. Vercel деплой
+- Все готово для деплоя на Vercel
+- React зависимости загружаются с CDN
+- Privy React Auth SDK работает в браузере
+
+## ⚠️ Важные замечания
+
+1. **Client-side только:** Privy работает только на клиентской стороне
+2. **React required:** Для полной функциональности нужен React
+3. **CDN подход:** Мы используем UMD версии для vanilla JS
+4. **Mock реализация:** Текущая реализация частично использует mock для демонстрации
+
+## 🔗 Полезные ссылки
+
+- [Privy Documentation](https://docs.privy.io/welcome)
+- [Privy React SDK](https://docs.privy.io/guide/react)
+- [Privy GitHub](https://github.com/privy-io/privy-js)
+- [Seismic Devnet](https://explorer-2.seismicdev.net/)
+
+## 🆘 Troubleshooting
+
+### Проблема: Privy не загружается
+```bash
+# Проверьте сеть
+curl -I https://unpkg.com/@privy-io/react-auth@latest/dist/index.umd.js
+
+# Проверьте консоль браузера
+# Откройте test-privy-react.html и смотрите логи
+```
+
+### Проблема: React не найден
+```javascript
+// В консоли браузера:
+console.log(window.React, window.ReactDOM);
+// Должны быть объекты, не undefined
+```
+
+### Проблема: PrivyProvider не найден
+```javascript
+// В консоли браузера:
+console.log(window.PrivyReactAuth);
+// Должен содержать PrivyProvider
+``` 

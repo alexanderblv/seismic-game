@@ -1,11 +1,24 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "installCommand": "npm install",
   "rewrites": [
     {
       "source": "/seismic-config.js",
       "destination": "/seismic-config.js"
+    },
+    {
+      "source": "/styles.css",
+      "destination": "/styles.css"
+    },
+    {
+      "source": "/app.js",
+      "destination": "/app.js"
+    },
+    {
+      "source": "/wallet-connector.js",
+      "destination": "/wallet-connector.js"
+    },
+    {
+      "source": "/seismic-sdk.js",
+      "destination": "/seismic-sdk.js"
     },
     {
       "source": "/(.*)",

@@ -6,7 +6,7 @@ module.exports = (env, argv) => {
   const isDevelopment = argv.mode === 'development';
   
   return {
-    entry: path.resolve(__dirname, 'src/index.js'),
+    entry: path.resolve(__dirname, 'app.js'),
     
     output: {
       path: path.resolve(__dirname, 'dist'),
@@ -53,9 +53,9 @@ module.exports = (env, argv) => {
     
     plugins: [
       new HtmlWebpackPlugin({
-        template: path.resolve(__dirname, 'public/index.html'),
+        template: path.resolve(__dirname, 'index.html'),
         filename: 'index.html',
-        inject: true,
+        inject: false,
         minify: isDevelopment ? false : {
           removeComments: true,
           collapseWhitespace: true,
@@ -72,8 +72,24 @@ module.exports = (env, argv) => {
       new CopyWebpackPlugin({
         patterns: [
           {
-            from: path.resolve(__dirname, 'public/seismic-config.js'),
+            from: path.resolve(__dirname, 'seismic-config.js'),
             to: 'seismic-config.js',
+          },
+          {
+            from: path.resolve(__dirname, 'styles.css'),
+            to: 'styles.css',
+          },
+          {
+            from: path.resolve(__dirname, 'wallet-connector.js'),
+            to: 'wallet-connector.js',
+          },
+          {
+            from: path.resolve(__dirname, 'seismic-sdk.js'),
+            to: 'seismic-sdk.js',
+          },
+          {
+            from: path.resolve(__dirname, 'app.js'),
+            to: 'app.js',
           },
         ],
       }),
@@ -99,7 +115,7 @@ module.exports = (env, argv) => {
           directory: path.join(__dirname, 'dist'),
         },
         {
-          directory: path.join(__dirname, 'public'),
+          directory: path.join(__dirname),
           publicPath: '/',
         }
       ],

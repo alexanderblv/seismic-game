@@ -1,46 +1,20 @@
 {
-  "name": "seismic-game",
+  "name": "seismic-transaction-sender",
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "start": "webpack serve --mode development --open",
-    "build": "webpack --mode production",
-    "vercel-build": "npm run build",
-    "dev": "webpack serve --mode development",
-    "preview": "serve dist"
+    "start": "python -m http.server 8080 || npx serve .",
+    "dev": "python -m http.server 8080 || npx serve .",
+    "preview": "python -m http.server 8080 || npx serve ."
   },
-  "dependencies": {
-    "@privy-io/react-auth": "^1.69.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "ethers": "^6.8.1"
-  },
-  "devDependencies": {
-    "@babel/core": "^7.22.0",
-    "@babel/preset-env": "^7.22.0",
-    "@babel/preset-react": "^7.22.0",
-    "babel-loader": "^9.1.0",
-    "copy-webpack-plugin": "^11.0.0",
-    "css-loader": "^6.8.0",
-    "html-webpack-plugin": "^5.5.0",
-    "serve": "^14.0.0",
-    "style-loader": "^3.3.0",
-    "webpack": "^5.88.0",
-    "webpack-cli": "^5.1.0",
-    "webpack-dev-server": "^4.15.0"
-  },
-  "description": "Seismic blockchain game with official Privy React Auth SDK",
-  "main": "src/index.js",
+  "description": "Seismic Transaction Sender - отправка зашифрованных транзакций через Seismic devnet",
+  "main": "index.html",
   "repository": {
     "type": "git",
-    "url": "seismic-game"
+    "url": "seismic-transaction-sender"
   },
-  "keywords": ["blockchain", "seismic", "privy", "react", "authentication", "wallet"],
+  "keywords": ["blockchain", "seismic", "privy", "transactions", "encryption", "wallet"],
   "author": "Seismic Team",
   "license": "MIT",
-  "homepage": "https://seismic-game.vercel.app",
-  "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=9.0.0"
-  }
+  "homepage": "https://seismic-transaction-sender.vercel.app"
 } 

@@ -2,6 +2,10 @@ import React from 'react';
 import { PrivyProvider, usePrivy } from '@privy-io/react-auth';
 import './App.css';
 
+// Debug logging
+console.log('🚀 App.js loaded successfully');
+console.log('✅ Privy components:', { PrivyProvider, usePrivy });
+
 // Конфигурация сети Seismic
 const seismicNetwork = {
   id: 5124,

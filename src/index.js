@@ -2,6 +2,11 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.js';
 
+// Debug logging
+console.log('📦 Index.js loaded successfully');
+console.log('🔍 React version:', React.version);
+console.log('📁 App component:', App);
+
 // Добавляем CSS для межшрифтов
 const fontLink = document.createElement('link');
 fontLink.rel = 'preconnect';

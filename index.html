@@ -30,10 +30,18 @@
 </head>
 <body>
     <!-- Loading Overlay -->
-    <div id="loading-overlay" class="d-none position-fixed w-100 h-100 d-flex justify-content-center align-items-center" style="top: 0; left: 0; background-color: rgba(0,0,0,0.5); z-index: 9999;">
+    <div id="loading-overlay" class="d-none position-fixed w-100 h-100 d-flex justify-content-center align-items-center" style="top: 0; left: 0; background-color: rgba(0,0,0,0.8); z-index: 9999;">
         <div class="text-center text-white">
-            <div class="spinner-border mb-3" role="status"></div>
-            <div id="loading-text">Подключение...</div>
+            <div class="mb-4">
+                <div class="spinner-border" role="status" style="width: 3rem; height: 3rem;">
+                    <span class="visually-hidden">Загрузка...</span>
+                </div>
+            </div>
+            <h4 class="mb-3">🌊 Загрузка Seismic Game</h4>
+            <div id="loading-text" class="lead">Инициализация React приложения с Privy SDK...</div>
+            <div class="mt-3 small opacity-75">
+                Пожалуйста, подождите, идет подключение к сети Seismic
+            </div>
         </div>
     </div>
 
@@ -345,82 +353,125 @@
         
         // Load Privy JS Core SDK with improved error handling and timeout
         window.privySDKPromise = new Promise((resolve, reject) => {
-            // Set a timeout to prevent infinite loading
+            // Set a shorter timeout to prevent infinite loading
             const timeout = setTimeout(() => {
+                console.error('❌ Privy SDK loading timeout after 10 seconds');
                 reject(new Error('Privy SDK loading timeout - please check your internet connection and refresh the page'));
-            }, 15000); // 15 second timeout
+            }, 10000); // 10 second timeout (was 15)
             
-            const script = document.createElement('script');
-            script.src = 'https://unpkg.com/@privy-io/js-sdk@latest';
-            script.onload = async () => {
-                try {
-                    clearTimeout(timeout);
-                    
-                    if (window.Privy) {
+            let retryCount = 0;
+            const maxRetries = 2;
+            
+            function tryLoadPrivy() {
+                const script = document.createElement('script');
+                script.src = 'https://unpkg.com/@privy-io/js-sdk@latest';
+                
+                script.onload = async () => {
+                    try {
+                        clearTimeout(timeout);
+                        
+                        if (!window.Privy) {
+                            throw new Error('Privy SDK загружен, но window.Privy не найден');
+                        }
+                        
+                        console.log('📦 Privy SDK script loaded successfully');
+                        
                         const privyConfig = seismicConfig?.privy || {
                             appId: "cmbhhu8sr00mojr0l66siei2z"
                         };
                         
                         console.log('🔧 Initializing Privy SDK with config:', privyConfig);
                         
-                        // Simplified Privy configuration
-                        const privy = window.Privy.create(privyConfig.appId, {
-                            embeddedWallets: {
-                                createOnLogin: 'users-without-wallets',
-                                noPromptOnSignature: false
-                            },
-                            externalWallets: {
-                                ethereum: {
-                                    connectors: ['detected_wallets', 'metamask', 'coinbase_wallet', 'wallet_connect']
+                        // Simplified Privy configuration with better error handling
+                        let privy;
+                        try {
+                            privy = window.Privy.create(privyConfig.appId, {
+                                embeddedWallets: {
+                                    createOnLogin: 'users-without-wallets',
+                                    noPromptOnSignature: false
+                                },
+                                externalWallets: {
+                                    ethereum: {
+                                        connectors: ['detected_wallets', 'metamask', 'coinbase_wallet', 'wallet_connect']
+                                    }
+                                },
+                                appearance: {
+                                    theme: 'light',
+                                    accentColor: '#6A6FF5'
                                 }
-                            },
-                            appearance: {
-                                theme: 'light',
-                                accentColor: '#6A6FF5'
-                            }
-                        });
+                            });
+                        } catch (createError) {
+                            console.error('❌ Failed to create Privy instance:', createError);
+                            throw new Error('Не удалось создать экземпляр Privy SDK');
+                        }
                         
-                        // Wait for Privy to be ready with timeout
+                        if (!privy) {
+                            throw new Error('Privy SDK создан, но вернул null');
+                        }
+                        
+                        // Wait for Privy to be ready with shorter timeout
                         const readyTimeout = setTimeout(() => {
-                            reject(new Error('Privy SDK ready timeout'));
-                        }, 10000);
+                            console.error('❌ Privy SDK ready timeout after 8 seconds');
+                            reject(new Error('Privy SDK готовность превысила лимит времени'));
+                        }, 8000); // 8 second timeout for ready
                         
+                        console.log('⏳ Waiting for Privy SDK to be ready...');
                         await privy.ready();
                         clearTimeout(readyTimeout);
                         
-                        console.log('✅ Privy SDK initialized successfully');
+                        console.log('✅ Privy SDK initialized and ready');
                         resolve(privy);
+                        
+                    } catch (error) {
+                        clearTimeout(timeout);
+                        console.error('❌ Privy SDK initialization error:', error);
+                        reject(error);
+                    }
+                };
+                
+                script.onerror = () => {
+                    console.error('❌ Failed to load Privy SDK script, attempt', retryCount + 1);
+                    if (retryCount < maxRetries) {
+                        retryCount++;
+                        console.log('🔄 Retrying Privy SDK load...');
+                        setTimeout(tryLoadPrivy, 1000);
                     } else {
                         clearTimeout(timeout);
-                        reject(new Error('Privy SDK не загружен - window.Privy не найден'));
+                        reject(new Error('Не удалось загрузить скрипт Privy SDK после ' + (maxRetries + 1) + ' попыток'));
                     }
-                } catch (error) {
-                    clearTimeout(timeout);
-                    console.error('❌ Privy SDK initialization error:', error);
-                    reject(error);
-                }
-            };
-            script.onerror = () => {
-                clearTimeout(timeout);
-                console.error('❌ Failed to load Privy SDK script');
-                reject(new Error('Ошибка загрузки Privy SDK - проверьте подключение к интернету'));
-            };
-            document.head.appendChild(script);
+                };
+                
+                document.head.appendChild(script);
+            }
+            
+            tryLoadPrivy();
         });
         
         // Improved error handling for Privy loading
         window.privySDKPromise.catch(error => {
             console.error('❌ Privy SDK failed to load:', error);
+            
+            // Hide loading overlay if it exists
+            const loadingOverlay = document.getElementById('loading-overlay');
+            if (loadingOverlay) {
+                loadingOverlay.classList.add('d-none');
+            }
+            
             // Show user-friendly error message
             const errorDiv = document.createElement('div');
             errorDiv.className = 'alert alert-danger position-fixed';
             errorDiv.style.cssText = 'top: 20px; right: 20px; z-index: 10000; max-width: 400px;';
             errorDiv.innerHTML = `
-                <h6><i class="bi bi-exclamation-triangle"></i> Wallet Service Error</h6>
+                <h6><i class="bi bi-exclamation-triangle"></i> Ошибка подключения кошелька</h6>
                 <p class="mb-2">${error.message}</p>
-                <button class="btn btn-sm btn-outline-danger" onclick="window.location.reload()">
-                    <i class="bi bi-arrow-clockwise"></i> Retry
-                </button>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-danger" onclick="window.location.reload()">
+                        <i class="bi bi-arrow-clockwise"></i> Перезагрузить
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="this.closest('.alert').remove()">
+                        <i class="bi bi-x"></i> Закрыть
+                    </button>
+                </div>
             `;
             document.body.appendChild(errorDiv);
         });

@@ -271,22 +271,27 @@ document.addEventListener('DOMContentLoaded', () => {
     async function initializeSdk() {
         try {
             loadingOverlay.classList.remove('d-none');
-            loadingText.textContent = 'Initializing SDK...';
+            loadingText.textContent = '🌊 Загрузка Seismic Game. Инициализация React приложения с Privy SDK...';
+            
+            console.log('🚀 Начало инициализации приложения...');
             
             // Wait for ethers to be available with timeout
             if (typeof window.ethers === 'undefined') {
-                console.error('Ethers.js is not available');
-                throw new Error('Ethers.js is required but not loaded');
+                console.error('❌ Ethers.js недоступен');
+                throw new Error('Ethers.js требуется, но не загружен');
             }
             
             // Initialize the Seismic SDK
+            console.log('🔧 Инициализация Seismic SDK...');
+            loadingText.textContent = 'Инициализация Seismic SDK...';
+            
             await seismic.initialize({
                 network: seismicConfig.network,
                 rpcUrl: seismicConfig.network.rpcUrl,
                 encryptionEnabled: true
             });
             
-            console.log('SDK initialized');
+            console.log('✅ Seismic SDK инициализирован');
             
             // Wait for DOM to be fully loaded
             await new Promise(resolve => {
@@ -297,56 +302,69 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // Initialize wallet connector with timeout
-            loadingText.textContent = 'Initializing wallet connector...';
+            // Initialize wallet connector with improved timeout and error handling
+            loadingText.textContent = 'Подключение к кошельку...';
             
             try {
-                console.log('Initializing wallet connector...');
+                console.log('🔗 Инициализация wallet connector...');
+                
+                // Check if walletConnector is available
+                if (!window.walletConnector) {
+                    throw new Error('WalletConnector недоступен');
+                }
                 
                 // Add timeout to prevent infinite loading
                 const initTimeout = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Wallet connector initialization timeout')), 30000)
+                    setTimeout(() => reject(new Error('Таймаут инициализации wallet connector')), 20000)
                 );
                 
-                await Promise.race([
+                const initResult = await Promise.race([
                     window.walletConnector.initialize(),
                     initTimeout
                 ]);
                 
-                console.log('Wallet connector initialized successfully');
-                
-                // Set up event listeners
-                setupWalletListeners();
-                
-                console.log('Running with Privy SDK');
+                if (initResult) {
+                    console.log('✅ Wallet connector инициализирован успешно');
+                    
+                    // Set up event listeners
+                    setupWalletListeners();
+                    
+                    console.log('✅ Приложение работает с Privy SDK');
+                } else {
+                    console.warn('⚠️ Wallet connector инициализирован с ограничениями');
+                }
                 
             } catch (connectorError) {
-                console.error('Wallet connector failed to initialize:', connectorError);
-                let errorMessage = 'Wallet connector failed to initialize.';
+                console.error('❌ Wallet connector не смог инициализироваться:', connectorError);
+                let errorMessage = 'Не удалось инициализировать подключение к кошельку.';
                 
                 if (connectorError.message) {
-                    if (connectorError.message.includes('timeout')) {
-                        errorMessage = 'Wallet service loading timeout. Please check your internet connection and refresh the page.';
+                    if (connectorError.message.includes('timeout') || connectorError.message.includes('таймаут')) {
+                        errorMessage = 'Истекло время ожидания загрузки сервиса кошелька. Проверьте подключение к интернету и обновите страницу.';
                     } else if (connectorError.message.includes('Privy SDK not found') || 
-                        connectorError.message.includes('Privy SDK failed to load')) {
-                        errorMessage = 'Failed to load wallet services. Please check your internet connection and refresh the page.';
-                    } else if (connectorError.message.includes('Privy SDK loading timeout')) {
-                        errorMessage = 'Wallet service loading timeout. Please refresh the page and try again.';
+                        connectorError.message.includes('Privy SDK failed to load') ||
+                        connectorError.message.includes('Приvy SDK')) {
+                        errorMessage = 'Не удалось загрузить сервис кошелька. Проверьте подключение к интернету и обновите страницу.';
                     } else {
-                        errorMessage = `Wallet initialization failed: ${connectorError.message}`;
+                        errorMessage = `Ошибка инициализации кошелька: ${connectorError.message}`;
                     }
                 }
                 
                 showError(errorMessage);
                 // Don't throw error here to allow app to continue with limited functionality
-                console.warn('⚠️ App will continue with limited functionality');
+                console.warn('⚠️ Приложение продолжит работу с ограниченной функциональностью');
+                console.warn('⚠️ Вы сможете попробовать подключить кошелек позже');
             }
             
         } catch (error) {
-            console.error('Failed to initialize SDK:', error);
-            showError('Failed to initialize application. Please refresh the page.');
+            console.error('❌ Не удалось инициализировать SDK:', error);
+            showError('Не удалось инициализировать приложение. Пожалуйста, обновите страницу.');
         } finally {
-            loadingOverlay.classList.add('d-none');
+            // Always hide loading overlay
+            setTimeout(() => {
+                loadingOverlay.classList.add('d-none');
+                console.log('✅ Инициализация завершена');
+            }, 1000);
         }
     }
 

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Диагностика Privy SDK</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .log {
+            background: #000;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+            margin: 20px 0;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .warning { background-color: #fff3cd; color: #856404; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Диагностика Privy SDK</h1>
+    
+    <div id="status-container">
+        <div class="status info">⏳ Начинаем диагностику...</div>
+    </div>
+    
+    <div class="log" id="log-container"></div>
+    
+    <button onclick="runDiagnostic()" style="padding: 10px 20px; font-size: 16px;">🔄 Повторить диагностику</button>
+    
+    <script>
+        let logContainer = document.getElementById('log-container');
+        let statusContainer = document.getElementById('status-container');
+        
+        function log(message, isError = false) {
+            const timestamp = new Date().toLocaleTimeString();
+            const color = isError ? '#ff4444' : '#00ff00';
+            logContainer.innerHTML += `<div style="color: ${color}">[${timestamp}] ${message}</div>`;
+            logContainer.scrollTop = logContainer.scrollHeight;
+            console.log(message);
+        }
+        
+        function setStatus(message, type = 'info') {
+            statusContainer.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+        
+        async function runDiagnostic() {
+            logContainer.innerHTML = '';
+            setStatus('⏳ Проводим диагностику...', 'info');
+            
+            log('🚀 Начинаем диагностику Privy SDK');
+            
+            // Test 1: Check if we can load Privy SDK
+            try {
+                log('📦 Попытка загрузки Privy SDK...');
+                setStatus('📦 Загружаем Privy SDK...', 'info');
+                
+                const loadPromise = new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        reject(new Error('Таймаут загрузки SDK (10 секунд)'));
+                    }, 10000);
+                    
+                    const script = document.createElement('script');
+                    script.src = 'https://unpkg.com/@privy-io/js-sdk@latest';
+                    script.onload = () => {
+                        clearTimeout(timeout);
+                        resolve();
+                    };
+                    script.onerror = () => {
+                        clearTimeout(timeout);
+                        reject(new Error('Ошибка загрузки скрипта'));
+                    };
+                    document.head.appendChild(script);
+                });
+                
+                await loadPromise;
+                log('✅ Privy SDK скрипт загружен успешно');
+                
+            } catch (error) {
+                log(`❌ Ошибка загрузки Privy SDK: ${error.message}`, true);
+                setStatus(`❌ Ошибка загрузки: ${error.message}`, 'error');
+                return;
+            }
+            
+            // Test 2: Check if Privy object exists
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            if (typeof window.Privy === 'undefined') {
+                log('❌ window.Privy не найден после загрузки', true);
+                setStatus('❌ Privy SDK недоступен после загрузки', 'error');
+                return;
+            }
+            
+            log('✅ window.Privy найден');
+            
+            // Test 3: Try to create Privy instance
+            try {
+                log('🔧 Попытка создания экземпляра Privy...');
+                setStatus('🔧 Создаем экземпляр Privy...', 'info');
+                
+                const privy = window.Privy.create('cmbhhu8sr00mojr0l66siei2z', {
+                    embeddedWallets: {
+                        createOnLogin: 'users-without-wallets'
+                    },
+                    appearance: {
+                        theme: 'light',
+                        accentColor: '#6A6FF5'
+                    }
+                });
+                
+                if (!privy) {
+                    throw new Error('Privy.create вернул null');
+                }
+                
+                log('✅ Экземпляр Privy создан успешно');
+                
+                // Test 4: Try to initialize
+                log('⏳ Попытка инициализации Privy...');
+                setStatus('⏳ Инициализируем Privy...', 'info');
+                
+                const readyTimeout = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Таймаут готовности (8 секунд)')), 8000)
+                );
+                
+                await Promise.race([privy.ready(), readyTimeout]);
+                
+                log('✅ Privy готов к использованию!');
+                setStatus('✅ Privy SDK полностью готов!', 'success');
+                
+                // Test 5: Check user state
+                try {
+                    const user = await privy.user.get();
+                    if (user && user.user) {
+                        log(`👤 Пользователь уже аутентифицирован: ${user.user.id}`);
+                    } else {
+                        log('👤 Пользователь не аутентифицирован');
+                    }
+                } catch (userError) {
+                    log(`ℹ️ Состояние пользователя недоступно: ${userError.message}`);
+                }
+                
+            } catch (error) {
+                log(`❌ Ошибка инициализации Privy: ${error.message}`, true);
+                setStatus(`❌ Ошибка инициализации: ${error.message}`, 'error');
+                return;
+            }
+            
+            log('🎉 Диагностика завершена успешно!');
+        }
+        
+        // Run diagnostic automatically
+        runDiagnostic();
+    </script>
+</body>
+</html> 

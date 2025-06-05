@@ -22,33 +22,57 @@
          * Initialize the Privy connector - REAL PRIVY JS CORE SDK ONLY
          */
         async initialize(config = {}) {
-            if (this.initialized) return true;
+            if (this.initialized) {
+                console.log('✅ Privy wallet connector уже инициализирован');
+                return true;
+            }
 
             try {
-                console.log("Initializing REAL Privy JS Core SDK wallet connector...");
-                console.log("⚠️ This application uses ONLY REAL Privy wallet connections!");
-                console.log("⚠️ MetaMask and other wallet extensions are NOT supported!");
+                console.log("🔄 Инициализация Privy JS Core SDK wallet connector...");
+                console.log("⚠️ Это приложение использует ТОЛЬКО Privy подключения кошельков!");
+                console.log("⚠️ MetaMask и другие расширения кошельков НЕ поддерживаются!");
                 
-                // Wait for REAL Privy JS Core SDK to be available
-                this.privy = await window.privySDKPromise;
+                // Wait for REAL Privy JS Core SDK to be available with timeout
+                console.log("⏳ Ожидание загрузки Privy SDK...");
                 
-                if (!this.privy) {
-                    throw new Error("REAL Privy JS Core SDK not available");
+                try {
+                    // Add a timeout to prevent hanging
+                    const sdkTimeout = new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('Приvy SDK не загружен в течение 12 секунд')), 12000)
+                    );
+                    
+                    this.privy = await Promise.race([
+                        window.privySDKPromise,
+                        sdkTimeout
+                    ]);
+                } catch (sdkError) {
+                    console.error('❌ Ошибка загрузки Privy SDK:', sdkError);
+                    throw new Error(`Не удалось загрузить Privy SDK: ${sdkError.message}`);
                 }
                 
-                console.log("✅ REAL Privy JS Core SDK initialized successfully");
+                if (!this.privy) {
+                    throw new Error("Privy SDK загружен, но экземпляр недоступен");
+                }
+                
+                console.log("✅ Privy JS Core SDK успешно инициализирован");
                 this.initialized = true;
                 
                 // Check if user is already authenticated
+                console.log("🔍 Проверка состояния аутентификации...");
                 await this._checkAuthState();
                 
-                console.log("✅ Privy wallet connector initialization completed");
+                console.log("✅ Инициализация Privy wallet connector завершена");
                 return true;
                 
             } catch (error) {
-                console.error("❌ Privy wallet connector initialization failed:", error);
-                this.lastError = error.message || "Privy wallet connector initialization failed";
-                throw error;
+                console.error("❌ Ошибка инициализации Privy wallet connector:", error);
+                this.lastError = error.message || "Ошибка инициализации Privy wallet connector";
+                
+                // Don't throw the error, allow app to continue with limited functionality
+                console.warn("⚠️ Приложение продолжит работу с ограниченной функциональностью");
+                console.warn("⚠️ Кошелек можно будет подключить позже");
+                
+                return false;
             }
         }
 

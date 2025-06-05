@@ -80,11 +80,15 @@ module.exports = (env, argv) => {
     ],
     
     resolve: {
-      extensions: ['.js', '.jsx'],
+      extensions: ['.js', '.jsx', '.ts', '.tsx'],
       modules: [
         path.resolve(__dirname, 'src'),
         path.resolve(__dirname, 'node_modules')
       ],
+      alias: {
+        '@': path.resolve(__dirname, 'src'),
+      },
+      symlinks: false,
       fallback: {
         "crypto": false,
         "stream": false,

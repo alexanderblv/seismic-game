@@ -164,7 +164,7 @@
                 if (this.authenticated && this.user) {
                     const walletSetup = await this._setupWalletFromUser();
                     if (walletSetup) {
-                        return true;
+                            return true;
                     }
                 }
 

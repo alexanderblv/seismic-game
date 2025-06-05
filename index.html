@@ -45,7 +45,7 @@
         </div>
     </div>
 
-    <!-- Header -->
+        <!-- Header -->
     <header class="bg-primary text-white py-4">
         <div class="container">
             <div class="row align-items-center">
@@ -78,15 +78,15 @@
                                 <span class="badge bg-secondary" id="wallet-type">Not Connected</span>
                                 <span class="badge bg-secondary" id="network-status">Seismic devnet</span>
                             </div>
-                            <button id="connect-wallet" class="btn btn-primary">
-                                <i class="bi bi-wallet2"></i> Connect Wallet
-                            </button>
+                    <button id="connect-wallet" class="btn btn-primary">
+                        <i class="bi bi-wallet2"></i> Connect Wallet
+                    </button>
                             <button id="disconnect-wallet" class="btn btn-outline-secondary d-none">
                                 <i class="bi bi-x-circle"></i> Disconnect
-                            </button>
+                    </button>
                             <button id="add-network" class="btn btn-outline-primary">
-                                <i class="bi bi-plus-circle"></i> Add Network
-                            </button>
+                        <i class="bi bi-plus-circle"></i> Add Network
+                    </button>
                         </div>
                     </div>
                     <div class="card-body">
@@ -189,12 +189,12 @@
                                 </div>
                             </div>
                         </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- Transaction Form -->
+                <!-- Transaction Form -->
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
@@ -205,14 +205,14 @@
                         <form id="transaction-form">
                             <div class="row mb-3">
                                 <div class="col-md-8">
-                                    <label for="recipient-address" class="form-label">Recipient Address</label>
+                                <label for="recipient-address" class="form-label">Recipient Address</label>
                                     <input type="text" id="recipient-address" class="form-control" placeholder="0x..." required>
-                                    <div class="form-text">Enter the recipient's Ethereum address</div>
-                                </div>
+                                <div class="form-text">Enter the recipient's Ethereum address</div>
+                            </div>
                                 <div class="col-md-4">
-                                    <label for="amount" class="form-label">Amount (ETH)</label>
+                                <label for="amount" class="form-label">Amount (ETH)</label>
                                     <input type="number" id="amount" class="form-control" placeholder="0.0" step="0.001" min="0" required>
-                                    <div class="form-text">Amount to send in ETH</div>
+                                <div class="form-text">Amount to send in ETH</div>
                                 </div>
                             </div>
                             
@@ -235,9 +235,9 @@
                         </form>
                     </div>
                 </div>
-            </div>
-        </div>
-
+                    </div>
+                </div>
+                
         <!-- Encrypted Types Demo -->
         <div class="row mb-4">
             <div class="col-12">
@@ -248,57 +248,57 @@
                     <div class="card-body">
                         <div class="row mb-3">
                             <div class="col-md-6">
-                                <label for="encrypted-type" class="form-label">Select Encrypted Type</label>
+                            <label for="encrypted-type" class="form-label">Select Encrypted Type</label>
                                 <select id="encrypted-type" class="form-select">
-                                    <option value="">Choose type...</option>
+                                <option value="">Choose type...</option>
                                     <option value="suint">suint (Encrypted Integer)</option>
                                     <option value="saddress">saddress (Encrypted Address)</option>
                                     <option value="sbool">sbool (Encrypted Boolean)</option>
-                                </select>
-                            </div>
+                            </select>
+                        </div>
                             <div class="col-md-6">
-                                <label for="encrypted-recipient-address" class="form-label">Contract Address</label>
+                            <label for="encrypted-recipient-address" class="form-label">Contract Address</label>
                                 <input type="text" id="encrypted-recipient-address" class="form-control" placeholder="0x... (contract address for encrypted transaction)">
                                 <div class="form-text">Contract address for encrypted transaction</div>
                             </div>
                         </div>
-
+                        
                         <!-- Dynamic input groups for different types -->
                         <div id="suint-input-group" class="mb-3 d-none">
                             <label for="suint-value" class="form-label">Integer Value</label>
                             <input type="number" id="suint-value" class="form-control" placeholder="Enter integer value">
                         </div>
-
+                        
                         <div id="saddress-input-group" class="mb-3 d-none">
                             <label for="saddress-value" class="form-label">Address Value</label>
                             <input type="text" id="saddress-value" class="form-control" placeholder="0x...">
                         </div>
-
+                        
                         <div id="sbool-input-group" class="mb-3 d-none">
                             <label class="form-label">Boolean Value</label>
                             <div class="form-check">
-                                <input class="form-check-input" type="radio" name="sbool-value" id="sbool-true" value="true">
-                                <label class="form-check-label" for="sbool-true">True</label>
-                            </div>
+                                    <input class="form-check-input" type="radio" name="sbool-value" id="sbool-true" value="true">
+                                    <label class="form-check-label" for="sbool-true">True</label>
+                                </div>
                             <div class="form-check">
-                                <input class="form-check-input" type="radio" name="sbool-value" id="sbool-false" value="false">
-                                <label class="form-check-label" for="sbool-false">False</label>
+                                    <input class="form-check-input" type="radio" name="sbool-value" id="sbool-false" value="false">
+                                    <label class="form-check-label" for="sbool-false">False</label>
                             </div>
                         </div>
-
+                        
                         <div class="d-flex gap-2 mb-3">
                             <button id="encrypt-data-btn" class="btn btn-outline-primary" disabled>Encrypt Data</button>
                             <button id="send-encrypted-tx-btn" class="btn btn-primary" disabled>Send Encrypted Transaction</button>
                         </div>
-
+                        
                         <div id="encryption-result" class="d-none">
                             <label class="form-label">Encryption Result</label>
                             <textarea class="form-control" rows="4" placeholder="Encrypted data will appear here" readonly></textarea>
                         </div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
 
         <!-- Transaction History -->
         <div class="row">
@@ -331,7 +331,7 @@
                 </div>
                 <div class="modal-body">
                     <div id="transaction-result"></div>
-                </div>
+                    </div>
                 <div class="modal-footer">
                     <a id="tx-explorer-link" href="#" target="_blank" class="btn btn-outline-primary d-none">View on Explorer</a>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>

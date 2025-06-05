@@ -6,7 +6,7 @@ module.exports = (env, argv) => {
   const isDevelopment = argv.mode === 'development';
   
   return {
-    entry: './src/index.js',
+    entry: path.resolve(__dirname, 'src/index.js'),
     
     output: {
       path: path.resolve(__dirname, 'dist'),
@@ -53,7 +53,7 @@ module.exports = (env, argv) => {
     
     plugins: [
       new HtmlWebpackPlugin({
-        template: './public/index.html',
+        template: path.resolve(__dirname, 'public/index.html'),
         filename: 'index.html',
         inject: true,
         minify: isDevelopment ? false : {
@@ -72,7 +72,7 @@ module.exports = (env, argv) => {
       new CopyWebpackPlugin({
         patterns: [
           {
-            from: 'public/seismic-config.js',
+            from: path.resolve(__dirname, 'public/seismic-config.js'),
             to: 'seismic-config.js',
           },
         ],
@@ -81,6 +81,10 @@ module.exports = (env, argv) => {
     
     resolve: {
       extensions: ['.js', '.jsx'],
+      modules: [
+        path.resolve(__dirname, 'src'),
+        path.resolve(__dirname, 'node_modules')
+      ],
       fallback: {
         "crypto": false,
         "stream": false,

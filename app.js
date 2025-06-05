@@ -110,9 +110,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Handle wallet disconnection
     function handleWalletDisconnected() {
+        // Show not connected alert and hide connected section
+        document.getElementById('wallet-not-connected').classList.remove('d-none');
+        document.getElementById('wallet-connected').classList.add('d-none');
+        
         // Update UI to show disconnected state
         connectWalletBtn.classList.remove('d-none');
         disconnectWalletBtn.classList.add('d-none');
+        
+        // Update wallet status badges
+        document.getElementById('wallet-type').textContent = 'Not Connected';
+        document.getElementById('wallet-type').classList.remove('bg-success');
+        document.getElementById('wallet-type').classList.add('bg-secondary');
+        
+        document.getElementById('network-status').textContent = 'Seismic devnet';
+        document.getElementById('network-status').classList.remove('bg-success');
+        document.getElementById('network-status').classList.add('bg-secondary');
         
         // Clear wallet display
         walletAddress.classList.add('d-none');
@@ -120,15 +133,19 @@ document.addEventListener('DOMContentLoaded', () => {
         userAddressInput.value = '';
         userBalanceInput.value = '';
         
-        // Update network status
-        networkBadge.textContent = 'Seismic devnet';
-        networkBadge.classList.remove('bg-success');
-        networkBadge.classList.add('bg-secondary');
+        // Update old network status (if exists)
+        if (networkBadge) {
+            networkBadge.textContent = 'Seismic devnet';
+            networkBadge.classList.remove('bg-success');
+            networkBadge.classList.add('bg-secondary');
+        }
         
-        // Update connection status
-        connectionStatus.textContent = 'Disconnected';
-        connectionStatus.classList.remove('bg-success');
-        connectionStatus.classList.add('bg-secondary');
+        // Update old connection status (if exists)
+        if (connectionStatus) {
+            connectionStatus.textContent = 'Disconnected';
+            connectionStatus.classList.remove('bg-success');
+            connectionStatus.classList.add('bg-secondary');
+        }
         
         // Disable form elements
         const submitBtn = transactionForm.querySelector('button[type="submit"]');
@@ -155,9 +172,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 const wallet = await seismic.completeConnection(address, provider);
                 
                 if (wallet) {
+                    // Hide not connected alert and show connected section
+                    document.getElementById('wallet-not-connected').classList.add('d-none');
+                    document.getElementById('wallet-connected').classList.remove('d-none');
+                    
                     // Update UI to show connected state
                     connectWalletBtn.classList.add('d-none');
                     disconnectWalletBtn.classList.remove('d-none');
+                    
+                    // Update wallet status badges
+                    document.getElementById('wallet-type').textContent = 'Privy Connected';
+                    document.getElementById('wallet-type').classList.remove('bg-secondary');
+                    document.getElementById('wallet-type').classList.add('bg-success');
+                    
+                    document.getElementById('network-status').textContent = seismicConfig.network.name;
+                    document.getElementById('network-status').classList.remove('bg-secondary');
+                    document.getElementById('network-status').classList.add('bg-success');
                     
                     // Show user address
                     const shortAddress = `${wallet.address.substring(0, 6)}...${wallet.address.substring(wallet.address.length - 4)}`;
@@ -165,15 +195,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     walletAddress.classList.remove('d-none');
                     userAddressInput.value = wallet.address;
                     
-                    // Update network status
-                    networkBadge.textContent = seismicConfig.network.name;
-                    networkBadge.classList.remove('bg-secondary');
-                    networkBadge.classList.add('bg-success');
+                    // Update old network badge (if exists)
+                    if (networkBadge) {
+                        networkBadge.textContent = seismicConfig.network.name;
+                        networkBadge.classList.remove('bg-secondary');
+                        networkBadge.classList.add('bg-success');
+                    }
                     
-                    // Update connection status
-                    connectionStatus.textContent = 'Connected';
-                    connectionStatus.classList.remove('bg-secondary');
-                    connectionStatus.classList.add('bg-success');
+                    // Update old connection status (if exists)
+                    if (connectionStatus) {
+                        connectionStatus.textContent = 'Connected';
+                        connectionStatus.classList.remove('bg-secondary');
+                        connectionStatus.classList.add('bg-success');
+                    }
                     
                     // Enable form elements
                     const submitBtn = transactionForm.querySelector('button[type="submit"]');
@@ -279,9 +313,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             walletConnectInitiated = true;
+            
+            // Update connect button to show loading state
             connectWalletBtn.disabled = true;
+            connectWalletBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Connecting...';
+            
             loadingOverlay.classList.remove('d-none');
-            loadingText.textContent = 'Checking wallet connection...';
+            loadingText.textContent = 'Connecting wallet with Privy...';
 
             console.log('Starting wallet connection...');
 
@@ -290,6 +328,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (connected) {
                 console.log('Wallet connected successfully');
+                loadingText.textContent = 'Setting up wallet...';
                 // completeWalletConnection will be called by the event listener
             } else {
                 console.log('Wallet connection failed or cancelled');
@@ -316,7 +355,10 @@ document.addEventListener('DOMContentLoaded', () => {
             walletConnectInitiated = false;
         } finally {
             loadingOverlay.classList.add('d-none');
+            
+            // Reset connect button
             connectWalletBtn.disabled = false;
+            connectWalletBtn.innerHTML = '<i class="bi bi-wallet2"></i> Connect Wallet';
         }
     }
 

@@ -81,5 +81,12 @@ const seismicConfig = {
     }
 };
 
-// Экспортируем конфигурацию для использования в ES6 модулях
-export { seismicConfig }; 
+// Экспортируем конфигурацию для использования в браузере
+if (typeof window !== 'undefined') {
+    window.seismicConfig = seismicConfig;
+}
+
+// Экспортируем конфигурацию для использования в ES6 модулях (если требуется)
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { seismicConfig };
+} 

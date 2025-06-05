@@ -3,648 +3,271 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Seismic Experience - Демонстрация зашифрованного блокчейна</title>
-    <meta name="description" content="Интерактивная демонстрация технологии Seismic - блокчейна с шифрованием данных">
+    <title>Seismic Transaction Sender</title>
+    <meta name="description" content="Отправка зашифрованных транзакций через Seismic devnet">
     
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔐</text></svg>">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌊</text></svg>">
     
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="styles.css">
     
     <!-- Meta tags for security -->
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta http-equiv="X-Frame-Options" content="DENY">
     <meta http-equiv="X-XSS-Protection" content="1; mode=block">
     <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin-allow-popups">
-    
-    <!-- CSS файлы -->
-    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <!-- Навигация -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
-        <div class="container">
-            <a class="navbar-brand fw-bold" href="#">
-                <i class="bi bi-shield-shaded me-2"></i>
-                Seismic Experience
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="#hero">Главная</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#features">Возможности</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#interactive">Демонстрация</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#seismic-explorer">Исследователь</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#wallet-connection">Кошелек</a>
-                    </li>
-                </ul>
-                <div class="navbar-nav">
-                    <!-- Статус подключения -->
-                    <div class="nav-item">
-                        <span class="badge bg-secondary me-2" id="connection-status">Disconnected</span>
-                        <span class="badge bg-secondary" id="network-badge">Seismic devnet</span>
-                    </div>
-                </div>
-            </div>
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="d-none position-fixed w-100 h-100 d-flex justify-content-center align-items-center" style="top: 0; left: 0; background-color: rgba(0,0,0,0.5); z-index: 9999;">
+        <div class="text-center text-white">
+            <div class="spinner-border mb-3" role="status"></div>
+            <div id="loading-text">Подключение...</div>
         </div>
-    </nav>
+    </div>
 
-    <!-- Hero секция -->
-    <section id="hero" class="py-5">
+    <!-- Header -->
+    <header class="bg-primary text-white py-4">
         <div class="container">
-            <div class="row align-items-center min-vh-100">
-                <div class="col-lg-6">
-                    <h1 class="display-4 fw-bold mb-4">
-                        Seismic Experience
-                        <span class="text-primary">🔐</span>
-                    </h1>
-                    <p class="lead mb-4">
-                        Интерактивная демонстрация технологии Seismic - первого блокчейна с полным шифрованием данных.
-                        Испытайте на практике разницу между обычными и зашифрованными транзакциями.
-                    </p>
-                    <div class="d-flex gap-3 mb-4">
-                        <a href="#interactive" class="btn btn-primary btn-lg">
-                            <i class="bi bi-play-fill me-2"></i>
-                            Начать демонстрацию
-                        </a>
-                        <a href="#features" class="btn btn-outline-secondary btn-lg">
-                            <i class="bi bi-info-circle me-2"></i>
-                            Узнать больше
-                        </a>
-                    </div>
-                    <div class="row g-3">
-                        <div class="col-6 col-md-4">
-                            <div class="text-center">
-                                <div class="h4 fw-bold text-primary mb-1">100%</div>
-                                <small class="text-muted">Конфиденциальность</small>
-                            </div>
-                        </div>
-                        <div class="col-6 col-md-4">
-                            <div class="text-center">
-                                <div class="h4 fw-bold text-success mb-1">TEE</div>
-                                <small class="text-muted">Защищенная среда</small>
-                            </div>
-                        </div>
-                        <div class="col-6 col-md-4">
-                            <div class="text-center">
-                                <div class="h4 fw-bold text-info mb-1">ZK</div>
-                                <small class="text-muted">Доказательства</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-6">
-                    <div class="animation-container">
-                        <div class="blockchain-animation">
-                            <div class="block public">
-                                <div class="block-header">
-                                    <i class="bi bi-eye text-danger"></i>
-                                    Обычная транзакция
-                                </div>
-                                <div class="tx-row">
-                                    <span>От:</span>
-                                    <span>0x1234...5678</span>
-                                </div>
-                                <div class="tx-row">
-                                    <span>Кому:</span>
-                                    <span>0xabcd...ef01</span>
-                                </div>
-                                <div class="tx-row">
-                                    <span>Сумма:</span>
-                                    <span>100 ETH</span>
-                                </div>
-                            </div>
-                            <div class="block encrypted">
-                                <div class="block-header">
-                                    <i class="bi bi-shield-lock text-info"></i>
-                                    Зашифрованная транзакция
-                                </div>
-                                <div class="tx-row">
-                                    <span>От:</span>
-                                    <span class="encrypted-text">***encrypted***</span>
-                                </div>
-                                <div class="tx-row">
-                                    <span>Кому:</span>
-                                    <span class="encrypted-text">***encrypted***</span>
-                                </div>
-                                <div class="tx-row">
-                                    <span>Сумма:</span>
-                                    <span class="encrypted-text">***encrypted***</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Возможности -->
-    <section id="features" class="py-5 bg-light">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-8 mx-auto text-center mb-5">
-                    <h2 class="display-5 fw-bold mb-4">Возможности Seismic</h2>
-                    <p class="lead">
-                        Seismic революционизирует блокчейн-технологии, предоставляя полную конфиденциальность
-                        без ущерба для децентрализации и безопасности.
-                    </p>
-                </div>
-            </div>
-            <div class="row g-4">
-                <div class="col-lg-4">
-                    <div class="card h-100 border-0 shadow-sm">
-                        <div class="card-body text-center p-4">
-                            <div class="feature-icon mx-auto mb-3">
-                                <i class="bi bi-shield-lock-fill h3 text-primary mb-0"></i>
-                            </div>
-                            <h4>Конфиденциальные платежи</h4>
-                            <p class="text-muted">
-                                Отправляйте и получайте криптовалюту с полной конфиденциальностью.
-                                Сумма, отправитель и получатель остаются скрытыми.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-4">
-                    <div class="card h-100 border-0 shadow-sm">
-                        <div class="card-body text-center p-4">
-                            <div class="feature-icon mx-auto mb-3">
-                                <i class="bi bi-collection-fill h3 text-success mb-0"></i>
-                            </div>
-                            <h4>Приватные NFT</h4>
-                            <p class="text-muted">
-                                Создавайте и торгуйте NFT с зашифрованными метаданными.
-                                Только владелец знает истинное содержание токена.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-4">
-                    <div class="card h-100 border-0 shadow-sm">
-                        <div class="card-body text-center p-4">
-                            <div class="feature-icon mx-auto mb-3">
-                                <i class="bi bi-check2-square h3 text-info mb-0"></i>
-                            </div>
-                            <h4>Анонимное голосование</h4>
-                            <p class="text-muted">
-                                Проводите голосования с полной анонимностью участников
-                                и прозрачностью результатов.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Интерактивная демонстрация -->
-    <section id="interactive" class="py-5">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-8 mx-auto text-center mb-5">
-                    <h2 class="display-5 fw-bold mb-4">Интерактивная демонстрация</h2>
-                    <p class="lead">
-                        Сравните обычные и зашифрованные транзакции. Увидьте разницу своими глазами!
-                    </p>
-                </div>
-            </div>
-            <div class="row g-4">
-                <!-- Обычная транзакция -->
-                <div class="col-lg-6">
-                    <div class="card border-danger">
-                        <div class="card-header bg-danger text-white">
-                            <h5 class="mb-0">
-                                <i class="bi bi-eye me-2"></i>
-                                Обычная транзакция
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <label class="form-label">Отправитель:</label>
-                                <input type="text" class="form-control" value="0x742d35Cc643C0532E51Bce3Af0c1fc8Ef1bc2f1D" readonly>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Получатель:</label>
-                                <input type="text" class="form-control" value="0x8ba1f109551bD432803012645Hac136c94e5Bdd5" readonly>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Сумма:</label>
-                                <input type="text" class="form-control" value="1.5 ETH" readonly>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Комиссия:</label>
-                                <input type="text" class="form-control" value="0.002 ETH" readonly>
-                            </div>
-                            <button class="btn btn-danger w-100" onclick="simulatePublicTransaction()">
-                                <i class="bi bi-send me-2"></i>
-                                Отправить публично
-                            </button>
-                            <div class="mt-3" id="public-tx-output">
-                                <small class="text-muted">Результат появится здесь...</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Зашифрованная транзакция -->
-                <div class="col-lg-6">
-                    <div class="card border-primary">
-                        <div class="card-header bg-primary text-white">
-                            <h5 class="mb-0">
-                                <i class="bi bi-shield-lock me-2"></i>
-                                Зашифрованная транзакция
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <label class="form-label">Отправитель:</label>
-                                <input type="text" class="form-control text-primary" value="***encrypted***" readonly>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Получатель:</label>
-                                <input type="text" class="form-control text-primary" value="***encrypted***" readonly>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Сумма:</label>
-                                <input type="text" class="form-control text-primary" value="***encrypted***" readonly>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Комиссия:</label>
-                                <input type="text" class="form-control" value="0.002 ETH" readonly>
-                            </div>
-                            <button class="btn btn-primary w-100" onclick="simulateEncryptedTransaction()">
-                                <i class="bi bi-shield-check me-2"></i>
-                                Отправить зашифровано
-                            </button>
-                            <div class="mt-3" id="encrypted-tx-output">
-                                <small class="text-muted">Результат появится здесь...</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Seismic Explorer -->
-    <section id="seismic-explorer" class="py-5 bg-dark text-white">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-8 mx-auto text-center mb-5">
-                    <h2 class="display-5 fw-bold mb-4">Seismic Explorer</h2>
-                    <p class="lead">
-                        Исследуйте зашифрованный блокчейн в реальном времени
-                    </p>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-12">
-                    <div class="visualization-container">
-                        <div class="encryption-visualization" id="encryption-visualization">
-                            <!-- Анимация шифрования будет добавлена через JavaScript -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Подключение кошелька -->
-    <section id="wallet-connection" class="py-5 bg-light">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-8 mx-auto">
-                    <div class="text-center mb-5">
-                        <h2 class="display-5 fw-bold mb-4">Подключение кошелька</h2>
-                        <p class="lead">
-                            Подключите свой кошелек для взаимодействия с реальной сетью Seismic devnet
-                        </p>
-                    </div>
-
-                    <!-- Статус подключения -->
-                    <div class="card shadow-sm mb-4">
-                        <div class="card-body">
-                            <div class="row align-items-center">
-                                <div class="col-md-6">
-                                    <h5 class="mb-2">Статус подключения</h5>
-                                    <div class="d-flex align-items-center gap-2 mb-3">
-                                        <span id="wallet-address" class="d-none badge bg-success"></span>
-                                        <button id="connect-wallet" class="btn btn-primary">
-                                            <i class="bi bi-wallet2 me-2"></i>
-                                            Подключить кошелек
-                                        </button>
-                                        <button id="disconnect-wallet" class="btn btn-outline-secondary d-none">
-                                            <i class="bi bi-x-circle me-2"></i>
-                                            Отключить
-                                        </button>
-                                    </div>
-                                    
-                                    <!-- Дополнительная информация кошелька -->
-                                    <div class="row g-2">
-                                        <div class="col-12">
-                                            <label class="form-label small">Адрес кошелька:</label>
-                                            <div class="input-group input-group-sm">
-                                                <input type="text" id="user-address" class="form-control" readonly placeholder="Подключите кошелек...">
-                                                <button id="copy-address" class="btn btn-outline-secondary" type="button" disabled>
-                                                    <i class="bi bi-copy"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <label class="form-label small">Баланс:</label>
-                                            <div class="input-group input-group-sm">
-                                                <input type="text" id="user-balance" class="form-control" readonly placeholder="0 ETH">
-                                                <button id="refresh-balance" class="btn btn-outline-secondary" type="button" disabled>
-                                                    <i class="bi bi-arrow-clockwise"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6 text-md-end">
-                                    <small class="text-muted">Поддерживаемые кошельки:</small>
-                                    <div class="mt-1">
-                                        <i class="bi bi-wallet2 me-2"></i>
-                                        <span class="small">MetaMask, WalletConnect</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Действия с кошельком -->
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <div class="card h-100">
-                                <div class="card-body text-center">
-                                    <i class="bi bi-plus-circle h2 text-primary mb-3"></i>
-                                    <h5>Добавить сеть</h5>
-                                    <p class="text-muted small">
-                                        Автоматически добавить Seismic devnet в ваш кошелек
-                                    </p>
-                                    <button id="add-network" class="btn btn-outline-primary">
-                                        Добавить Seismic devnet
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="card h-100">
-                                <div class="card-body text-center">
-                                    <i class="bi bi-currency-exchange h2 text-success mb-3"></i>
-                                    <h5>Отправить транзакцию</h5>
-                                    <p class="text-muted small">
-                                        Попробуйте отправить зашифрованную транзакцию
-                                    </p>
-                                    <button class="btn btn-outline-success" onclick="scrollToTransactionForm()">
-                                        Перейти к форме
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Форма транзакций -->
-    <section id="transaction-section" class="py-5">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-10 mx-auto">
-                    <div class="text-center mb-5">
-                        <h2 class="display-5 fw-bold mb-4">Отправка транзакций</h2>
-                        <p class="lead">
-                            Используйте различные типы данных Seismic для создания зашифрованных транзакций
-                        </p>
-                    </div>
-
-                    <!-- Основная форма транзакций -->
-                    <div class="card shadow mb-4">
-                        <div class="card-header bg-primary text-white">
-                            <h5 class="mb-0">
-                                <i class="bi bi-send me-2"></i>
-                                Стандартная транзакция
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <form id="transaction-form">
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label">Адрес получателя</label>
-                                        <input type="text" id="recipient-address" class="form-control" placeholder="0x..." required>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Сумма (ETH)</label>
-                                        <input type="number" id="amount" class="form-control" placeholder="0.1" step="0.001" required>
-                                    </div>
-                                    <div class="col-12">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="enable-encryption">
-                                            <label class="form-check-label" for="enable-encryption">
-                                                Включить шифрование транзакции
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div class="col-12">
-                                        <button type="submit" class="btn btn-primary" disabled>
-                                            <i class="bi bi-send me-2"></i>
-                                            Отправить транзакцию
-                                        </button>
-                                    </div>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-
-                    <!-- Зашифрованные типы данных -->
-                    <div class="card shadow">
-                        <div class="card-header bg-info text-white">
-                            <h5 class="mb-0">
-                                <i class="bi bi-shield-lock me-2"></i>
-                                Зашифрованные типы данных Seismic
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="row g-3">
-                                <div class="col-md-4">
-                                    <label class="form-label">Тип данных</label>
-                                    <select id="encrypted-type" class="form-select">
-                                        <option value="suint">suint (зашифрованное число)</option>
-                                        <option value="saddress">saddress (зашифрованный адрес)</option>
-                                        <option value="sbool">sbool (зашифрованное булево)</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-8">
-                                    <label class="form-label">Адрес получателя</label>
-                                    <input type="text" id="encrypted-recipient-address" class="form-control" placeholder="0x...">
-                                </div>
-                            </div>
-
-                            <!-- Поля для разных типов данных -->
-                            <div id="suint-input-group" class="mt-3">
-                                <label class="form-label">Значение suint</label>
-                                <input type="number" id="suint-value" class="form-control" placeholder="Введите число">
-                            </div>
-
-                            <div id="saddress-input-group" class="mt-3 d-none">
-                                <label class="form-label">Значение saddress</label>
-                                <input type="text" id="saddress-value" class="form-control" placeholder="0x...">
-                            </div>
-
-                            <div id="sbool-input-group" class="mt-3 d-none">
-                                <label class="form-label">Значение sbool</label>
-                                <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="radio" name="sbool-value" id="sbool-true" value="true">
-                                    <label class="form-check-label" for="sbool-true">True</label>
-                                </div>
-                                <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="radio" name="sbool-value" id="sbool-false" value="false">
-                                    <label class="form-check-label" for="sbool-false">False</label>
-                                </div>
-                            </div>
-
-                            <div class="mt-3">
-                                <button id="encrypt-data-btn" class="btn btn-info me-2">
-                                    <i class="bi bi-lock me-2"></i>
-                                    Зашифровать данные
-                                </button>
-                                <button id="send-encrypted-tx-btn" class="btn btn-success" disabled>
-                                    <i class="bi bi-send-check me-2"></i>
-                                    Отправить зашифрованную транзакцию
-                                </button>
-                            </div>
-
-                            <div id="encryption-result" class="mt-3 d-none">
-                                <div class="alert alert-info">
-                                    <h6>Результат шифрования:</h6>
-                                    <pre id="encrypted-data" class="mb-0"></pre>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- История транзакций -->
-    <section class="py-5 bg-light">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-10 mx-auto">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h3>
-                            <i class="bi bi-clock-history me-2"></i>
-                            История транзакций
-                        </h3>
-                        <button id="clear-history" class="btn btn-outline-danger">
-                            <i class="bi bi-trash me-2"></i>
-                            Очистить историю
-                        </button>
-                    </div>
-
-                    <div id="no-transactions" class="alert alert-info text-center">
-                        <i class="bi bi-info-circle me-2"></i>
-                        Пока нет отправленных транзакций
-                    </div>
-
-                    <div id="transaction-history" class="d-none">
-                        <div id="transaction-list">
-                            <!-- Транзакции будут добавлены через JavaScript -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Футер -->
-    <footer class="bg-dark text-white py-4">
-        <div class="container">
-            <div class="row">
+            <div class="row align-items-center">
                 <div class="col-md-6">
-                    <h6>Seismic Experience</h6>
-                    <p class="small text-muted mb-0">
-                        Демонстрация технологии зашифрованного блокчейна Seismic
-                    </p>
+                    <h1 class="h2 mb-0">🌊 Seismic Transaction Sender</h1>
                 </div>
                 <div class="col-md-6 text-md-end">
-                    <p class="small mb-0">
-                        <a href="https://docs.seismic.systems/" target="_blank" class="text-white-50 text-decoration-none">
-                            Документация
-                        </a>
-                        <span class="mx-2">•</span>
-                        <a href="#" class="text-white-50 text-decoration-none">GitHub</a>
-                    </p>
+                    <div class="d-flex align-items-center justify-content-md-end gap-3">
+                        <span class="badge" id="network-badge">Seismic devnet</span>
+                        <span class="badge" id="connection-status">Disconnected</span>
+                    </div>
                 </div>
             </div>
         </div>
-    </footer>
+    </header>
 
-    <!-- Модальные окна -->
-    <!-- Модальное окно результата транзакции -->
+    <!-- Main Content -->
+    <main class="container my-4">
+        <!-- Wallet Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">💼 Wallet Information</h5>
+                        <div class="d-flex gap-2">
+                            <button id="connect-wallet" class="btn btn-primary">Connect Wallet</button>
+                            <button id="disconnect-wallet" class="btn btn-outline-secondary d-none">Disconnect</button>
+                            <button id="add-network" class="btn btn-outline-primary">Add Seismic Network</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label">Your Address</label>
+                                <div class="input-group">
+                                    <input type="text" id="user-address" class="form-control" placeholder="Connect wallet to see address" readonly>
+                                    <button id="copy-address" class="btn btn-outline-secondary" disabled>Copy</button>
+                                </div>
+                                <div id="wallet-address" class="small text-muted mt-1 d-none"></div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Balance (ETH)</label>
+                                <div class="input-group">
+                                    <input type="text" id="user-balance" class="form-control" placeholder="0.0" readonly>
+                                    <button id="refresh-balance" class="btn btn-outline-secondary" disabled>
+                                        <span class="spinner-border spinner-border-sm d-none" role="status"></span>
+                                        Refresh
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transaction Form -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">💸 Send Transaction</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="transaction-form">
+                            <div class="row mb-3">
+                                <div class="col-md-8">
+                                    <label for="recipient-address" class="form-label">Recipient Address</label>
+                                    <input type="text" id="recipient-address" class="form-control" placeholder="0x..." required>
+                                    <div class="form-text">Enter the recipient's Ethereum address</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="amount" class="form-label">Amount (ETH)</label>
+                                    <input type="number" id="amount" class="form-control" placeholder="0.0" step="0.001" min="0" required>
+                                    <div class="form-text">Amount to send in ETH</div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="enable-encryption">
+                                    <label class="form-check-label" for="enable-encryption">
+                                        🔒 Enable Seismic Encryption
+                                    </label>
+                                    <div class="form-text">Use Seismic's privacy features for this transaction</div>
+                                </div>
+                            </div>
+                            
+                            <div id="encrypted-data" class="mb-3 d-none">
+                                <label class="form-label">Encrypted Data (will be generated automatically)</label>
+                                <textarea class="form-control" rows="3" placeholder="Encrypted transaction data will appear here" readonly></textarea>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary" disabled>Send Transaction</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Encrypted Types Demo -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">🔐 Encrypted Types Demo</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="encrypted-type" class="form-label">Select Encrypted Type</label>
+                                <select id="encrypted-type" class="form-select">
+                                    <option value="">Choose type...</option>
+                                    <option value="suint">suint (Encrypted Integer)</option>
+                                    <option value="saddress">saddress (Encrypted Address)</option>
+                                    <option value="sbool">sbool (Encrypted Boolean)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="encrypted-recipient-address" class="form-label">Contract Address</label>
+                                <input type="text" id="encrypted-recipient-address" class="form-control" placeholder="0x... (contract address for encrypted transaction)">
+                                <div class="form-text">Contract address for encrypted transaction</div>
+                            </div>
+                        </div>
+
+                        <!-- Dynamic input groups for different types -->
+                        <div id="suint-input-group" class="mb-3 d-none">
+                            <label for="suint-value" class="form-label">Integer Value</label>
+                            <input type="number" id="suint-value" class="form-control" placeholder="Enter integer value">
+                        </div>
+
+                        <div id="saddress-input-group" class="mb-3 d-none">
+                            <label for="saddress-value" class="form-label">Address Value</label>
+                            <input type="text" id="saddress-value" class="form-control" placeholder="0x...">
+                        </div>
+
+                        <div id="sbool-input-group" class="mb-3 d-none">
+                            <label class="form-label">Boolean Value</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="sbool-value" id="sbool-true" value="true">
+                                <label class="form-check-label" for="sbool-true">True</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="sbool-value" id="sbool-false" value="false">
+                                <label class="form-check-label" for="sbool-false">False</label>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2 mb-3">
+                            <button id="encrypt-data-btn" class="btn btn-outline-primary" disabled>Encrypt Data</button>
+                            <button id="send-encrypted-tx-btn" class="btn btn-primary" disabled>Send Encrypted Transaction</button>
+                        </div>
+
+                        <div id="encryption-result" class="d-none">
+                            <label class="form-label">Encryption Result</label>
+                            <textarea class="form-control" rows="4" placeholder="Encrypted data will appear here" readonly></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transaction History -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">📜 Transaction History</h5>
+                        <button id="clear-history" class="btn btn-outline-danger btn-sm">Clear History</button>
+                    </div>
+                    <div class="card-body">
+                        <div id="no-transactions" class="alert alert-info">
+                            No transactions yet. Send your first transaction to see it here.
+                        </div>
+                        <div id="transaction-history" class="d-none">
+                            <div id="transaction-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Transaction Result Modal -->
     <div class="modal fade" id="transaction-modal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Результат транзакции</h5>
+                    <h5 class="modal-title">Transaction Result</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div id="transaction-result"></div>
-                    <div class="mt-3">
-                        <a id="tx-explorer-link" href="#" target="_blank" class="btn btn-outline-primary">
-                            <i class="bi bi-box-arrow-up-right me-2"></i>
-                            Посмотреть в эксплорере
-                        </a>
-                    </div>
+                </div>
+                <div class="modal-footer">
+                    <a id="tx-explorer-link" href="#" target="_blank" class="btn btn-outline-primary d-none">View on Explorer</a>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Загрузочный оверлей -->
-    <div id="loading-overlay" class="d-none position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 d-flex align-items-center justify-content-center" style="z-index: 9999;">
-        <div class="text-center text-white">
-            <div class="spinner-border mb-3" role="status">
-                <span class="visually-hidden">Загрузка...</span>
-            </div>
-            <div id="loading-text">Обработка...</div>
-        </div>
-    </div>
-
-    <!-- JavaScript библиотеки -->
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-    
-    <!-- Seismic SDK и конфигурация -->
+    <script>
+        // Load Privy JS Core SDK
+        window.privySDKPromise = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/@privy-io/js-sdk@latest';
+            script.onload = async () => {
+                try {
+                    if (window.Privy) {
+                        const privyConfig = seismicConfig?.privy || {
+                            appId: "cmbhhu8sr00mojr0l66siei2z"
+                        };
+                        const privy = window.Privy.create(privyConfig.appId, privyConfig.config || {});
+                        resolve(privy);
+                    } else {
+                        reject(new Error('Privy SDK не загружен'));
+                    }
+                } catch (error) {
+                    reject(error);
+                }
+            };
+            script.onerror = () => reject(new Error('Ошибка загрузки Privy SDK'));
+            document.head.appendChild(script);
+        });
+    </script>
     <script src="seismic-config.js"></script>
-    <script src="seismic-sdk.js"></script>
     <script src="wallet-connector.js"></script>
-    <script src="seismic-animation.js"></script>
-    
-    <!-- Основное приложение -->
+    <script src="seismic-sdk.js"></script>
     <script src="app.js"></script>
 </body>
 </html> 

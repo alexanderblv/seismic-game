@@ -1,51 +1,5 @@
 // Seismic Transaction Sender App with Privy Integration
 
-// Функции интерактивной демонстрации
-function simulatePublicTransaction() {
-    const output = document.getElementById('public-tx-output');
-    if (!output) return;
-    
-    output.innerHTML = `
-        <div class="alert alert-danger p-2">
-            <small><strong>⚠️ Публичная транзакция отправлена!</strong></small><br>
-            <small>Все данные видны в блокчейне:</small>
-            <small class="d-block mt-1 font-monospace">
-                Hash: 0xabc123...def456<br>
-                От: 0x742d35Cc643C0532E51Bce3Af0c1fc8Ef1bc2f1D<br>
-                Кому: 0x8ba1f109551bD432803012645Hac136c94e5Bdd5<br>
-                Сумма: 1.5 ETH<br>
-                <span class="text-warning">❌ Отсутствует конфиденциальность</span>
-            </small>
-        </div>
-    `;
-}
-
-function simulateEncryptedTransaction() {
-    const output = document.getElementById('encrypted-tx-output');
-    if (!output) return;
-    
-    output.innerHTML = `
-        <div class="alert alert-primary p-2">
-            <small><strong>🔐 Зашифрованная транзакция отправлена!</strong></small><br>
-            <small>Данные защищены шифрованием:</small>
-            <small class="d-block mt-1 font-monospace">
-                Hash: 0x9ef827...c4d951<br>
-                От: <span class="text-primary">***encrypted***</span><br>
-                Кому: <span class="text-primary">***encrypted***</span><br>
-                Сумма: <span class="text-primary">***encrypted***</span><br>
-                <span class="text-success">✅ Полная конфиденциальность</span>
-            </small>
-        </div>
-    `;
-}
-
-function scrollToTransactionForm() {
-    const section = document.getElementById('transaction-section');
-    if (section) {
-        section.scrollIntoView({ behavior: 'smooth' });
-    }
-}
-
 // Debug function to log environment status
 function logEnvironmentStatus(title) {
     console.group(title || 'Web3 Environment Status');

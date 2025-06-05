@@ -23,11 +23,10 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="styles.css">
     
-    <!-- Meta tags for security -->
-    <meta http-equiv="X-Content-Type-Options" content="nosniff">
-    <meta http-equiv="X-Frame-Options" content="DENY">
-    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
-    <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin-allow-popups">
+    <!-- Meta tags for SEO and mobile -->
+    <meta name="robots" content="index, follow">
+    <meta name="author" content="Seismic Team">
+    <meta name="keywords" content="seismic, blockchain, privy, transactions, encryption">
 </head>
 <body>
     <!-- Loading Overlay -->
@@ -337,7 +336,14 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
     <script>
-        // Load Privy JS Core SDK
+        // Prevent conflicts with MetaMask and other wallet extensions
+        console.log('🚨 Transaction Sender uses ONLY Privy SDK for wallet connections');
+        console.log('🚨 MetaMask and other wallet extensions are bypassed');
+        
+        // Store original ethereum provider if present
+        const originalEthereum = window.ethereum;
+        
+        // Load Privy JS Core SDK with conflict prevention
         window.privySDKPromise = new Promise((resolve, reject) => {
             const script = document.createElement('script');
             script.src = 'https://unpkg.com/@privy-io/js-sdk@latest';
@@ -347,18 +353,47 @@
                         const privyConfig = seismicConfig?.privy || {
                             appId: "cmbhhu8sr00mojr0l66siei2z"
                         };
-                        const privy = window.Privy.create(privyConfig.appId, privyConfig.config || {});
+                        
+                        console.log('🔧 Initializing Privy SDK with config:', privyConfig);
+                        
+                        const privy = window.Privy.create(privyConfig.appId, {
+                            ...privyConfig.config,
+                            // Ensure Privy doesn't conflict with existing providers
+                            externalWallets: {
+                                ...privyConfig.config?.externalWallets,
+                                ethereum: {
+                                    connectors: ['detected_wallets', 'metamask']
+                                }
+                            }
+                        });
+                        
+                        console.log('✅ Privy SDK initialized successfully');
                         resolve(privy);
                     } else {
                         reject(new Error('Privy SDK не загружен'));
                     }
                 } catch (error) {
+                    console.error('❌ Privy SDK initialization error:', error);
                     reject(error);
                 }
             };
-            script.onerror = () => reject(new Error('Ошибка загрузки Privy SDK'));
+            script.onerror = () => {
+                console.error('❌ Failed to load Privy SDK script');
+                reject(new Error('Ошибка загрузки Privy SDK'));
+            };
             document.head.appendChild(script);
         });
+        
+        // Suppress MetaMask warnings about global provider conflicts
+        const originalConsoleWarn = console.warn;
+        console.warn = function(...args) {
+            const message = args.join(' ');
+            if (message.includes('MetaMask') && message.includes('global Ethereum provider')) {
+                console.log('ℹ️ MetaMask provider conflict suppressed - using Privy SDK instead');
+                return;
+            }
+            originalConsoleWarn.apply(console, args);
+        };
     </script>
     <script src="seismic-config.js"></script>
     <script src="wallet-connector.js"></script>

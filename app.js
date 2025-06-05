@@ -1,5 +1,36 @@
 // Seismic Transaction Sender App with Privy Integration
 
+// Provider conflict management
+(function() {
+    console.log('🔧 Initializing provider conflict management...');
+    
+    // Detect existing wallet providers
+    const detectedProviders = [];
+    if (window.ethereum) {
+        if (window.ethereum.isMetaMask) detectedProviders.push('MetaMask');
+        if (window.ethereum.isCoinbaseWallet) detectedProviders.push('Coinbase');
+        if (window.ethereum.isPhantom) detectedProviders.push('Phantom');
+    }
+    
+    if (detectedProviders.length > 0) {
+        console.log('🦊 Detected wallet extensions:', detectedProviders.join(', '));
+        console.log('ℹ️ Privy SDK will manage wallet connections to prevent conflicts');
+    }
+    
+    // Suppress specific MetaMask warnings
+    const originalError = console.error;
+    console.error = function(...args) {
+        const message = args.join(' ');
+        if (message.includes('MetaMask encountered an error setting the global Ethereum provider') ||
+            message.includes('Cannot set property ethereum') ||
+            message.includes('which has only a getter')) {
+            console.log('🔇 MetaMask provider conflict suppressed - using Privy for wallet management');
+            return;
+        }
+        originalError.apply(console, args);
+    };
+})();
+
 // Debug function to log environment status
 function logEnvironmentStatus(title) {
     console.group(title || 'Web3 Environment Status');

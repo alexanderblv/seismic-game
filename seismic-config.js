@@ -33,24 +33,20 @@ const seismicConfig = {
         enableZKP: true // Zero-Knowledge Proofs
     },
     
-    // Настройки для Privy с новой конфигурацией
+    // Настройки для Privy с улучшенной совместимостью
     privy: {
         appId: "cmbhhu8sr00mojr0l66siei2z",
         config: {
             "appearance": {
                 "accentColor": "#6A6FF5",
                 "theme": "#FFFFFF",
-                "showWalletLoginFirst": false,
+                "showWalletLoginFirst": true,
                 "logo": "https://auth.privy.io/logos/privy-logo.png",
-                "walletChainType": "ethereum-and-solana",
-                "walletList": [
-                    "detected_wallets",
-                    "metamask",
-                    "phantom"
-                ]
+                "walletChainType": "ethereum-only"
             },
             "loginMethods": [
-                "wallet"
+                "wallet",
+                "email"
             ],
             "fundingMethodConfig": {
                 "moonpay": {
@@ -60,23 +56,25 @@ const seismicConfig = {
             "embeddedWallets": {
                 "requireUserPasswordOnCreate": false,
                 "showWalletUIs": true,
-                "ethereum": {
-                    "createOnLogin": "users-without-wallets"
-                },
-                "solana": {
-                    "createOnLogin": "users-without-wallets"
-                }
-            },
-            "mfa": {
+                "createOnLogin": "users-without-wallets",
                 "noPromptOnMfaRequired": false
             },
             "externalWallets": {
-                "solana": {
-                    "connectors": {}
+                "ethereum": {
+                    "connectors": [
+                        "detected_wallets",
+                        "metamask",
+                        "wallet_connect"
+                    ]
                 }
             },
             "supportedChains": [5124], // Seismic devnet chain ID
-            "defaultChain": 5124
+            "defaultChain": 5124,
+            // Предотвращение конфликтов с существующими providers
+            "integratedWallets": {
+                "createOnLogin": "users-without-wallets",
+                "requireUserPasswordOnCreate": false
+            }
         }
     }
 };

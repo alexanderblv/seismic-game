@@ -95,10 +95,13 @@
                         provider: this.provider,
                         user: this.user
                     });
+                    
+                    return true;
                 }
             } catch (error) {
                 console.warn("⚠️ Could not setup wallet from user:", error);
             }
+            return false;
         }
 
         /**
@@ -133,6 +136,14 @@
                     await this.initialize();
                 }
 
+                // If already authenticated, just setup wallet
+                if (this.authenticated && this.user) {
+                    const walletSetup = await this._setupWalletFromUser();
+                    if (walletSetup) {
+                        return true;
+                    }
+                }
+
                 return await this._connectPrivy();
 
             } catch (error) {
@@ -145,7 +156,7 @@
         }
 
         /**
-         * Connect using REAL Privy JS Core SDK
+         * Connect using REAL Privy JS Core SDK with UI-based authentication
          */
         async _connectPrivy() {
             try {
@@ -155,8 +166,8 @@
                     throw new Error("Privy not initialized");
                 }
 
-                // Try email login (simplest method for now)
-                const email = prompt('Enter your email for Privy login:');
+                // Create a UI modal for email input instead of using prompt()
+                const email = await this._getEmailFromUser();
                 if (!email) {
                     throw new Error('Email is required for Privy login');
                 }
@@ -166,7 +177,8 @@
                 // Send verification code
                 await this.privy.auth.email.sendCode(email);
                 
-                const code = prompt('Enter the verification code sent to your email:');
+                // Get verification code from user via UI
+                const code = await this._getCodeFromUser();
                 if (!code) {
                     throw new Error('Verification code is required');
                 }
@@ -201,27 +213,130 @@
                     this.selectedAccount = embeddedWallet.address;
                     this.wallets = [embeddedWallet];
                     
-                    // Get provider
+                    // Get provider for embedded wallet
                     this.provider = await this.privy.embeddedWallet.getProvider(embeddedWallet);
                     
-                    console.log("✅ Wallet connected successfully via REAL Privy:", this.selectedAccount);
+                    console.log("✅ Wallet connected successfully:", this.selectedAccount);
                     
-                    // Emit success event
                     this._emitEvent('connected', {
                         address: this.selectedAccount,
                         provider: this.provider,
                         user: this.user
                     });
-
+                    
                     return true;
                 } else {
-                    throw new Error("Failed to create or access embedded wallet");
+                    throw new Error("Could not find or create embedded wallet");
                 }
 
             } catch (error) {
                 console.error("❌ Privy connection failed:", error);
-                throw new Error("Privy connection failed: " + error.message);
+                this.lastError = error.message || "Privy connection failed";
+                throw error;
             }
+        }
+
+        /**
+         * Get email from user via UI modal instead of prompt
+         */
+        async _getEmailFromUser() {
+            return new Promise((resolve) => {
+                // Create a simple modal for email input
+                const modal = document.createElement('div');
+                modal.className = 'modal fade show';
+                modal.style.cssText = 'display: block; background: rgba(0,0,0,0.5); z-index: 10000;';
+                modal.innerHTML = `
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">🌊 Connect with Privy</h5>
+                            </div>
+                            <div class="modal-body">
+                                <p>Enter your email to connect with Privy wallet:</p>
+                                <input type="email" id="privy-email-input" class="form-control" placeholder="your@email.com" autofocus>
+                                <div class="form-text">We'll send you a verification code</div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" onclick="this.closest('.modal').remove(); resolve(null)">Cancel</button>
+                                <button type="button" class="btn btn-primary" id="privy-email-submit">Send Code</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(modal);
+                
+                const emailInput = modal.querySelector('#privy-email-input');
+                const submitBtn = modal.querySelector('#privy-email-submit');
+                
+                submitBtn.onclick = () => {
+                    const email = emailInput.value.trim();
+                    if (email && email.includes('@')) {
+                        modal.remove();
+                        resolve(email);
+                    } else {
+                        emailInput.style.border = '2px solid red';
+                        emailInput.focus();
+                    }
+                };
+                
+                emailInput.onkeypress = (e) => {
+                    if (e.key === 'Enter') {
+                        submitBtn.click();
+                    }
+                };
+            });
+        }
+
+        /**
+         * Get verification code from user via UI modal instead of prompt
+         */
+        async _getCodeFromUser() {
+            return new Promise((resolve) => {
+                const modal = document.createElement('div');
+                modal.className = 'modal fade show';
+                modal.style.cssText = 'display: block; background: rgba(0,0,0,0.5); z-index: 10000;';
+                modal.innerHTML = `
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">📧 Enter Verification Code</h5>
+                            </div>
+                            <div class="modal-body">
+                                <p>Enter the verification code sent to your email:</p>
+                                <input type="text" id="privy-code-input" class="form-control" placeholder="123456" maxlength="6" autofocus>
+                                <div class="form-text">Check your email for the 6-digit code</div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" onclick="this.closest('.modal').remove(); resolve(null)">Cancel</button>
+                                <button type="button" class="btn btn-primary" id="privy-code-submit">Verify</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(modal);
+                
+                const codeInput = modal.querySelector('#privy-code-input');
+                const submitBtn = modal.querySelector('#privy-code-submit');
+                
+                submitBtn.onclick = () => {
+                    const code = codeInput.value.trim();
+                    if (code && code.length === 6) {
+                        modal.remove();
+                        resolve(code);
+                    } else {
+                        codeInput.style.border = '2px solid red';
+                        codeInput.focus();
+                    }
+                };
+                
+                codeInput.onkeypress = (e) => {
+                    if (e.key === 'Enter') {
+                        submitBtn.click();
+                    }
+                };
+            });
         }
 
         /**

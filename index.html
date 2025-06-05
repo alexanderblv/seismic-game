@@ -343,12 +343,19 @@
         // Store original ethereum provider if present
         const originalEthereum = window.ethereum;
         
-        // Load Privy JS Core SDK with conflict prevention
+        // Load Privy JS Core SDK with improved error handling and timeout
         window.privySDKPromise = new Promise((resolve, reject) => {
+            // Set a timeout to prevent infinite loading
+            const timeout = setTimeout(() => {
+                reject(new Error('Privy SDK loading timeout - please check your internet connection and refresh the page'));
+            }, 15000); // 15 second timeout
+            
             const script = document.createElement('script');
             script.src = 'https://unpkg.com/@privy-io/js-sdk@latest';
             script.onload = async () => {
                 try {
+                    clearTimeout(timeout);
+                    
                     if (window.Privy) {
                         const privyConfig = seismicConfig?.privy || {
                             appId: "cmbhhu8sr00mojr0l66siei2z"
@@ -356,32 +363,66 @@
                         
                         console.log('🔧 Initializing Privy SDK with config:', privyConfig);
                         
+                        // Simplified Privy configuration
                         const privy = window.Privy.create(privyConfig.appId, {
-                            ...privyConfig.config,
-                            // Ensure Privy doesn't conflict with existing providers
+                            embeddedWallets: {
+                                createOnLogin: 'users-without-wallets',
+                                noPromptOnSignature: false
+                            },
                             externalWallets: {
-                                ...privyConfig.config?.externalWallets,
                                 ethereum: {
-                                    connectors: ['detected_wallets', 'metamask']
+                                    connectors: ['detected_wallets', 'metamask', 'coinbase_wallet', 'wallet_connect']
                                 }
+                            },
+                            appearance: {
+                                theme: 'light',
+                                accentColor: '#6A6FF5'
                             }
                         });
+                        
+                        // Wait for Privy to be ready with timeout
+                        const readyTimeout = setTimeout(() => {
+                            reject(new Error('Privy SDK ready timeout'));
+                        }, 10000);
+                        
+                        await privy.ready();
+                        clearTimeout(readyTimeout);
                         
                         console.log('✅ Privy SDK initialized successfully');
                         resolve(privy);
                     } else {
-                        reject(new Error('Privy SDK не загружен'));
+                        clearTimeout(timeout);
+                        reject(new Error('Privy SDK не загружен - window.Privy не найден'));
                     }
                 } catch (error) {
+                    clearTimeout(timeout);
                     console.error('❌ Privy SDK initialization error:', error);
                     reject(error);
                 }
             };
             script.onerror = () => {
+                clearTimeout(timeout);
                 console.error('❌ Failed to load Privy SDK script');
-                reject(new Error('Ошибка загрузки Privy SDK'));
+                reject(new Error('Ошибка загрузки Privy SDK - проверьте подключение к интернету'));
             };
             document.head.appendChild(script);
+        });
+        
+        // Improved error handling for Privy loading
+        window.privySDKPromise.catch(error => {
+            console.error('❌ Privy SDK failed to load:', error);
+            // Show user-friendly error message
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'alert alert-danger position-fixed';
+            errorDiv.style.cssText = 'top: 20px; right: 20px; z-index: 10000; max-width: 400px;';
+            errorDiv.innerHTML = `
+                <h6><i class="bi bi-exclamation-triangle"></i> Wallet Service Error</h6>
+                <p class="mb-2">${error.message}</p>
+                <button class="btn btn-sm btn-outline-danger" onclick="window.location.reload()">
+                    <i class="bi bi-arrow-clockwise"></i> Retry
+                </button>
+            `;
+            document.body.appendChild(errorDiv);
         });
         
         // Suppress MetaMask warnings about global provider conflicts

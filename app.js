@@ -273,7 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
             loadingOverlay.classList.remove('d-none');
             loadingText.textContent = 'Initializing SDK...';
             
-            // Wait for ethers to be available
+            // Wait for ethers to be available with timeout
             if (typeof window.ethers === 'undefined') {
                 console.error('Ethers.js is not available');
                 throw new Error('Ethers.js is required but not loaded');
@@ -297,12 +297,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // Initialize wallet connector first (it will handle Privy loading internally)
+            // Initialize wallet connector with timeout
             loadingText.textContent = 'Initializing wallet connector...';
             
             try {
                 console.log('Initializing wallet connector...');
-                await window.walletConnector.initialize();
+                
+                // Add timeout to prevent infinite loading
+                const initTimeout = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Wallet connector initialization timeout')), 30000)
+                );
+                
+                await Promise.race([
+                    window.walletConnector.initialize(),
+                    initTimeout
+                ]);
+                
                 console.log('Wallet connector initialized successfully');
                 
                 // Set up event listeners
@@ -315,16 +325,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 let errorMessage = 'Wallet connector failed to initialize.';
                 
                 if (connectorError.message) {
-                    if (connectorError.message.includes('Privy SDK not found') || 
+                    if (connectorError.message.includes('timeout')) {
+                        errorMessage = 'Wallet service loading timeout. Please check your internet connection and refresh the page.';
+                    } else if (connectorError.message.includes('Privy SDK not found') || 
                         connectorError.message.includes('Privy SDK failed to load')) {
                         errorMessage = 'Failed to load wallet services. Please check your internet connection and refresh the page.';
+                    } else if (connectorError.message.includes('Privy SDK loading timeout')) {
+                        errorMessage = 'Wallet service loading timeout. Please refresh the page and try again.';
                     } else {
                         errorMessage = `Wallet initialization failed: ${connectorError.message}`;
                     }
                 }
                 
                 showError(errorMessage);
-                throw connectorError; // Stop initialization if Privy fails
+                // Don't throw error here to allow app to continue with limited functionality
+                console.warn('⚠️ App will continue with limited functionality');
             }
             
         } catch (error) {

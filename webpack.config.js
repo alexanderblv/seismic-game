@@ -1,5 +1,6 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 module.exports = (env, argv) => {
   const isDevelopment = argv.mode === 'development';
@@ -68,6 +69,14 @@ module.exports = (env, argv) => {
           minifyURLs: true,
         },
       }),
+      new CopyWebpackPlugin({
+        patterns: [
+          {
+            from: 'public/seismic-config.js',
+            to: 'seismic-config.js',
+          },
+        ],
+      }),
     ],
     
     resolve: {
@@ -85,9 +94,15 @@ module.exports = (env, argv) => {
     },
     
     devServer: {
-      static: {
-        directory: path.join(__dirname, 'dist'),
-      },
+      static: [
+        {
+          directory: path.join(__dirname, 'dist'),
+        },
+        {
+          directory: path.join(__dirname, 'public'),
+          publicPath: '/',
+        }
+      ],
       compress: true,
       port: 3000,
       hot: true,

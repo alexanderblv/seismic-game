@@ -1,12 +1,23 @@
 {
-  "rewrites": [
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "npm install",
+  "routes": [
     {
-      "source": "/(.*\\.(js|css|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot))",
-      "destination": "/$1"
+      "src": "^/static/(.*)",
+      "dest": "/static/$1"
     },
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "src": "^/seismic-config.js$",
+      "dest": "/seismic-config.js"
+    },
+    {
+      "src": "^/(.*\\.(js|css|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot|json))$",
+      "dest": "/$1"
+    },
+    {
+      "src": "^/(.*)",
+      "dest": "/index.html"
     }
   ],
   "headers": [
@@ -28,6 +39,19 @@
         {
           "key": "Cross-Origin-Opener-Policy",
           "value": "same-origin-allow-popups"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        }
+      ]
+    },
+    {
+      "source": "/seismic-config.js",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/javascript"
         }
       ]
     }

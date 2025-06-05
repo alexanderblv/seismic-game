@@ -1,0 +1,38 @@
+# Development files (но оставляем package.json и webpack для Vercel build)
+node_modules/
+dist/
+build/
+
+# Git files
+.git/
+.gitignore
+
+# Documentation and test files
+*.md
+!README.md
+test-*.html
+PRIVY_*.md
+DEPLOYMENT_GUIDE.md
+WALLET_FIXES.md
+
+# Old and unused files
+app.js
+wallet-connector.js
+seismic-sdk.js
+seismic-animation.js
+tatus
+h origin main
+
+# Libs and unused public assets
+libs/
+public/libs/
+public/src/
+public/app.js
+public/wallet-connector.js
+public/seismic-sdk.js
+public/test-*.html
+
+# React source files (для статического деплоя)
+src/
+.babelrc
+webpack.config.js 

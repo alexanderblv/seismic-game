@@ -1,5 +1,5 @@
 // Конфигурация для подключения к Seismic Devnet
-const seismicConfig = {
+window.seismicConfig = {
     // Информация о сети Seismic Devnet
     network: {
         name: "Seismic devnet",
@@ -79,12 +79,4 @@ const seismicConfig = {
             "defaultChain": 5124
         }
     }
-};
-
-// Экспортируем конфигурацию для использования в других файлах
-if (typeof module !== 'undefined') {
-    module.exports = seismicConfig;
-} else {
-    // Для использования в браузере
-    window.seismicConfig = seismicConfig;
-} 
+}; 

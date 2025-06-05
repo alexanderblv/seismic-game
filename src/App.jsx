@@ -1,5 +1,7 @@
 import React from 'react';
 import { PrivyProvider, usePrivy } from '@privy-io/react-auth';
+import WalletInfo from './components/WalletInfo';
+import './App.css'; // Импортируем стили
 
 // Импортируем конфигурацию
 import { seismicConfig } from '../seismic-config.js';
@@ -35,6 +37,11 @@ function AppContent() {
                         >
                             🔐 Подключить кошелек
                         </button>
+                        <div className="info-text">
+                            <p>✨ Поддерживаются MetaMask, WalletConnect и встроенные кошельки Privy</p>
+                            <p>🔒 Безопасная аутентификация через Privy</p>
+                            <p>🌐 Автоматическое подключение к Seismic Devnet</p>
+                        </div>
                     </div>
                 ) : (
                     <div className="user-section">
@@ -52,6 +59,9 @@ function AppContent() {
                             </div>
                         </div>
 
+                        {/* Компонент с информацией о кошельке */}
+                        <WalletInfo />
+
                         <div className="actions">
                             <button 
                                 className="action-button game-button"
@@ -65,11 +75,38 @@ function AppContent() {
                             <button 
                                 className="action-button wallet-button"
                                 onClick={() => {
-                                    console.log('User wallets:', user?.linkedAccounts);
+                                    console.log('User data:', user);
+                                    console.log('Wallet info:', user?.wallet);
+                                    console.log('Linked accounts:', user?.linkedAccounts);
                                     alert('📊 Информация о кошельке в консоли');
                                 }}
                             >
                                 👛 Информация о кошельке
+                            </button>
+
+                            <button 
+                                className="action-button network-button"
+                                onClick={async () => {
+                                    try {
+                                        // Добавляем Seismic сеть в MetaMask
+                                        await window.ethereum.request({
+                                            method: 'wallet_addEthereumChain',
+                                            params: [{
+                                                chainId: `0x${seismicConfig.network.chainId.toString(16)}`,
+                                                chainName: seismicConfig.network.name,
+                                                nativeCurrency: seismicConfig.network.nativeCurrency,
+                                                rpcUrls: [seismicConfig.network.rpcUrl],
+                                                blockExplorerUrls: [seismicConfig.network.explorer]
+                                            }]
+                                        });
+                                        alert('✅ Seismic сеть добавлена в кошелек!');
+                                    } catch (error) {
+                                        console.error('Ошибка при добавлении сети:', error);
+                                        alert('❌ Ошибка при добавлении сети. Проверьте консоль.');
+                                    }
+                                }}
+                            >
+                                🌐 Добавить Seismic сеть
                             </button>
                             
                             <button 
@@ -87,6 +124,7 @@ function AppContent() {
                                 <p><strong>Chain ID:</strong> <code>{seismicConfig.network.chainId}</code></p>
                                 <p><strong>RPC:</strong> <a href={seismicConfig.network.rpcUrl} target="_blank" rel="noopener noreferrer">{seismicConfig.network.rpcUrl}</a></p>
                                 <p><strong>Explorer:</strong> <a href={seismicConfig.network.explorer} target="_blank" rel="noopener noreferrer">Открыть explorer</a></p>
+                                <p><strong>Faucet:</strong> <a href={seismicConfig.network.faucet} target="_blank" rel="noopener noreferrer">Получить тестовые токены</a></p>
                             </div>
                         </div>
                     </div>
